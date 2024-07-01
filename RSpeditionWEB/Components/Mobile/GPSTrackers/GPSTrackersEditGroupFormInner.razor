@@ -1,0 +1,136 @@
+﻿@inherits EditFormBase<GpsTracker_View_GUID>
+
+<CascadingValue Value="@this">
+    @if (this.IsRender && this.Model != null)
+    {
+        var label_Number = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.Number)).Item1 ?? string.Empty;
+        var label_Imei = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.Imei)).Item1 ?? string.Empty;
+        var label_ModelName = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.ModelName)).Item1 ?? string.Empty;
+        var label_Cost = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.Cost)).Item1 ?? string.Empty;
+        GpstrackerModelView mod = new();
+        var type_mod = mod.GetType();
+        var props_mod = new List<PropertyInfo> { type_mod.GetProperty(nameof(mod.ModelName)) };
+        var textProp_mod = type_mod.GetProperty(nameof(mod.ModelName));
+        var temp_mod = type_mod.GetCustomDisplayValues(nameof(mod.ModelName));
+        var labelForSearch_mod = temp_mod.Item1 ?? string.Empty;
+        var current_mod = this.Models?.FirstOrDefault(_ => _.Id == this.Model.FkTrackerModelId) ?? null;
+        var initPar_mod = current_mod == null ? null : new List<GpstrackerModelView> { current_mod };
+        var placeholder_mod = current_mod?.ModelName ?? labelForSearch_mod;
+        var colspan = this.IsCreate ? 6 : 5;
+
+        <tr>
+            <td data-label="№">
+                @(this.Index + 1)
+            </td>
+            <td data-label="@label_Number">
+                <input type="text"
+                       @bind-value="this.Model.Number"
+                       @oninput="@(async(ChangeEventArgs arg) => {this.Model.Number = arg.Value?.ToString() ?? string.Empty;
+                                                                  if(this.InvokeParentHandler_DataChanges.HasDelegate)
+                                                                      await this.InvokeParentHandler_DataChanges.InvokeAsync(this.Model);})" />
+            </td>
+            <td data-label="@label_Imei">
+                <input type="text"
+                       @bind-value="this.Model.Imei"
+                       @oninput="@(async(ChangeEventArgs arg) => {this.Model.Imei = arg.Value?.ToString() ?? string.Empty; 
+                                                                  if(this.InvokeParentHandler_DataChanges.HasDelegate)
+                                                                      await this.InvokeParentHandler_DataChanges.InvokeAsync(this.Model);})" />
+            </td>
+            <td data-label="@label_ModelName">
+                <SearchSelectTItems Items="@(this.Models?.OrderBy(_ => _.ModelName)?.ToList() ?? new())"
+                                    GetObjItems="@(() => this.Models?.OrderBy(_ => _.ModelName)?.Cast<object>()?.ToList() ?? new())"
+                                    T="@GpstrackerModelView"
+                                    KeyPropInfo="@(type_mod.GetProperty(nameof(mod.Id)))"
+                                    MaxSizeSelect="4"
+                                    InitParameters="@initPar_mod"
+                                    LabelForSearch="@labelForSearch_mod"
+                                    Placeholder="@placeholder_mod"
+                                    IsMultiple="@false"
+                                    PropertiesInfoForSearch="@props_mod"
+                                    TextProperty="@textProp_mod"
+                                    SendToParentFoundAndSelectedItems="@(async(List<GpstrackerModelView> selectedItems)
+                                                                                                                     => {
+                                                                                                                            if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                                            {
+                                                                                                                                var modelItem = this.Models?.FirstOrDefault(_ => _.Id ==  selectedItems?.FirstOrDefault()?.Id);
+                                                                                                                                this.Model.FkTrackerModelId = modelItem.Id;
+                                                                                                                            }
+                                                                                                                            else
+                                                                                                                                this.Model.FkTrackerModelId = null;
+                                                                                                                            if(this.InvokeParentHandler_DataChanges.HasDelegate)
+                                                                                                                                await this.InvokeParentHandler_DataChanges.InvokeAsync(this.Model);
+                                                                                                                        })" />
+            </td>
+            <td data-label="@label_Cost">
+                <input type="number"
+                       @bind-value="this.Model.Cost"
+                       @oninput="@(async(ChangeEventArgs arg) => {this.Model.Cost = Decimal.TryParse(arg.Value?.ToString() ?? string.Empty, out var val) ? val: null;
+                                                                  if(this.InvokeParentHandler_DataChanges.HasDelegate)
+                                                                      await this.InvokeParentHandler_DataChanges.InvokeAsync(this.Model);})" />
+            </td>
+            @if (this.IsCreate)
+            {
+                <td data-label="Удалить"
+                    @onclick="@(async () => { if(this.InvokeParentHandler_RemoveRow.HasDelegate)
+                                                  await this.InvokeParentHandler_RemoveRow.InvokeAsync(this.Model.GuideId); })"
+                    style="cursor: pointer; font-size: xx-large !important;"
+                    title="Кликните для удаления sim-карты из партии">
+                    -
+                </td>
+            }
+        </tr>
+        @if (!this.IsModelValid)
+        {
+            <tr>
+                <td colspan="@colspan" style="text-align: left;" class="validation-message">
+                    <ResultOperation Devider="'.'"
+                                     ResList="null"
+                                     ResMessage="@this.ValidErrors" />
+                </td>
+            </tr>
+        }
+    }
+    else
+    {
+        <div>
+            Идет загрузка формы...
+        </div>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    [CascadingParameter]
+    public GPSTrackersEditGroupForm GPSTrackersEditGroupFormCascadingParameter { get; set; }
+
+    [Parameter]
+    public EventCallback<GpsTracker_View_GUID> InvokeParentHandler_DataChanges { get; set; }
+
+    [Parameter]
+    public EventCallback<string> InvokeParentHandler_RemoveRow { get; set; }
+
+    [Parameter]
+    public int Index { get; set; }
+
+    private List<GpstrackerModelView> Models => this.GPSTrackersEditGroupFormCascadingParameter?.GPSTrackersFilters_CascadingVal?.GpsTrackerCascadingParameter?.Models ?? new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IsRender = true;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        this.Model = this.GPSTrackersEditGroupFormCascadingParameter?.Model?.Trackers?.FirstOrDefault(_ => _.GuideId == (this.Model?.GuideId ?? string.Empty)) ?? null;
+        if (this.Model != null)
+        {
+            this.Model.FkInvoiceGuid = this.GPSTrackersEditGroupFormCascadingParameter?.Model?.Invoice?.Fguid ?? default;
+            this.Model.FkDivisionId = this.GPSTrackersEditGroupFormCascadingParameter?.Model?.Invoice?.FkDivisionId ?? default;
+        }
+    }
+}

@@ -1,0 +1,7 @@
+﻿.min_td {
+    border-right: none !important;
+}
+
+tr:last-child {
+    border-top: 1px solid black;
+}

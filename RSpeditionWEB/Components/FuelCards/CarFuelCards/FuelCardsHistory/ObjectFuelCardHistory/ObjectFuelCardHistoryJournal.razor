@@ -1,0 +1,351 @@
+﻿@inherits ScaffoldJCFiltersBase<FuelCardsEventFullModel>
+
+    <CascadingValue Value="@this">
+        @if (IsRender)
+        {
+            var currentSelectedObjectValue = EventsObjectSelected is not null ? ObjectsKindsValues?.FirstOrDefault(value => value.ObjectValue == EventsObjectSelected) : null;
+            <div class="flexRowCenter" style="padding-top: 15px;">
+                <SearchSelectTItems Items="@ObjectsKindsValues"
+                                    T="@ObjectsKind"
+                                    GetObjItems="@(() => ObjectsKindsValues?.Cast<object>()?.ToList() ?? new())"
+                                    KeyPropInfo="@(typeof(ObjectsKind).GetProperty(nameof(ObjectsKind.ObjectValue)))"
+                                    MaxSizeSelect="5"
+                                    InitParameters="@(currentSelectedObjectValue != null ? new List<ObjectsKind>{currentSelectedObjectValue} : new())"
+                                    LabelForSearch="Выберите объект"
+                                    Placeholder="Объект не выбран"
+                                    IsMultiple="@false"
+                                    IsRenderLabelForSearch="true"
+                                    PropertiesInfoForSearch="@(new List<PropertyInfo> {typeof(ObjectsKind).GetProperty(nameof(ObjectsKind.ObjectValueName))})"
+                                    TextProperty="@(typeof(ObjectsKind).GetProperty(nameof(ObjectsKind.ObjectValueName)))"
+                                    SendToParentFoundAndSelectedItems="@(async(List<ObjectsKind> selectedItems) => { await ReactOnObjectChanged(selectedItems?.FirstOrDefault()?.Id ?? -1); })" />
+
+                @if(IsRenderObjectSelect)
+                {
+                    @if (EventsObjectSelected is not null && EventsObjectSelected == FuelCardsEventsObject.тягач)
+                    {
+                        <TSearch T="@TrucksLicensePlate"
+                                 @ref="@TSearchRefTruck"
+                                 Items="@AvailableTrucksLicensePlates"
+                                 GetObjItems="@(() => AvailableTrucksLicensePlates?.Cast<object>()?.ToList() ?? new())"
+                                 KeyPropInfo="@(typeof(TrucksLicensePlate).GetProperty(nameof(TrucksLicensePlate.LicensePlate)))"
+                                 InitParameters="@(new())"
+                                 LabelForSearch=""
+                                 Placeholder="Поиск"
+                                 IsRenderLabelForSearch="false"
+                                 SendToParentFoundAndSelectedItems="@(async(List<TrucksLicensePlate> selectedItems) => await ReactOnObjectValuesSelected(selectedItems))" />
+                    }
+                    @if (EventsObjectSelected is not null && EventsObjectSelected == FuelCardsEventsObject.водитель)
+                    {
+                        <TSearch T="@DriverView"
+                                 @ref="@TSearchRefDriver" 
+                                 Items="@AvailableDrivers"
+                                 GetObjItems="@(() => AvailableDrivers?.Cast<object>()?.ToList() ?? new())"
+                                 KeyPropInfo="@(typeof(DriverView).GetProperty(nameof(DriverView.Name)))"
+                                 InitParameters="@(new())"
+                                 LabelForSearch=""
+                                 Placeholder="Поиск"
+                                 IsRenderLabelForSearch="false"
+                                 SendToParentFoundAndSelectedItems="@(async(List<DriverView> selectedItems) => await ReactOnObjectValuesSelected(selectedItems))" />
+                    }
+            }
+        </div>
+
+            @if (IsRenderTable)
+            {
+                <div style="padding-top: 5px;">
+                    <ScaffoldJCParent T="@FuelCardsEventFullModel"
+                                      @ref="@ScaffoldJCParentRef"
+                                      MinHeight="74"
+                                      MaxHeight="78"
+                                      SendToParentSelectedItem="@((FuelCardsEventFullModel item) => ReactOnSelectItem(item))" />
+                </div>
+
+                @*Блок кнопок в футере*@
+                <div class="stickyBottomContainer">
+                    <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList" />
+                </div>
+            }
+        }
+        else
+        {
+            <ProgressBarInner TitleProcess="Идет загрузка..." TopValue="40" />
+        }
+        <div id="@IdForProgressBar" style="display: none;">
+            <ProgressBar />
+        </div>
+    </CascadingValue>
+
+@code {
+    [CascadingParameter]
+    public FuelCardsCont FuelCardsCascadingParameter { get; set; }
+
+    private TSearch<TrucksLicensePlate> TSearchRefTruck { get; set; }
+
+    private TSearch<DriverView> TSearchRefDriver { get; set; }
+
+    private FuelCardsEventsObject? EventsObjectSelected { get; set; } = null;
+
+    private List<TrucksLicensePlate> AvailableTrucksLicensePlates { get; set; }
+
+    private List<TrucksLicensePlate> AvailableTrucksLicensePlatesSelected { get; set; }
+
+    private List<DriverView> AvailableDrivers { get; set; }
+
+    private List<DriverView> AvailableDriversSelected { get; set; }
+
+    private bool IsRenderTable { get; set; }
+
+    private bool IsReadyToRender { get; set; }
+
+
+    private bool IsRenderObjectSelect { get; set; }
+
+    public class ObjectsKind : IId
+    {
+        public ObjectsKind(FuelCardsEventsObject value)
+        {
+            Id = (int)value;
+            ObjectValue = value;
+        }
+
+        public int Id { get; set; }
+
+        public FuelCardsEventsObject ObjectValue { get; set; }
+
+        public string ObjectValueName => Enum.GetName(typeof(FuelCardsEventsObject), ObjectValue);
+    }
+
+    private List<ObjectsKind> ObjectsKindsValues
+    => new List<ObjectsKind>
+        {
+            new ObjectsKind(FuelCardsEventsObject.тягач),
+            new ObjectsKind(FuelCardsEventsObject.водитель),
+        };
+
+    protected override async Task OnInitializedAsync()
+    {
+        MinimumFuelRole = FuelRoles.Fuel_Provisioner;
+        await base.OnInitializedAsync();
+
+    }
+
+    protected override void InitEvents()
+    {
+        StartFilteringTItemsEvent += ApplyFiltersToTItems;
+        ScaffoldJCMainBaseCascadingParameter.FinishUpdatingMainCollectionsEvent += UpdateCollectionTItemsFromParent;
+        ScaffoldJCMainBaseCascadingParameter.FinishUpdSecondCollectionsEvent += UpdateGetMainCollectionTItemsFromDB;
+    }
+
+    public override List<(PropertyInfo pi, SortOrder sortOrder)> DefaultSortByColumns
+    {
+        get
+        {
+            if (EventsObjectSelected == FuelCardsEventsObject.тягач)
+                return new List<(PropertyInfo pi, SortOrder sortOrder)>
+                {
+                    (ModelsType.GetProperty(nameof(Model.CarId)), SortOrder.asc),
+                    (ModelsType.GetProperty(nameof(Model.FinishDateNotNull)), SortOrder.asc),
+                    (ModelsType.GetProperty(nameof(Model.StartDate)), SortOrder.asc)
+                };
+            else if (EventsObjectSelected == FuelCardsEventsObject.водитель)
+                return new List<(PropertyInfo pi, SortOrder sortOrder)>
+                {
+                    (ModelsType.GetProperty(nameof(Model.EmployeeId)), SortOrder.asc),
+                    (ModelsType.GetProperty(nameof(Model.FinishDateNotNull)), SortOrder.asc),
+                    (ModelsType.GetProperty(nameof(Model.StartDate)), SortOrder.asc)
+                };
+            else return new();
+        }
+    }
+
+    protected override async Task UpdateGetMainCollectionTItemsFromDB()
+    {
+        Items = new();
+        try
+        {
+            if (EventsObjectSelected is not null && EventsObjectSelected == FuelCardsEventsObject.тягач)
+            {
+                await FuelCardsCascadingParameter?.InitTrucksLicensePlatesStatuses();
+                await FuelCardsCascadingParameter?.InitObjectsFuelCardsEventsModels("truck");
+            }
+            else if (EventsObjectSelected is not null && EventsObjectSelected == FuelCardsEventsObject.водитель)
+            {
+                await FuelCardsCascadingParameter?.InitEmployeesAssignmentsDrivers();
+                await FuelCardsCascadingParameter?.InitObjectsFuelCardsEventsModels("employee");
+            }
+
+            if (EventsObjectSelected is not null) await UpdateCollectionTItemsFromParent();
+        }
+        catch (Exception exc)
+        {
+            exc?.LogError(logger, this.GetType()?.Name ?? string.Empty, nameof(UpdateGetMainCollectionTItemsFromDB));
+        }
+
+        await IsRenderTrueAsync();
+    }
+
+    protected override async Task<List<FuelCardsEventFullModel>> GetCollectionTItemsFromParent() 
+        => FuelCardsCascadingParameter?.FuelCardsEvents ?? new ();
+
+    public override async Task UpdateCollectionTItemsFromParent()
+    {
+        Items = (await GetCollectionTItemsFromParent()) ?? new();
+        StartFilteringTItemsInvoke();
+    }
+
+    public void ActualizeAvailableTrucksLicensePlates()
+        => AvailableTrucksLicensePlates = FuelCardsCascadingParameter?.TrucksLicensePlatesStatuses?.SelectMany(
+        truckInfo => truckInfo.TrucksLicensePlates?.Select(licensePlate => new TrucksLicensePlate(truckInfo.TruckId, licensePlate.LicensePlate)))?
+        .DistinctBy(licensePlate => licensePlate.LicensePlate)?.OrderBy(licensePlate => licensePlate.LicensePlate ?? string.Empty)?.ToList() ?? new();
+
+    public void ActualizeAvailableDrivers()
+        => AvailableDrivers = FuelCardsCascadingParameter?.EmployeesAssignmentsDrivers?.Select(driver => new DriverView(driver.EmployeeId, driver.EmployeeName))?
+        .DistinctBy(employeeName => employeeName.Name)?.OrderBy(employeeName => employeeName.Name ?? string.Empty)?.ToList() ?? new();
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+    {
+        if (EventsObjectSelected == FuelCardsEventsObject.тягач)
+            return new List<PropertyInfo>
+            {
+                ModelsType.GetProperty(nameof(Model.Id)),
+                ModelsType.GetProperty(nameof(Model.CarId)),
+                ModelsType.GetProperty(nameof(Model.CarNumber)),
+                ModelsType.GetProperty(nameof(Model.CarNumberOnEventDate)),
+                ModelsType.GetProperty(nameof(Model.ProviderName)),
+                ModelsType.GetProperty(nameof(Model.CardId)),
+                ModelsType.GetProperty(nameof(Model.CardNumber)),
+                ModelsType.GetProperty(nameof(Model.CardFullNumber)),
+                ModelsType.GetProperty(nameof(Model.DivisionName)),
+                ModelsType.GetProperty(nameof(Model.StartDate)),
+                ModelsType.GetProperty(nameof(Model.FinishDate)),
+                ModelsType.GetProperty(nameof(Model.Comment)),
+            };
+        else if (EventsObjectSelected == FuelCardsEventsObject.водитель)
+            return new List<PropertyInfo>
+            {
+                ModelsType.GetProperty(nameof(Model.Id)),
+                ModelsType.GetProperty(nameof(Model.EmployeeId)),
+                ModelsType.GetProperty(nameof(Model.EmployeeName)),
+                ModelsType.GetProperty(nameof(Model.ProviderName)),
+                ModelsType.GetProperty(nameof(Model.CardId)),
+                ModelsType.GetProperty(nameof(Model.CardNumber)),
+                ModelsType.GetProperty(nameof(Model.CardFullNumber)),
+                ModelsType.GetProperty(nameof(Model.DivisionName)),
+                ModelsType.GetProperty(nameof(Model.StartDate)),
+                ModelsType.GetProperty(nameof(Model.FinishDate)),
+                ModelsType.GetProperty(nameof(Model.Comment)),
+            };
+        else return new();
+    }
+
+    public override List<PropertyInfo> InitPropertiesHidden()
+    {
+        if (EventsObjectSelected == FuelCardsEventsObject.тягач)
+            return new List<PropertyInfo>
+            {
+                ModelsType.GetProperty(nameof(Model.Id)),
+                ModelsType.GetProperty(nameof(Model.CardId)),
+                ModelsType.GetProperty(nameof(Model.CarId)),
+                ModelsType.GetProperty(nameof(Model.Comment)),
+            };
+        else if (EventsObjectSelected == FuelCardsEventsObject.водитель)
+            return new List<PropertyInfo>
+            {
+                ModelsType.GetProperty(nameof(Model.Id)),
+                ModelsType.GetProperty(nameof(Model.CardId)),
+                ModelsType.GetProperty(nameof(Model.EmployeeId)),
+                ModelsType.GetProperty(nameof(Model.Comment)),
+            };
+        else return new();
+    }
+
+    protected override void InitButtons()
+    {
+        var isActive = IsRender;
+        ButtonBaseClassList = new();
+        ButtonBaseClass printFormButton = new();
+        printFormButton.CallbackToParent = (async () =>
+        {
+            var uri = HostUrl + ControllersNames.fuelprint + "/cardsevents";
+            var resGenerate = await InitGeneratePrintForm(uri, ItemsFiltered);
+            if (!resGenerate.Item1)
+            {
+                Message = resGenerate.Item2;
+                Title = "Предупреждение";
+                ShowMessage = true;
+                StateHasChanged();
+            }
+        });
+        printFormButton.LabelForButton = "Печатная форма";
+        printFormButton.IsActive = isActive;
+        printFormButton.TitleIfIsActive = "Кликните для формирования печатной формы отчета";
+        printFormButton.TitleIfIsNonActive = "Печатная форма отчета станет доступной после полной загрузки страницы";
+        //
+        this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { printFormButton });
+    }
+
+    private async Task ReactOnObjectChanged(int objectId)
+    {
+        await ProgressBarOpenAsync();
+        IsRenderTable = false;
+        IsRenderObjectSelect = false;
+        TSearchRefTruck?.ResetValues();
+        TSearchRefDriver?.ResetValues();
+
+        if (objectId == -1)
+        {
+            EventsObjectSelected = null;
+            await UpdateGetMainCollectionTItemsFromDB();
+        }
+        else
+        {
+            EventsObjectSelected = (FuelCardsEventsObject)Enum.GetValues(typeof(FuelCardsEventsObject)).GetValue(objectId);
+            await UpdateGetMainCollectionTItemsFromDB();
+
+            if (EventsObjectSelected == FuelCardsEventsObject.тягач)
+            {
+                ActualizeAvailableTrucksLicensePlates();
+                AvailableTrucksLicensePlatesSelected = new();
+                IsRenderObjectSelect = true;
+            }
+            else if(EventsObjectSelected == FuelCardsEventsObject.водитель)
+            {
+                ActualizeAvailableDrivers();
+                AvailableDriversSelected = new();
+                IsRenderObjectSelect = true;
+            }
+
+            ResetMembers();
+            ScaffoldJCParentRef?.ClearTableSearchFilters();
+            IsRenderTable = true;
+        }
+
+        await ProgressBarCloseAsync();
+    }
+
+    private async Task ReactOnObjectValuesSelected(List<TrucksLicensePlate> selectedTrucks)
+    {
+        AvailableTrucksLicensePlatesSelected = selectedTrucks ?? new();
+        StartFilteringTItemsInvoke();
+    }
+
+    private async Task ReactOnObjectValuesSelected(List<DriverView> selectedDrivers)
+    {
+        AvailableDriversSelected = selectedDrivers ?? new();
+        StartFilteringTItemsInvoke();
+    }
+
+    protected override bool IsVizible(FuelCardsEventFullModel item)
+        => EventsObjectSelected == null || item == null
+        ? false
+        : EventsObjectSelected switch
+        {
+            FuelCardsEventsObject.тягач => AvailableTrucksLicensePlatesSelected?.Any(licensePlate =>
+                !string.IsNullOrEmpty(licensePlate.LicensePlate)
+                && (licensePlate.LicensePlate.Trim().Equals(item.CarNumber.Trim(), StringComparison.InvariantCultureIgnoreCase)
+                || licensePlate.LicensePlate.Trim().Equals(item.CardFullNumber.Trim(), StringComparison.InvariantCultureIgnoreCase))) ?? false,
+            FuelCardsEventsObject.водитель => AvailableDriversSelected?.Any(driver =>
+                item.EmployeeId.HasValue && driver.Id == item.EmployeeId.Value) ?? false,
+            _ => false,
+        };
+}

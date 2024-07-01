@@ -1,0 +1,80 @@
+﻿@inject IApies api
+@inherits EventsEditFormBase<GpsTrackerOperationView, GpsTrackerView>
+
+@code {
+    protected override DateTime? startPrevious => this.TEventPrevious?.OperationDate.Date ?? null;
+    protected override DateTime? finishNext => this.TEventNext?.OperationFinishDate?.Date ?? null;
+    protected override DateTime? startLast => this.TEventLast?.OperationDate.Date ?? null;
+    protected override DateTime? startNext => this.TEventNext?.OperationDate.Date ?? default;
+
+    protected override bool IsModelValid => this.ValidateModel().isValid
+                                            && string.IsNullOrEmpty(this.ValidationMessage_TypeEvent)
+                                            && string.IsNullOrEmpty(this.ValidationMessageFinishDate)
+                                            && string.IsNullOrEmpty(this.ValidationMessageStartDate)
+                                            && string.IsNullOrEmpty(this.ValidationMessage_Comment)
+                                            && string.IsNullOrEmpty(this.ValidationMessage_Sim) 
+                                            && string.IsNullOrEmpty(this.ValidationMessage_Truck)
+                                            && string.IsNullOrEmpty(this.ValidationMessage_Trailer);
+
+    private Predicate<int?> IdRequired = (int? id) => id != null && id > 0;
+
+    protected string ValidationMessage_TypeEvent => this.CheckProp_EventType(this.Model?.OperationType ?? null);
+
+    protected string ValidationMessage_Truck => this.CheckProp_Id(this.Model?.FkTruckId ?? null, EventType.Тягач);
+
+    protected string ValidationMessage_Trailer => this.CheckProp_Id(this.Model?.FkTrailerId ?? null, EventType.Прицеп);
+
+    protected string ValidationMessage_Sim => this.CheckProp_Id(this.Model?.FkSimcardId ?? null, EventType.Sim);
+
+    protected string ValidationMessage_Comment => this.GetValidationMessageForProp(this.Model, nameof(this.Model.Comment)) ?? string.Empty;
+
+    protected string ValidationMessage_PhoneNumber => this.GetValidationMessageForProp(this.Model, nameof(this.Model.PhoneNumber)) ?? string.Empty;
+
+    private string CheckProp_EventType(int? eventTypeId)
+    {
+        var res = string.Empty;
+
+        if (eventTypeId == null || eventTypeId == 0 || eventTypeId > 7)
+            res = $"Поле «{this.ModelsType?.GetCustomDisplayValues(nameof(this.Model.OperationTypeName)).Item1 ?? string.Empty}» обязательно для заполнения";
+        else
+            res = string.Empty;
+
+        return res;
+    }
+
+    protected string CheckProp_Id(int? id, EventType eventType)
+    {
+        var res = string.Empty;
+
+        if (OperationTypeHelper.OperationTypesReversed_GpsTracker[eventType] == this.Model?.OperationType)
+        {
+            if (this.Model?.OperationType == OperationTypeHelper.OperationTypesReversed_GpsTracker[EventType.Тягач])
+            {
+                if (!this.IdRequired(id))
+                    res = $"Для типа события «ТЯГАЧ» поле «{this.ModelsType?.GetCustomDisplayValues(nameof(this.Model.TruckName)).Item1 ?? string.Empty}» обязательно для заполнения !";
+                else
+                    res = string.Empty;
+            }
+            else if (this.Model?.OperationType == OperationTypeHelper.OperationTypesReversed_GpsTracker[EventType.Прицеп])
+            {
+                if (!this.IdRequired(id))
+                    res = $"Для типа события «ПРИЦЕП» поле «{this.ModelsType?.GetCustomDisplayValues(nameof(this.Model.TrailerName)).Item1 ?? string.Empty}» обязательно для заполнения !";
+                else
+                    res = string.Empty;
+            }
+            else if (this.Model?.OperationType == OperationTypeHelper.OperationTypesReversed_GpsTracker[EventType.Sim])
+            {
+                if (!this.IdRequired(id))
+                    res = $"Для типа события «SIM» поле «{this.ModelsType?.GetCustomDisplayValues(nameof(this.Model.SimcardName)).Item1 ?? string.Empty}» обязательно для заполнения !";
+                else
+                    res = string.Empty;
+            }
+            else
+            {
+                res = string.Empty;
+            }
+        }
+
+        return res;
+    }
+}

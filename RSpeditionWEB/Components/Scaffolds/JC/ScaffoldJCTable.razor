@@ -1,0 +1,791 @@
+﻿@typeparam T
+@inherits ScaffoldJCTableBase<T>
+@implements IDisposable
+
+<CascadingValue Value="@this">
+    @*Таблица*@
+    @if (this.IsRender)
+    {
+        var numColumns = (this.ParentComponent.ParentComponent.PropertiesRendered?.Count ?? 0);
+        if (ParentComponent?.IsRenderCheckColumn ?? false) numColumns++;
+        if (ParentComponent?.IsRenderOrderNumberColumn ?? false) numColumns++;
+        if (numColumns == 0) numColumns = 1;
+        numColumns++;
+        var allColors = typeof(ColorsFill).GetEnumNames()?.ToList() ?? new();
+
+        @if (IsGroupByZoneRender)
+        {
+            <div class="flexRowStartCenter">
+                <div class="drop-zone"
+                     @ref="@DropZoneRef"
+                     dropzone="move string"
+                     @onchange="@(() => HandleDrop_InGroupByButtonDropZone())"
+                     @onchange:stopPropagation="false">
+                     @if (IsGroupByAvailable)
+                     {
+                        <div class="btn_container"
+                             id="container">
+                            <div class="buttons">
+                                <div style="clear:both"></div>
+                                @for (var i = 0; i < (GroupByProprties?.Count ?? 0); i++)
+                                {
+                                    var groupByProp = GroupByProprties?.ElementAt(i);
+                                    var btnColor = allColors.ElementAt(i);
+                                    var btnStyle = $"background-color: {btnColor};";
+                                    var btnTitle = typeof(T).GetCustomDisplayValues(groupByProp?.Name ?? string.Empty).Item1 ?? string.Empty;
+                                    var idBtn = typeof(T).Name + (groupByProp?.Name ?? i.ToString()) + "_group_by_id";
+                                    <div type="button"
+                                         class="group_btn"
+                                         style="@btnStyle"
+                                         draggable="true"
+                                         @ondragstart="@((DragEventArgs arg) => HandleDragStart_InGroupByButton(arg, idBtn))"
+                                         @ondragover="HandleDragOver_InGroupByButton"
+                                         @ondragover:preventDefault="true"
+                                         @ondrop="@(() => HandleDrop_InGroupByButton(idBtn))"
+                                         @ondrop:preventDefault="true"
+                                         @ondrop:stopPropagation="true"
+                                         id="@idBtn">
+                                        <span class="title">@(i + 1)</span>
+                                        <span class="extra"><span> @btnTitle</span></span>
+                                        <a class="icon" @onclick="@(() => { HandleClickClose_RemoveFromGroupBy(idBtn); })">
+                                            &nbsp;x&nbsp;
+                                        </a>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <p>Перетащите заголовок, по которому требуется выполнить группировку, в эту область</p>
+                    }
+                </div>
+            </div>
+        }
+        <div class="adapt_table scroll font-journal" style="@this.HeightStyle">
+            <table class="adapt_table_inner"
+                   cellpadding="0"
+                   cellspacing="0">
+                <thead class="adapt_table_inner_thead">
+                    @*1 row*@
+                    <tr>
+                        <th data-label ="Настройка отображения"
+                            rowspan="2"
+                            class="min_td">
+                            <div class="flexTH_IconsRow_first">
+                                @{
+                                    var imgDropdownFirstTh = IsShowDropDownInFirstTh ? "css/open-iconic/icon/tablelist_black.png" : "css/open-iconic/icon/tablelist_white.png";
+                                }
+                                <button type="button"
+                                        class="buttonTh"
+                                        title="Фильтр">
+                                    <img src="@imgDropdownFirstTh"
+                                         style="width: 5px; height: 10px;"
+                                         @onclick="@(() => { IsShowDropDownInFirstTh = IsShowDropDownInFirstTh ? false : true; 
+                                                             ResetClassNames(); })"
+                                         class="dropbtn" />
+                                </button>
+                            </div>
+@******************************************************************************* Список всех столбцов *************************************************************************************@
+                            <div class="@ClassNameDropDownInFirstTh" data-tap-disabled="true" style="min-width: 260px;">
+                                <ul>
+                                    <li @onclick="@(() => { AddColumns(); })">
+                                        Выбрать всё
+                                    </li>
+                                    <li @onclick="@(() => { RemoveColumns(); })">
+                                        Отменить всё
+                                    </li>
+                                    @{
+                                        var allProperties = ParentComponent?.ParentComponent?.InitPropertiesRendered() ?? new();
+                                    }
+                                    @foreach (var value in allProperties)
+                                    {
+                                        var valueId = $"{typeof(T).Name}_id_th1_{value.Name}";
+                                        var valueLabel = typeof(T).GetCustomDisplayValues(value.Name).Item1 ?? string.Empty;
+                                        var isChecked = ParentComponent?.ParentComponent?.PropertiesRendered?.Any(_ => _.Name == value.Name) ?? false;
+
+                                        if (IsColumnMergedDefault(value))
+                                        {
+                                            var valuesMerged = FindMergedColumnsGroupDefault(value);
+                                            var isFirstItemInDict = IsMergedColumnFirstDefault(valuesMerged.Value.Value, value);
+                                            var isCheckedAllGroup = valuesMerged.Value.Value.All(_ => ParentComponent?.ParentComponent?.PropertiesRendered?.Any(o => o.Name == _.Name) ?? false);
+                                            var groupValueId = $"{typeof(T).Name}_id_th1_{valuesMerged.Value.Key}";
+                                            if (isFirstItemInDict)
+                                            {
+                                                <li>
+                                                    <div class="squaredCheckbox">
+                                                        @if (isCheckedAllGroup)
+                                                        {
+                                                            <input type="checkbox"
+                                                                   id="@groupValueId"
+                                                                   checked
+                                                                   @oninput="@(() => { RemoveColumns(valuesMerged.Value); })" />
+                                                            <label for="@groupValueId">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@(valuesMerged.Value.Key)</label>
+                                                        }
+                                                        else
+                                                        {
+                                                            <input type="checkbox"
+                                                                   id="@groupValueId"
+                                                                   @oninput="@(() => { PropSelected = null; AddColumns(valuesMerged.Value); })" />
+                                                            <label for="@groupValueId">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@(valuesMerged.Value.Key)</label>
+                                                        }
+                                                    </div>
+                                                </li>
+                                            }
+                                            <li>
+                                                <div class="squaredCheckbox">
+                                                    @if (isChecked)
+                                                    {
+                                                        <input type="checkbox"
+                                                               id="@valueId"
+                                                               checked
+                                                               @oninput="@(() => { RemoveColumn(value); })" />
+                                                        <label for="@valueId"
+                                                               style="margin-left: 15px !important;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@valueLabel</label>
+                                                    }
+                                                    else
+                                                    {
+                                                        <input type="checkbox"
+                                                               id="@valueId"
+                                                               @oninput="@(() => { PropSelected = null; AddColumn(value); })" />
+                                                        <label for="@valueId"
+                                                               style="margin-left: 15px !important;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@valueLabel</label>
+                                                    }
+                                                </div>
+                                            </li>
+                                        }
+                                        else
+                                        {
+                                            <li>
+                                                <div class="squaredCheckbox">
+                                                    @if (isChecked)
+                                                    {
+                                                        <input type="checkbox"
+                                                               id="@valueId"
+                                                               checked
+                                                               @oninput="@(() => { RemoveColumn(value); })" />
+                                                        <label for="@valueId">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@valueLabel</label>
+                                                    }
+                                                    else
+                                                    {
+                                                        <input type="checkbox"
+                                                               id="@valueId"
+                                                               @oninput="@(() => { PropSelected = null; AddColumn(value); })" />
+                                                        <label for="@valueId">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@valueLabel</label>
+                                                    }
+                                                </div>
+                                            </li>
+                                        }
+                                    }
+                                </ul>
+                            </div>
+@*************************************************************************************************************************************************************************************@
+                        </th>
+                        @if(ParentComponent?.IsRenderCheckColumn ?? false)
+                        {
+                            <th data-label="Отметить" rowspan="2">
+                                <div class="flexTH_IconsRow_first">
+                                    @if (ParentComponent?.ParentComponent?.ItemsFiltered?.Count == ParentComponent?.ParentComponent?.ItemsFilteredChecked?.Count)
+                                    {
+                                        <input type="checkbox"
+                                               checked
+                                               title="Отметить все"
+                                               @oninput="@((ChangeEventArgs args) => {  var isCheckedAll = (bool)(args?.Value ?? false);
+                                                                                ParentComponent.ParentComponent.ItemsFilteredChecked = isCheckedAll ? new (ParentComponent?.ParentComponent?.ItemsFiltered ?? new()) : new();
+                                                                                CheckedCollectionChangedEventInvoke(ParentComponent?.ParentComponent?.ItemsFilteredChecked ?? new()); })" />
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox"
+                                               title="Отметить все"
+                                               @oninput="@((ChangeEventArgs args) => {  var isCheckedAll = (bool)(args?.Value ?? false);
+                                                                                ParentComponent.ParentComponent.ItemsFilteredChecked = isCheckedAll ? new (ParentComponent?.ParentComponent?.ItemsFiltered) : new();
+                                                                                CheckedCollectionChangedEventInvoke(ParentComponent?.ParentComponent?.ItemsFilteredChecked); })" />
+                                    }
+                                </div>
+                            </th>
+                        }
+                        
+                        @if(ParentComponent?.IsRenderOrderNumberColumn ?? false)
+                        {
+                            <th data-label="№" rowspan="2">
+                                №
+                            </th>
+                        }
+                        @foreach (var propInfoRendered in ParentComponent?.ParentComponent?.PropertiesRendered ?? new())
+                        {
+                            var propInfo = propInfoRendered;
+                            var isSelectedPropInfo = (OptionsValuesSelected?.ContainsKey(propInfo) ?? false) && OptionsValuesSelected[propInfo].Any();
+                            var isOrderedPropInfo = SortOrderLast.prop.Name == propInfo.Name;
+                            var isGroupByPropInfo = GroupByProprties?.Any(_ => _.Name == propInfo.Name) ?? false;
+                            var menuId = $"dropdown_{propInfo.Name}_1";
+                            var inputId = $"input_{typeof(T).Name}_{propInfo.Name}_1";
+                            var classNameTH = ClassNamesDropDowns.ContainsKey(propInfo) ? this.ClassNamesDropDowns[propInfo] : "dropdown-content";
+                            var isShow = classNameTH == "show";
+                            var img_dropdown = string.Empty;
+                            var img_dropdown_hover = isShow ? "css/open-iconic/icon/up_white.png" : "css/open-iconic/icon/down_white.png";
+                            var img_sort = string.Empty;
+                            var img_sort_hover = SortOrders.ContainsKey(propInfo) 
+                            ? (SortOrders[propInfo] == SortOrder.asc ? "css/open-iconic/icon/sort_up_white.png" : "css/open-iconic/icon/sort_down_white.png")
+                            : "css/open-iconic/icon/sort_up_white.png";
+
+                            if (isSelectedPropInfo)
+                                img_dropdown = isShow ? "css/open-iconic/icon/up_black.png" : "css/open-iconic/icon/down_black.png";
+                            else
+                                img_dropdown = isShow ? "css/open-iconic/icon/up_white.png" : "css/open-iconic/icon/down_white.png";
+
+                            if (isOrderedPropInfo)
+                                img_sort = SortOrders.ContainsKey(propInfo) && SortOrders[propInfo] == SortOrder.asc ? "css/open-iconic/icon/sort_up_black.png" : "css/open-iconic/icon/sort_down_black.png";
+                            else
+                                img_sort = SortOrders.ContainsKey(propInfo) && SortOrders[propInfo] == SortOrder.asc ? "css/open-iconic/icon/sort_up_white.png" : "css/open-iconic/icon/sort_down_white.png";
+
+                            var optionValues = OptionsValuesSearched.ContainsKey(propInfo) ? OptionsValuesSearched[propInfo] : new();
+                            var optionValuesTrimmed = optionValues.Count > 1000 ? optionValues.Take(1000)?.ToList() ?? new() : optionValues;
+                            var sizeSelect = optionValuesTrimmed.Count > 7 ? 7 : optionValues.Count + 3;
+                            var isNullable = propInfo.IsNullable();
+                            var thLabel = typeof(T).GetCustomDisplayValues(propInfo.Name).Item1 ?? string.Empty;
+                            //
+                            var colspanValue = 1;
+                            var rowspanValue = 2;
+                            var isNotRenderTh = false;
+                            var isFirstItemInDict = false;
+                            if (IsColumnMerged(propInfo))
+                            {
+                                var valuesMerged = FindMergedColumnsGroup(propInfo);
+                                thLabel = valuesMerged?.Key ?? string.Empty;
+                                isFirstItemInDict = IsMergedColumnFirst(valuesMerged.Value.Value, propInfo);
+                                colspanValue = isFirstItemInDict ? (valuesMerged?.Value.Count ?? 1) : numColumns;
+                                rowspanValue = 1;
+                                isNotRenderTh = !isFirstItemInDict;
+                            }
+
+                            if (!isNotRenderTh)
+                            {
+                                if (isFirstItemInDict)
+                                {
+                                    <th data-label="@thLabel"
+                                        rowspan="@rowspanValue"
+                                        colspan="@colspanValue"
+                                        id="@thLabel"
+                                        draggable="true"
+                                        @ondragstart="@((DragEventArgs arg) => HandleDragStart_th(arg, thLabel))"
+                                        @ondragover="@HandleDragOver_th"
+                                        @ondragover:preventDefault="true"
+                                        @ondrop="@(async() => await MoveColumnToNewPosition(thLabel))"
+                                        @ondrop:preventDefault="true"
+                                        @ondrop:stopPropagation="true">
+                                        <div>
+                                            <span>@thLabel</span>
+                                        </div>
+                                    </th>
+                                }
+                                else
+                                {
+                                    <th data-label="@thLabel"
+                                        rowspan="@rowspanValue"
+                                        colspan="@colspanValue"
+                                        style="vertical-align: bottom !important;">
+                                        <div class="flexTH"
+                                             @oncontextmenu="@(async(MouseEventArgs arg) => { HideTableOptionValues();
+                                                                                              await HandleRightClickOnTableHeader(arg, propInfo); })"
+                                             @oncontextmenu:preventDefault="true"
+                                             draggable="true"
+                                             @ondragstart="@((DragEventArgs arg) => HandleDragStart_th(arg, propInfo.Name))"
+                                             @ondragover="@HandleDragOver_th"
+                                             @ondragover:preventDefault="true"
+                                             @ondrop="@(async() => await MoveColumnToNewPosition(propInfo.Name))"
+                                             @ondrop:preventDefault="true"
+                                             @ondrop:stopPropagation="true"
+                                             id="@propInfo.Name">
+
+                                            <div class="flexTH_first_child">
+                                                <span>@thLabel</span>
+                                            </div>
+
+                                            <div class="flexTH_IconsRow padding">
+                                                <div>
+                                                    <button type="button"
+                                                            class="buttonTh"
+                                                            title="Фильтр">
+                                                        <img src="@img_dropdown"
+                                                             @onclick="@((MouseEventArgs arg) => this.OnClickByTH(arg, propInfo))"
+                                                             class="dropbtn" />
+                                                    </button>
+                                                </div>
+                                                <div>
+                                                    <button type="button"
+                                                            @onclick="(() => { this.SortByColumn(propInfo); })"
+                                                            title="@(SortOrders.ContainsKey(propInfo) && SortOrders[propInfo] == SortOrder.asc ? "По убыванию" : "По возрастанию")">
+                                                        <img src="@img_sort" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+@*************************************************************************************************************************************************************************************@
+                                        <div id="@menuId" class="@classNameTH" data-tap-disabled="true">
+                                            @if (isShow)
+                                            {
+                                                <input type="text"
+                                                       placeholder="Поиск.."
+                                                       autofocus
+                                                       id="@inputId"
+                                                       @bind-value="@InputsValues[propInfo]"
+                                                       @oninput="@((ChangeEventArgs arg) => this.SearchStart(propInfo, arg?.Value?.ToString() ?? string.Empty))" />
+                                            }
+                                            else
+                                            {
+                                                <input type="text"
+                                                       placeholder="Поиск.."
+                                                       id="@inputId"
+                                                       @bind-value="@InputsValues[propInfo]"
+                                                       @oninput="@((ChangeEventArgs arg) => this.SearchStart(propInfo, arg?.Value?.ToString() ?? string.Empty))" />
+                                            }
+                                            <ul>
+                                                <li @onclick="@(async() => { await this.SelectionChanged(propInfo, "Выбрать всё"); })">
+                                                    Выбрать всё
+                                                </li>
+                                                @if (isNullable)
+                                                {
+                                                    <li @onclick="@(async() => { await this.SelectionChanged(propInfo, "Пустые"); })">Пустые</li>
+                                                    <li @onclick="@(async() => { await this.SelectionChanged(propInfo, "Не пустые"); })">Не пустые</li>
+                                                }
+                                                @foreach (var optionValue in optionValuesTrimmed)
+                                                {
+                                                    var value = optionValue;
+                                                    object labelVal = null;
+
+                                                    if (string.IsNullOrEmpty(value?.ToString() ?? string.Empty)) continue;
+                                                    var valueId = $"{typeof(T).Name}_{propInfo.Name}_id_row1_{value.ToString()}";
+
+                                                    if (propInfo.PropertyType == typeof(bool) && bool.TryParse(value?.ToString(), out var boolean))
+                                                    {
+                                                        labelVal = boolean ? "Да" : "Нет";
+                                                        <li @onclick="@(async() => { await this.SelectionChanged(propInfo, labelVal); })">
+                                                            @labelVal
+                                                        </li>
+                                                    }
+                                                    else
+                                                    {
+                                                        var isChecked = (OptionsValuesSelected?.ContainsKey(propInfo) ?? false)
+                                                        && OptionsValuesSelected[propInfo].Any(_ => (_?.ToString() ?? string.Empty) == (value?.ToString() ?? string.Empty));
+                                                        if (this.ParentComponent?.ParentComponent?.PropertiesStylesFormat?.TryGetValue(propInfo, out var deleg) ?? false)
+                                                            labelVal = deleg(value);
+                                                        if (labelVal == null) labelVal = value;
+
+                                                        <li>
+                                                            <div class="squaredCheckbox">
+                                                                @if (isChecked)
+                                                                {
+                                                                    <input type="checkbox"
+                                                                           id="@valueId"
+                                                                           checked
+                                                                           @oninput="@(async() => { await this.SelectionChanged(propInfo, value); })" />
+                                                                    <label for="@valueId">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@labelVal</label>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <input type="checkbox"
+                                                                           id="@valueId"
+                                                                           @oninput="@(async() => { await this.SelectionChanged(propInfo, value); })" />
+                                                                    <label for="@valueId">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@labelVal</label>
+                                                                }
+                                                            </div>
+                                                        </li>
+                                                    }
+                                                }
+                                            </ul>
+                                        </div>
+@*************************************************************************************************************************************************************************************@
+                                    </th>
+                                }
+                            }
+                        }
+                    </tr>
+                    @*2 row*@
+                    <tr>
+                        @foreach (var propInfoRendered in ParentComponent?.ParentComponent?.PropertiesRendered ?? new())
+                        {
+                            var propInfo = propInfoRendered;
+                            var propId = $"{typeof(T).Name}_{propInfo.Name}";
+                            var thLabel = typeof(T).GetCustomDisplayValues(propInfo.Name).Item1 ?? string.Empty;
+                            //
+                            var isSelectedPropInfo = (OptionsValuesSelected?.ContainsKey(propInfo) ?? false) && OptionsValuesSelected[propInfo].Any();
+                            var isOrderedPropInfo = SortOrderLast.prop.Name == propInfo.Name;
+                            var isGroupByPropInfo = GroupByProprties?.Any(_ => _.Name == propInfo.Name) ?? false;
+                            var menuId = $"dropdown_{propInfo.Name}_2"; 
+                            var inputId = $"input_{propInfo.Name}_2";
+                            var classNameTH = ClassNamesDropDowns.ContainsKey(propInfo) ? ClassNamesDropDowns[propInfo] : "dropdown - content";
+                            var isShow = classNameTH == "show";
+                            var img_dropdown = string.Empty;
+                            var img_dropdown_hover = isShow ? "css/open-iconic/icon/up_white.png" : "css/open-iconic/icon/down_white.png";
+                            var img_sort = string.Empty;
+                            var img_sort_hover = SortOrders.ContainsKey(propInfo) && SortOrders[propInfo] == SortOrder.asc ? "css/open-iconic/icon/sort_up_white.png" : "css/open-iconic/icon/sort_down_white.png";
+
+                            if (isSelectedPropInfo)
+                                img_dropdown = isShow ? "css/open-iconic/icon/up_black.png" : "css/open-iconic/icon/down_black.png";
+                            else
+                                img_dropdown = isShow ? "css/open-iconic/icon/up_white.png" : "css/open-iconic/icon/down_white.png";
+
+                            if (isOrderedPropInfo)
+                                img_sort = SortOrders.ContainsKey(propInfo) && SortOrders[propInfo] == SortOrder.asc ? "css/open-iconic/icon/sort_up_black.png" : "css/open-iconic/icon/sort_down_black.png";
+                            else
+                                img_sort = SortOrders.ContainsKey(propInfo) && SortOrders[propInfo] == SortOrder.asc ? "css/open-iconic/icon/sort_up_white.png" : "css/open-iconic/icon/sort_down_white.png";
+
+                            var optionValues = this.OptionsValuesSearched[propInfo];
+                            var optionValuesTrimmed = optionValues.Count > 500 ? optionValues.Take(500)?.ToList() ?? new() : optionValues;
+                            var sizeSelect = optionValuesTrimmed.Count > 7 ? 7 : optionValues.Count + 3;
+                            var isNullable = propInfo.IsNullable();
+                            //
+                            if (IsColumnMergedDefault(propInfo))
+                            {
+                                <th data-label="@thLabel"
+                                    id="@propId"
+                                    draggable="true"
+                                    @oncontextmenu="@(async(MouseEventArgs arg) => { HideTableOptionValues();
+                                                                                     await HandleRightClickOnTableHeader(arg, propInfo); })"
+                                    @oncontextmenu:preventDefault="true"
+                                    @ondragstart="@((DragEventArgs arg) => HandleDragStart_th(arg, propInfo.Name))"
+                                    @ondragover="@HandleDragOver_th"
+                                    @ondragover:preventDefault="true"
+                                    @ondrop="@(async() => await MoveColumnToNewPosition(propInfo.Name))"
+                                    @ondrop:preventDefault="true"
+                                    @ondrop:stopPropagation="true"
+                                    style="vertical-align: bottom !important;">
+
+                                    <div class="flexTH">
+
+                                        <div class="flexTH_first_child">
+                                            <span>@thLabel</span>
+                                        </div>
+
+                                        <div class="flexTH_IconsRow">
+                                            <div>
+                                                <button type="button"
+                                                        class="buttonTh"
+                                                        title="Фильтр">
+                                                    <img src="@img_dropdown"
+                                                         @onclick="@((MouseEventArgs arg) => this.OnClickByTH(arg, propInfo))"
+                                                         class="dropbtn" />
+                                                </button>
+                                            </div>
+                                            <div>
+                                                <button type="button"
+                                                        @onclick="(() => { this.SortByColumn(propInfo); })"
+                                                        title="@(SortOrders.ContainsKey(propInfo) && SortOrders[propInfo] == SortOrder.asc ? "По убыванию" : "По возрастанию")">
+                                                    <img src="@img_sort" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                    </div>
+@*************************************************************************************************************************************************************************************@
+                                    <div id="@menuId" class="@classNameTH" data-tap-disabled="true">
+                                        @if (isShow)
+                                        {
+                                            <input type="text"
+                                                   placeholder="Поиск.."
+                                                   autofocus
+                                                   id="@inputId"
+                                                   @bind-value="@this.InputsValues[propInfo]"
+                                                   @oninput="@((ChangeEventArgs arg) => this.SearchStart(propInfo, arg?.Value?.ToString() ?? string.Empty))" />
+                                        }
+                                        else
+                                        {
+                                            <input type="text"
+                                                   placeholder="Поиск.."
+                                                   id="@inputId"
+                                                   @bind-value="@this.InputsValues[propInfo]"
+                                                   @oninput="@((ChangeEventArgs arg) => this.SearchStart(propInfo, arg?.Value?.ToString() ?? string.Empty))" />
+                                        }
+                                        <ul>
+                                            <li @onclick="@(async() => { await this.SelectionChanged(propInfo, "Выбрать всё"); })">
+                                                Выбрать всё
+                                            </li>
+                                            @if (isNullable)
+                                            {
+                                                <li @onclick="@(async() => { await this.SelectionChanged(propInfo, "Пустые"); })">Пустые</li>
+                                                <li @onclick="@(async() => { await this.SelectionChanged(propInfo, "Не пустые"); })">Не пустые</li>
+                                            }
+                                            @foreach (var optionValue in optionValuesTrimmed)
+                                            {
+                                                var value = optionValue;
+                                                object labelVal = null;
+
+                                                if (string.IsNullOrEmpty(value?.ToString() ?? string.Empty)) continue;
+                                                var valueId = $"{typeof(T).Name}_{propInfo.Name}_id_row2_{value.ToString()}";
+
+                                                if (propInfo.PropertyType == typeof(bool) && bool.TryParse(value?.ToString(), out var boolean))
+                                                {
+                                                    labelVal = boolean ? "Да" : "Нет";
+                                                    <li @onclick="@(async() => { await this.SelectionChanged(propInfo, labelVal); })">
+                                                        @labelVal
+                                                    </li>
+                                                }
+                                                else
+                                                {
+                                                    var isChecked = (OptionsValuesSelected?.ContainsKey(propInfo) ?? false)
+                                                    && OptionsValuesSelected[propInfo].Any(_ => (_?.ToString() ?? string.Empty) == (value?.ToString() ?? string.Empty));
+                                                    if (this.ParentComponent?.ParentComponent?.PropertiesStylesFormat?.TryGetValue(propInfo, out var deleg) ?? false)
+                                                        labelVal = deleg(value);
+                                                    if (labelVal == null) labelVal = value;
+
+                                                    <li>
+                                                        <div class="squaredCheckbox">
+                                                            @if (isChecked)
+                                                            {
+                                                                <input type="checkbox"
+                                                                       id="@valueId"
+                                                                       checked
+                                                                       @oninput="@(async() => { await this.SelectionChanged(propInfo, value); })" />
+                                                                <label for="@valueId">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@labelVal</label>
+                                                            }
+                                                            else
+                                                            {
+                                                                <input type="checkbox"
+                                                                       id="@valueId"
+                                                                       @oninput="@(async() => { await this.SelectionChanged(propInfo, value); })" />
+                                                                <label for="@valueId">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@labelVal</label>
+                                                            }
+                                                        </div>
+                                                    </li>
+                                                }
+                                            }
+                                        </ul>
+                                    </div>
+@*************************************************************************************************************************************************************************************@
+                                </th>
+                            }
+                        }
+                    </tr>
+                </thead>
+                <tbody style="width: 100%;"
+                       @onclick="@(() => HideTableOptionValues())"
+                       @onclick:stopPropagation="false"
+                       @onclick:preventDefault="false"
+                       @oncontextmenu="@(async(MouseEventArgs arg) => HideTableOptionValues())"
+                       @oncontextmenu:stopPropagation="false"
+                       @oncontextmenu:preventDefault="false">
+                    @if ((ParentComponent?.ParentComponent?.ItemsFiltered?.Any() ?? false)
+                    && !this.Token.IsCancellationRequested)
+                    {
+
+                        @if (this.IsGroupByAvailable)
+                        {
+                            var nodes = this.TreeToRender?.Nodes?.OrderByDescending(_ => (_.Value.itemsInGroup?.Count() ?? 0))?.ToList() ?? new();
+                            <Virtualize Items="@nodes" ItemSize="25">
+                                <ItemContent>
+                                    <ScaffoldTableNode T=T 
+                                                       Node=context />
+                                </ItemContent>
+                            </Virtualize>
+                        }
+                        else
+                        {
+                            <Virtualize Items="@(ParentComponent?.ParentComponent?.ItemsFiltered ?? new())" ItemSize="25">
+                                <ItemContent>
+                                    <ScaffoldJCTableInner T=T
+                                                          Item=context
+                                                          NumbersFormat="@this.NumbersFormat"
+                                                          NumRow="@(ParentComponent?.ParentComponent?.ItemsFiltered?.IndexOf(context) ?? 0)"
+                                                          IsChecked="@(ParentComponent?.ParentComponent?.ItemsFilteredChecked?.Contains(context) ?? false)"
+                                                          SendToParentSelectedItemRightClick="@(async(CoordinateClass<T> item) => { ResetClassNames(); 
+                                                                                                                                     if(this.SendToParentSelectedItemRightClick.HasDelegate)
+                                                                                                                                         await this.SendToParentSelectedItemRightClick.InvokeAsync(item);})"
+                                                          SendToParentCheckedItem="@(async (T itemChecked) => { ResetClassNames();
+                                                                                                                if(ParentComponent?.ParentComponent?.ItemsFilteredChecked?.Contains(itemChecked) ?? false)
+                                                                                                                    ParentComponent?.ParentComponent?.ItemsFilteredChecked.Remove(itemChecked);
+                                                                                                                else
+                                                                                                                    ParentComponent?.ParentComponent?.ItemsFilteredChecked.Add(itemChecked);
+                                                                                                                CheckedCollectionChangedEventInvoke(ParentComponent?.ParentComponent?.ItemsFilteredChecked); })"
+                                                          SendToParentSelectedItem="@(async() =>  { ResetClassNames();
+                                                                                                    if(this.SendToParentSelectedItem.HasDelegate)
+                                                                                                        await this.SendToParentSelectedItem.InvokeAsync(context); })" />
+                                </ItemContent>
+                            </Virtualize>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="@numColumns"
+                                class="min_td">
+                                <em>Записи для отображения отсутствуют</em>
+                            </td>
+                        </tr>
+                    }
+                    <tr style="@(ParentComponent.StyleMaxHeightLastTableRow)">
+                        <td colspan="@numColumns"></td>
+                    </tr>
+                </tbody>
+                <tfoot class="adapt_table_inner_tfoot">
+                    @if ((this.ParentComponent.ParentComponent.TotalSumProps != null && this.ParentComponent.ParentComponent.TotalSumProps.Any())
+                   || (this.ParentComponent.ParentComponent.GroupBySumProps != null && this.ParentComponent.ParentComponent.GroupBySumProps.Any()))
+                    {
+                        var rowClass = IsRenderOverAll ? "" : "display: none;";
+                        var tooltipText = IsRenderOverAll ? "Скрыть итоги" : "Показать итоги";
+                        var imgRow = IsRenderOverAll ? "css/open-iconic/icon/sort_up_black.png" : "css/open-iconic/icon/sort_down_black.png";
+
+                        <tr class="selected"
+                            title="@tooltipText"
+                            @onclick="@(() => { IsRenderOverAll = IsRenderOverAll ? false : true; ResetClassNames();})">
+                            <td colspan="@numColumns">
+                                <img src="@imgRow"
+                                     class="dropbtn" />
+                                <b>  ИТОГИ </b>
+                                <img src="@imgRow"
+                                     class="dropbtn" />
+                            </td>
+                        </tr>
+                        <tr style="@rowClass">
+                            <td data-label="Настройка отображения"
+                                class="min_td">
+                            </td>
+                            @if(ParentComponent?.IsRenderCheckColumn ?? false)
+                            {
+                                <td data-label="Отметить"
+                                    class="min_td">
+                                </td>
+                            }
+                            @if (ParentComponent?.IsRenderOrderNumberColumn ?? false)
+                            {
+                                <td data-label="№"
+                                    class="min_td">
+                                </td>
+                            }
+                            @foreach (var propInfo in this.ParentComponent.ParentComponent.PropertiesRendered)
+                            {
+                                <td data-label="@(propInfo?.Name ?? string.Empty)">
+                                    @if (this.ParentComponent.ParentComponent.GroupBySumProps != null && this.ParentComponent.ParentComponent.GroupBySumProps.Any())
+                                    {
+                                        var valKey = string.Empty;
+                                        var valData = string.Empty;
+                                        <ul style="text-align: left;">
+                                            @foreach (var res in this.GroupByResults.TryGetValue(propInfo, out var valTuple) ? valTuple : new())
+                                            {
+                                                valKey = res.Item1 ?? string.Empty;
+                                                valData = String.Format("{0:N2}", res.Item2 ?? 0);
+                                                <li>
+                                                    <b>@valKey: @valData</b>
+                                                </li>
+                                            }
+                                        </ul>
+                                        @if (this.ParentComponent.ParentComponent.TotalSumProps != null && this.ParentComponent.ParentComponent.TotalSumProps.Any())
+                                        {
+                                            var val = this.TotalSumResults.TryGetValue(propInfo, out var valDecimal) ? String.Format("{0:N2}", valDecimal) : string.Empty;
+                                            @if (!string.IsNullOrEmpty(val))
+                                            {
+                                                <span style="font-weight: bolder;">@val</span>
+                                            }
+                                        }
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tfoot>
+            </table>
+        </div>
+
+        @*Контекст ное меню при клике на ПКМ по заголовкам таблицы*@
+        @if (this.IsRenderContextMenu)
+        {
+            <ContextMenu Top="@this.Coordinate.Y"
+                         Left="@this.Coordinate.X"
+                         MenuItems="@this.ContextMenuPoints"
+                         SendToParent_SelctedItem="@(async(string val) => { await this.ReactOnSelectPointInContextMenu(val); })"
+                         InvokeParentHendlerCancel="@(() => {this.IsRenderContextMenu = false;})" />
+        }
+
+        @if (this.IsRenderSelectPIAlowedToRender)
+        {
+            <ModalWindowShort InvokeParentHandlerwithUpdParent="@(async () => { this.IsRenderSelectPIAlowedToRender = false; })">
+                <div>
+                    <select @bind="@this.PISelectedToRenderStr">
+                        @if ((ParentComponent?.ParentComponent?.PropertiesAlowedToRender?.Count ?? 0) == 0)
+                        {
+                            <option disabled selected value="@string.Empty">
+                                Нет столбцов для добавления
+                            </option>
+                        }
+                        else
+                        {
+                            if (string.IsNullOrEmpty(this.PISelectedToRenderStr))
+                            {
+                                <option disabled selected value="@string.Empty">
+                                    Сделайте выбор
+                                </option>
+                            }
+                            else
+                            {
+                                <option value="@string.Empty">
+                                    Сделайте выбор
+                                </option>
+                            }
+                            @foreach (var prop in ParentComponent?.ParentComponent?.PropertiesAlowedToRender ?? new())
+                            {
+                                var val = prop.Name;
+                                var label = typeof(T).GetCustomDisplayValues(val).Item1 ?? string.Empty;
+                                <option value="@val">
+                                    @label
+                                </option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div>
+                    @if (string.IsNullOrEmpty(this.PISelectedToRenderStr))
+                    {
+                        <button class="table-button non-active"
+                                type="button"
+                                title="Сделайте выбор"
+                        @onclick="@(async() => {})">
+                            Добавить
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="table-button"
+                                type="button"
+                                @onclick="@(() => { this.AddColumn(PISelectedToRender); })">
+                            Добавить
+                        </button>
+                    }
+                </div>
+            </ModalWindowShort>
+        }
+    }
+    else
+    {
+        <div id="@this.IdForProgressBar" style="display: none;">
+            <ProgressBar />
+        </div>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    #region Properties
+    [Parameter]
+    public PropertyInfo KeyPropInfo { get; set; } = typeof(T).GetProperty("Id");
+
+    private string HeightStyle => IsGroupByZoneRender ? $"height: {ParentComponent.MinHeight}vh !important;" : $"height: {ParentComponent.MaxHeight}vh !important;";
+
+    protected override List<Dictionary<string, string>> ContextMenuPoints
+    => new List<Dictionary<string, string>>
+            {
+                new Dictionary<string, string>
+                {
+                    {"1", "Скрыть колонку" }
+                },
+                new Dictionary<string, string>
+                {
+                    {"2", "Добавить колонку" }
+                }
+            };
+
+    private bool IsRenderOverAll { get; set; } = false; // при загрузке журнала итоги скрыты
+    #endregion
+}

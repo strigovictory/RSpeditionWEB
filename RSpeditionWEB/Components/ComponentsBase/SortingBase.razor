@@ -1,0 +1,282 @@
+﻿@typeparam T 
+@inject GenericApi api
+@inherits ObjItemsEventBase
+@implements IDisposable
+@*Универсальный компонент. который посредством рефлексии позволяет осуществлять групповую сортировку коллекции экземпляров любого класса*@
+@*Если необходимо сортировать внешние ключи - к модели нужно добавить пользовательский атрибут - [CustomForeignKey("Ссылка на виртуальное свойство")] к int-му ключу *@
+@code {
+    #region
+    // Коллекция полей для сортировки с направлением сортировки по каждому полю,
+    // порядок следования полей в коллекции определяет приоритетность сортировки
+    public LinkedList<(Func<T, object> keySelector, string prop, SortOrder sort, bool isToSort)> PropToSorting { get; set; } = new();
+    public bool IsRenderSortWindow { get; set; }
+
+    private List<T> collectionToSort;
+    protected List<T> CollectionToSort
+    {
+        get => this.collectionToSort;
+        set
+        {
+            this.collectionToSort = value ?? new();
+
+            // Отсортировать коллекцию
+            this.SortInOrderByAllSelectedProp();
+        }
+    }
+
+    /// <summary>
+    /// Метод для первоначальной инициализации компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.PropToSorting = new();
+        this.collectionToSort = new();
+    }
+
+    /// <summary>
+    /// Метод для первоначального заполнения коллекции LinkedList
+    /// По умолчанию  при инициализации заполняется всеми свойствами экземпляра класса с направлением сортировки - по возрастанию
+    /// </summary>
+    protected async Task InitCreatingLinkedList()
+    {
+        Serilog.Log.Debug($"Запуск метода «{nameof(InitCreatingLinkedList)}», отвечающего за первоначальную инициализацию значений," +
+            $" необходимых для выполнения групповой сортировки.");
+
+        this.PropToSorting = new();
+        var item = (T)Activator.CreateInstance(typeof(T));
+        var typeItem = item?.GetType();
+        var propsAll = typeItem?.GetProperties();
+        var props = propsAll?.Where(prop => !prop.GetGetMethod().IsVirtual && prop.GetGetMethod().IsPublic)?.ToList() ?? new();
+
+        if ((props?.Count ?? 0) > 0)
+        {
+            foreach (var prop in props)
+            {
+                Func<T, object> keySelector = null;
+
+                var customAttrForeignKey = prop.GetCustomAttribute<CustomForeignAttribute>();
+
+                // Если это внешний ключ (не важно обозначен он в /БД или нет)
+                if (!string.IsNullOrEmpty(customAttrForeignKey?.NamePropForeignClass ?? string.Empty))
+                {
+                    // Получить тип класса, экземпляр которого является вложенным в текущий T классом и связан с ним внешним ключом
+                    var typeInnerClass = customAttrForeignKey.TypeForeignClass;
+
+                    // Получить наименование свойства вложенного класса, которое будет отображаться в табличной части
+                    var namePropfK = customAttrForeignKey.NamePropForeignClass;
+
+                    // Создать экземпляр вложенного класса
+                    var itemInner = Activator.CreateInstance(typeInnerClass);
+
+                    // Получить упакованную в класс object коллекцию экземпляров вложенного в T класса посредством http_pars-запроса к ODATA
+                    var packedObjectList = (await this.api?.GetListObjItems(typeInnerClass, this.Token)) ?? new();
+
+                    Dictionary<int, string> unpackedIIdItemsList = new();
+
+                    if (packedObjectList != null && packedObjectList?.Count > 0)
+                    {
+                        // Распаковать коллекцию в словарь
+                        foreach (object innerIem in packedObjectList)
+                        {
+                            if (innerIem != null && innerIem.GetType().Equals(typeof(JsonElement)))
+                            {
+                                var jsonElement = (JsonElement)innerIem;
+
+                                // Получить название для отображения экземпляра вложенного класса
+                                try
+                                {
+                                    JsonElement propObjItemId = new();
+
+                                    // Получить идентификатор экземпляра вложенного класса
+                                    if(jsonElement.EnumerateObject().GetEnumerator().Any(el => el.Name.Equals("id", StringComparison.Ordinal)))
+                                    {
+                                        propObjItemId = jsonElement.GetProperty("id");
+                                    }
+                                    else if (jsonElement.EnumerateObject().GetEnumerator().Any(item => item.Name.Equals("Id", StringComparison.Ordinal)))
+                                    {
+                                        propObjItemId = jsonElement.GetProperty("Id");
+                                    }
+
+                                    var valPropObjItemNameForRender = jsonElement.GetProperty(namePropfK).GetString();
+
+                                    if (propObjItemId.TryGetInt32(out var valPropObjItemId)
+                                        && valPropObjItemNameForRender != null)
+                                    {
+                                        if (!unpackedIIdItemsList.ContainsKey(valPropObjItemId))
+                                        {
+                                            unpackedIIdItemsList.Add(valPropObjItemId, valPropObjItemNameForRender);
+                                        }
+                                    }
+                                }
+                                catch(Exception exc)
+                                {
+                                    var mess = exc?.GetExcMessages(" ");
+                                    Serilog.Log.Error($"Исключительная ситуация при выполнении метода «{nameof(InitCreatingLinkedList)}»" +
+                                                      $"в компоненте «{this.GetType()?.Name ?? string.Empty}». " +
+                                                      $"Подробности: {mess}");
+                                    throw new Exception(mess);
+                                }
+                            }
+                        }
+                    }
+
+                    if (unpackedIIdItemsList != null && unpackedIIdItemsList.Count > 0)
+                    {
+                        // Для вложенного класса, на который ссылается посредством внешнего ключа текущий класс тип возвращаемого свойства всегда string
+                        keySelector = (item) => (unpackedIIdItemsList
+                                                                     .Any(idItem => idItem.Key == Int32.Parse(item
+                                                                                                                    .GetType()
+                                                                                                                    .GetProperty(prop.Name)
+                                                                                                                    .GetValue(item)?
+                                                                                                                    .ToString() 
+                                                                                                                    ?? 
+                                                                                                                    "0"))) 
+                                                                     ?
+                                                                     unpackedIIdItemsList
+                                                                     .FirstOrDefault(idItem => idItem.Key == Int32.Parse(item
+                                                                                                                    .GetType()
+                                                                                                                    .GetProperty(prop.Name)
+                                                                                                                    .GetValue(item)?
+                                                                                                                    .ToString() 
+                                                                                                                    ?? 
+                                                                                                                    "0"))
+                                                                     .Value
+                                                                     ??
+                                                                     string.Empty
+                                                                     :
+                                                                     null
+                                                                     ;
+
+                        if(!this.PropToSorting.Contains((keySelector, prop.Name, SortOrder.asc, false)))
+                        {
+                            var node = this.PropToSorting.AddLast((keySelector, prop.Name, SortOrder.asc, false));
+                        }
+                    }
+                }
+                else
+                {
+                    if (prop.GetMethod.ReturnType.IsValueType || typeof(System.String) == prop.GetMethod.ReturnType)
+                    {
+                        keySelector = (item) => item.GetType().GetProperty(prop.Name).GetValue(item);
+
+                        if (!this.PropToSorting.Contains((keySelector, prop.Name, SortOrder.asc, false)))
+                        {
+                            var node = this.PropToSorting.AddLast((keySelector, prop.Name, SortOrder.asc, false));
+                        }
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Метод для сортировки коллекции экземпляров класса на основании значений в связанном списке CardPropAvailableToSorting
+    /// </summary>
+    private void SortInOrderByAllSelectedProp()
+    {
+        Serilog.Log.Debug($"Запуск метода «{nameof(SortInOrderByAllSelectedProp)}», отвечающего за групповую сортировку.");
+
+        if ((this.PropToSorting?.Count ?? 0) > 0)
+        {
+            if (this.PropToSorting.Any(prop => prop.isToSort))
+            {
+                var indFirstPropToSort = -1;
+
+                // Поиск индекса, по которому находится первый элемент, являющийся критерием для сортировки
+                for (var j = 0; j < this.PropToSorting.Count; j++)
+                {
+                    if (this.PropToSorting.ElementAt(j).isToSort)
+                    {
+                        indFirstPropToSort = j;
+                        break;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+
+                // Если не выбран ни один элемент для сортировки
+                if (indFirstPropToSort == -1)
+                {
+                    return;
+                }
+                else
+                {
+                    // Отсортировать коллекцию по первому найденному узлу
+                    var nodeFirstSorted = this.PropToSorting.ElementAt(indFirstPropToSort);
+                    var keySelectorFirst = nodeFirstSorted.keySelector;
+                    var sortFirst = nodeFirstSorted.sort;
+                    IOrderedEnumerable<T> firstSortedAsc;
+                    IOrderedEnumerable<T> firstSortedDesc;
+                    IOrderedEnumerable<T> nextSorted;
+
+                    if (sortFirst.Equals(SortOrder.asc))
+                    {
+                        firstSortedAsc = this.collectionToSort?.OrderBy(keySelectorFirst);
+                        nextSorted = firstSortedAsc;
+
+                        // Начиная со следующего после первого узла, по которому связанный список уже отсортирован
+                        for (int i = indFirstPropToSort + 1; i < this.PropToSorting.Count; i++)
+                        {
+                            var temp = this.PropToSorting.ElementAt(i);
+
+                            if (temp.isToSort)
+                            {
+                                var keySelector = temp.keySelector;
+                                var sort = temp.sort;
+
+                                nextSorted = nextSorted.ThenBy(keySelector);
+                            }
+                            else
+                            {
+                                continue;
+                            }
+                        }
+
+                        this.collectionToSort = new(nextSorted);
+                    }
+                    else if (sortFirst.Equals(SortOrder.desc))
+                    {
+                        firstSortedDesc = this.collectionToSort?.OrderByDescending(keySelectorFirst);
+                        nextSorted = firstSortedDesc;
+
+                        // Начиная со следующего после первого узла, по которому связанный список уже отсортирован
+                        for (int j = indFirstPropToSort + 1; j < this.PropToSorting.Count; j++)
+                        {
+                            var temp = this.PropToSorting.ElementAt(j);
+
+                            if (temp.isToSort)
+                            {
+                                var keySelector = temp.keySelector;
+                                var sort = temp.sort;
+
+                                if (sort.Equals(SortOrder.desc))
+                                {
+                                    nextSorted = nextSorted?.ThenByDescending(keySelector);
+                                }
+                                else
+                                {
+                                    nextSorted = nextSorted?.ThenBy(keySelector);
+                                }
+                            }
+                            else
+                            {
+                                continue;
+                            }
+                        }
+
+                        this.collectionToSort = new(nextSorted);
+                    }
+                }
+            }
+        }
+        #endregion
+    }
+}

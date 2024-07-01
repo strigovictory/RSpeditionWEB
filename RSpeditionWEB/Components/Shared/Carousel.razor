@@ -1,0 +1,80 @@
+﻿@inject NavigationManager navManager
+
+<carousel style="@this.CurrentSrc">
+    <input class="checkbox frst" type="radio" name="slider" id="slider-1" checked 
+    @onclick="@(() => { this.CurrentSrc = this.BackGroundImgSrc[this.BackGroundImgSrc.Keys.ElementAt(0)]; 
+                        if((this.BackGroundImgSrc?.Keys?.Count ?? 0) == 1)
+                        {
+                            this.navManager?.NavigateTo("/FuelCardsCont", true);
+                        } })" />
+    <label for="slider-1"></label>
+    @*    <input class="checkbox scnd" type="radio" name="slider" id="slider-2" @onclick="@(() => {this.CurrentSrc = this.BackGroundImgSrc[this.BackGroundImgSrc.Keys.ElementAt(1)]; })" />
+    <label for="slider-2"></label>
+    <input class="checkbox thrd" type="radio" name="slider" id="slider-3" @onclick="@(() => {this.CurrentSrc = this.BackGroundImgSrc[this.BackGroundImgSrc.Keys.ElementAt(2)]; })" />
+    <label for="slider-3"></label>
+    <input class="checkbox foth" type="radio" name="slider" id="slider-4" @onclick="@(() => {this.CurrentSrc = this.BackGroundImgSrc[this.BackGroundImgSrc.Keys.ElementAt(3)]; })" />
+    <label for="slider-4"></label>
+    <input class="checkbox fifth" type="radio" name="slider" id="slider-5" @onclick="@(() => {this.CurrentSrc = this.BackGroundImgSrc[this.BackGroundImgSrc.Keys.ElementAt(4)]; })" />
+    <label for="slider-5"></label>*@
+    <page id="page1">
+    <div></div>
+        <label for="slider-1"></label>
+        <FuelStationAnimated />
+  </page>
+@*  <!-- page 2 -->
+  <page id="page2">
+    <div></div>
+        <label for="slider-2">
+        <b>
+            <a title="Sim-карты" @onclick="@(() => { this.navManager.NavigateTo("/SimCards", true); })">@(this.BackGroundImgSrc.Keys.ElementAt(1))</a>
+        </b>
+    </label>
+  </page>
+    <!-- page 3 -->
+    <page id="page3">
+        <div></div>
+        <label for="slider-3">
+            <b>
+                <a title="Связь" @onclick="@(() => { this.navManager.NavigateTo("/MobileCom", true); })">@(this.BackGroundImgSrc.Keys.ElementAt(2))</a>
+            </b>
+        </label>
+    </page>
+    <!-- page 4 -->
+    <page id="page4">
+        <div></div>
+        <label for="slider-4">
+            <b>
+                <a title="GPS-трекеры" @onclick="@(() => { this.navManager.NavigateTo("/GPSTrackers", true); })">@(this.BackGroundImgSrc.Keys.ElementAt(3))</a>
+            </b>
+        </label>
+    </page>
+  <!-- page 5 -->
+  <page id="page5">
+    <div></div>
+        <label for="slider-5">
+        <b>
+            <a title="Банк" @onclick="@(() => { this.navManager.NavigateTo("/BanksCards", true); })">@(this.BackGroundImgSrc.Keys.ElementAt(4))</a>
+        </b>
+    </label>
+  </page>*@  
+</carousel>
+
+
+@code {
+    private Dictionary<string, string> BackGroundImgSrc = new Dictionary<string, string>
+    {
+        {"Топливо", "background-image: url('css/open-iconic/img/gas_station.png');" },
+        //{"Sim-карты", "background-image: url('/css/open-iconic/img/sim.jpg');" },       
+        //{"Связь", "background-image: url('/css/open-iconic/img/phone.jpg');" },
+        //{"GPS-трекеры", "background-image: url('/css/open-iconic/img/gps.jpg');" },
+        //{"Банк", "background-image: url('/css/open-iconic/img/coins.jpg');" },
+    };
+
+    private string CurrentSrc { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.CurrentSrc = this.BackGroundImgSrc[this.BackGroundImgSrc.Keys.ElementAt(0)];
+    }
+}

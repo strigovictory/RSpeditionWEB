@@ -1,0 +1,282 @@
+﻿@inject IApies api
+@inherits BanksCardsBase<BanksCardsGroupModel>
+@inject IMapper mapper
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        var nanksNames = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.BankId));
+        var label_Bank = nanksNames.Item1 ?? string.Empty;
+        var label_BankPlaceHolder = nanksNames.Item2 ?? string.Empty;
+        var card = new EmployeeCreditCard_View_GUID();
+        var cardType = card?.GetType();
+        var label_EmployeeId = cardType.GetCustomDisplayValues(nameof(card.EmployeeName)).Item1 ?? string.Empty;
+        var label_CardNumber = cardType.GetCustomDisplayValues(nameof(card.CardNumber)).Item1 ?? string.Empty;
+        var label_Rbsnumber = cardType.GetCustomDisplayValues(nameof(card.Rbsnumber)).Item1 ?? string.Empty;
+        var label_ExpirationMonth = cardType.GetCustomDisplayValues(nameof(card.ExpirationMonthName)).Item1 ?? string.Empty;
+        var label_ExpirationYear = cardType.GetCustomDisplayValues(nameof(card.ExpirationYear)).Item1 ?? string.Empty;
+        var label_DateOfIssue = cardType.GetCustomDisplayValues(nameof(card.DateOfIssueName)).Item1 ?? string.Empty;
+        var label_Comment = cardType.GetCustomDisplayValues(nameof(card.Comment)).Item1 ?? string.Empty;
+        var label_Hidden = cardType.GetCustomDisplayValues(nameof(card.Hidden)).Item1 ?? string.Empty;
+        var label_CardType = cardType.GetCustomDisplayValues(nameof(card.CardType)).Item1 ?? string.Empty;
+        var label_curr = cardType.GetCustomDisplayValues(nameof(card.CurrencyName)).Item1 ?? string.Empty;
+        var colspan = this.IsCreate ? 12 : 11;
+        <div class="form_flex">
+            <EditForm EditContext=@this.EditContext>
+                <DataAnnotationsValidator />
+                @*1-я строка*@
+                <div>
+                    <div class="flexRowSpaceBetweenCenter">
+                        <div class="flexColumn">
+                                <div>
+                                <label_small_black>@label_Bank</label_small_black>
+                            </div>
+                            <div>
+                                <InputSelect @bind-Value="@this.Model.BankId"
+                                             @bind-Value:event="oninput">
+                                    @if (this.Banks != null && this.Banks?.Count > 0)
+                                    {
+                                        @if (!this.Model.BankId.HasValue)
+                                        {
+                                            <option selected disabled>
+                                                @label_BankPlaceHolder
+                                            </option>
+                                        }
+                                        @foreach (var item in this.Banks?.OrderBy(_ => _.BankNameShort)?.ToList() ?? new())
+                                        {
+                                            if (item == null) continue;
+                                            var val = item.Id;
+                                            string label = item.BankNameShort ?? string.Empty;
+                                            @if (this.Model?.BankId == val)
+                                            {
+                                                <option value="@val" selected>
+                                                    @label
+                                                </option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@val">
+                                                    @label
+                                                </option>
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <option disabled selected>Список банков пуст</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="validation-message">
+                        @this.GetPropsValidMessage(nameof(this.Model.BankId))
+                    </div>
+                </div>
+            </EditForm>
+                <div class="adapt_table scroll font-journal">
+                    <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+                        <thead class="adapt_table_inner_thead">
+                        <tr style="border-top: 2px solid white;">
+                            <th data-label="№"> №</th>
+                            <th data-label="@label_EmployeeId">@label_EmployeeId</th>
+                            <th data-label="@label_CardNumber">@label_CardNumber</th>
+                            <th data-label="@label_Rbsnumber">@label_Rbsnumber</th>
+                            <th data-label="@label_CardType">@label_CardType</th>
+                            <th data-label="@label_ExpirationMonth">@label_ExpirationMonth</th>
+                            <th data-label="@label_ExpirationYear">@label_ExpirationYear</th>
+                            <th data-label="@label_DateOfIssue">@label_DateOfIssue</th>
+                            <th data-label="@label_Comment">@label_Comment</th>
+                            <th data-label="@label_curr">@label_curr</th>
+                            <th data-label="@label_Hidden">@label_Hidden</th>
+                            @if (this.IsCreate)
+                            {
+                                <th data-label="Удалить">Удалить</th>
+                            }
+                        </tr>
+                        </thead>
+                <tbody style="width: 100%;">
+                    <Virtualize Items="@(this.Model?.Cards ?? new())" 
+                                ItemSize="25"
+                                Context="itemsContext">
+                        <ItemContent>
+                            <BanksCardsEditGroupFormInner OperationsType="@this.OperationsType" 
+                                                          Index="@(this.Model.Cards.IndexOf(itemsContext))"
+                                                          TItemFromParent="@itemsContext"
+                                                          @key="@itemsContext.GuideId"
+                                                          InvokeParentHandlerDataChanges="@((EmployeeCreditCard_View_GUID itemChanged) =>
+                                                                                           { var ind = this.Model.Cards.FindIndex(_ => _.GuideId.Equals(itemChanged.GuideId));
+                                                                                             this.Model.Cards[ind] = itemChanged; })"
+                                                          InvokeParentHandler_RemoveRow="@((string indexRemoved) => {  this.Model.Cards.RemoveAll(_ => _.GuideId.Equals(indexRemoved)); })" />
+                        </ItemContent>
+                    </Virtualize>
+                    @if (this.IsCreate)
+                    {
+                                        <tr style="vertical-align: central;">
+                                            <td colspan="@colspan">
+                                                <button type="button"
+                                                        @onclick="@(() => { this.Model?.Cards?.Add(new EmployeeCreditCard_View_GUID()); })"
+                                                        class="button_tr_100">
+                                                    <span><b>+</b> Добавить еще одну карту</span>
+                                                </button>
+                                            </td>
+                                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+                <div class="validation-message-medium">
+                    @if (!this.IsModelValid)
+                    {
+                            @if (!string.IsNullOrEmpty(this.ValidErrors))
+                            {
+                                <ResultOperation Devider="'!'"
+                                                 ResList="null"
+                                                 ResMessage="@this.ValidErrors" 
+                                                 ListStyleType="disc"/>
+                            }
+                    }
+                </div>
+                <br />
+                <div>
+                    <ButtonDouble EventCallbackToParent="@(async () => { await this.ProgressBarOpenAsync();
+                                                                         await this.StartOperation();
+                                                                         await this.ProgressBarCloseAsync();})"
+                                  EventCallbackToParentReset="@(async () => { await this.MedelsInitialization(); })"
+                                  LabelForButton="Сохранить"
+                                  LabelForButtonReset="Отмена"
+                                  IsActive="@((this.Model?.Cards?.Count ?? 0) > 0
+                                           && (this.IsModelValid))"
+                                  TitleIfIsNonActive="Сохранение изменений возможно, если они валидны"
+                                  TitleIfIsActive="Кликните, чтобы сохранить изменения"
+                                  TitleReset="Кликните, чтобы отменить внесенные изменения">
+                    </ButtonDouble>
+                </div>
+            </div>
+
+        @if (this.ShowMessage)
+        {
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false;
+                                                                                            if (this.ShouldUpdateParent && this.InvokeParentHendlerAfterGroupUpdating.HasDelegate)
+                                                                                                await this.InvokeParentHendlerAfterGroupUpdating.InvokeAsync(this.Model.Cards?.Cast<object>()?.ToList() ?? new());
+                                                                                            else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                                await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                                          })">
+                <ResultOperation Devider="'!'"
+                                 ResList="null"
+                                 ResMessage="@this.Message" />
+            </ModalWindowWithEventCallback>
+        }
+    }
+    else
+    {
+        <div>
+            Идет загрузка формы...
+        </div>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    [CascadingParameter]
+    public BanksCards BanksCards_CascadingVal { get; set; }
+
+    private List<BankView> Banks => this.BanksCards_CascadingVal?.Banks ?? new();
+    public List<CurrencyResponse> Currencies => this.BanksCards_CascadingVal?.Currencies ?? new();
+    public List<EmployeeView> Employees => this.BanksCards_CascadingVal?.Employees ?? new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ReturnUrl = this.BanksCards_CascadingVal?.ReturnUrl ?? "/";
+        this.IsRender = true;
+    }
+
+    protected override (bool, string) ValidateModel()
+    {
+        {
+            var check1 = this.Model?.CheckModelIsValid();
+            var check2 = this.Model?.Cards?.All(_ => _.CheckModelIsValid().Item1) ?? false;
+
+            return (
+                        (check1.HasValue && check1.Value.isValid) && check2,
+                        (check1.HasValue ? check1.Value.errors?.ConvertListToString() : string.Empty) 
+                        + (check2 ? string.Empty: $"Коллекция карт не валидна")
+                   );
+        }
+    }
+
+    public override async Task StartOperation()
+    {
+        this.Message = string.Empty;
+        List<EmployeeCreditCardView> putPostModels = new();
+
+        if (this.IsModelValid)
+        {
+            this.Model.Cards?.ForEach(_ => putPostModels.Add(this.mapper?.Map<EmployeeCreditCardView>(_)));
+
+            string errorsValid = string.Empty;
+            var isValidItems = true;
+
+            foreach (var item in putPostModels)
+            {
+                var resCheckValid = item.CheckModelIsValid();
+                if (!resCheckValid.Item1)
+                {
+                    errorsValid += resCheckValid.Item2?.ItemsToString("! ");
+                    isValidItems = false;
+                }
+            }
+
+            if (isValidItems)
+            {
+                if (this.IsCreate)
+                {
+                    this.OperationsResult = await this.api?.FinanceApi?.PostEmployeeCreditCard(putPostModels, this.Token);
+                }
+                else
+                {
+                    // реализация не требуется пока
+                }
+
+                await this.ProccessingResponse();
+            }
+            else
+            {
+                this.Message = $"Операция не м.б. выполнена, т.к. данные не валидны ! {errorsValid}";
+                this.Title = "Предупреждение";
+            }
+        }
+        else
+        {
+            this.Message = "Операция не м.б. выполнена, т.к. данные не валидны !";
+            this.Title = "Предупреждение";
+        }
+
+        this.RenderMessage();
+    }
+
+    public override async Task ProccessingResponse()
+    {
+        if (this.OperationsResult == null)
+        {
+            this.Message += string.IsNullOrEmpty(this.OperationsResult.Result)
+                           ? "Операция закончилась с ошибкой ! Новые банковские карты не были сохранены в системе !"
+                           : this.OperationsResult?.Result ?? string.Empty;
+            this.Title = "Предупреждение";
+            this.ShouldUpdateParent = false;
+        }
+        else
+        {
+            this.Message += string.IsNullOrEmpty(this.OperationsResult.Result)
+                           ? "Операция успешно завершена ! Новые банковские карты были сохранены в системе !"
+                           : this.OperationsResult?.Result ?? string.Empty;
+
+            this.Title = "Результат добавления коллекции банковских карт";
+            this.ShouldUpdateParent = true;
+        }
+    }
+}

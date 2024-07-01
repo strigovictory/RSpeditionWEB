@@ -1,0 +1,18 @@
+﻿/*Две колонки*/
+.textcols {
+    line-height: 0.5;
+    padding-top: 65px;
+    padding-bottom: 5px;
+    overflow: visible;
+}
+
+.textcols-left {
+    float: left;
+    width: 45%;
+    text-align: right;
+}
+
+.textcols-right {
+    margin-left: 55%;
+    text-align: left;
+}

@@ -1,0 +1,172 @@
+﻿@inject IApies api
+@inherits ScaffoldJCFiltersBase<EmployeeCreditCardView>
+@inject IMapper mapper
+@inject IConfiguration config
+
+<CascadingValue Value="@this">
+    <div style="text-align: center;">
+        <p class="my-h1 inner-light-shadow">Реестр банковских карт</p>
+    </div>
+    @if (this.IsRender)
+    {
+        @*Табличная часть*@
+        <ScaffoldJCParent T="@EmployeeCreditCardView"
+                          @ref="@ScaffoldJCParentRef"
+                          SendToParentSelectedItem="@(async(EmployeeCreditCardView item) => {  this.ItemSelected = item;
+                                                                                                    this.IsRenderMenuActions = true; })" />
+
+        @*Блок кнопок в футере*@
+        <div class="stickyBottomContainer">
+            <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList" />
+        </div>
+
+        if (this.IsRenderGroupAdding)
+        {
+            <ModalWindowWithEventCallback Title="Групповое добавление банковских карт"
+                                          InvokeParentHandlerwithUpdParent="@(async() => { this.IsRenderGroupAdding = false; })">
+                <BanksCardsEditGroupForm InvokeParentHendlerAfterGroupUpdating="@(async(List<object> items) => { this.IsRenderGroupAdding = false;
+                                                                                                                  await this.UpdateAfterAction(); })"
+                                         InvokeParentHendlerCancel="@(async() => { this.IsRenderGroupAdding = false; })"
+                                         OperationsType="@OperationsType.create" />
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.IsRenderMenuActions)
+        {
+            <ScaffoldJCMenuActions T="@EmployeeCreditCardView"
+                           InvokeParentHendlerCancel="@(() => { this.ItemSelected = null;
+                                                                 this.IsRenderMenuActions = false; })"
+                           LableItemGenitive="банковской карты">
+                <ChildContent_EditItem>
+                    <BanksCardsEditForm TItemFromParent="@(this.mapper?.Map<EmployeeCreditCard_View_GUID>(this.ItemSelected))"
+                                InvokeParentHendlerAfterCreating="@(async(object addedItem) => { await this.UpdateAfterAction();
+                                                                                                  this.ItemSelected = null;
+                                                                                                  this.IsRenderMenuActions = false;  })"
+                                InvokeParentHendlerAfterUpd="@(async(object item) => { await this.UpdateAfterAction();
+                                                                                        this.ItemSelected = null;
+                                                                                        this.IsRenderMenuActions = false; })"
+                                InvokeParentHendlerCancel="@((object item) => { this.ItemSelected = null;
+                                                                                 this.IsRenderMenuActions = false; })" />
+                </ChildContent_EditItem>
+                <ChildContent_DeleteItem>
+                    <div>В процессе реализации</div>
+                </ChildContent_DeleteItem>
+            </ScaffoldJCMenuActions>
+        }
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Подождите..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    #region
+    [CascadingParameter]
+    public BanksCards BankCardsCascadingParameter { get; set; }
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+    => new List<PropertyInfo>
+        {
+        this.ModelsType.GetProperty(nameof(this.Model.CardNumber)),
+        this.ModelsType.GetProperty(nameof(this.Model.Rbsnumber)),
+        this.ModelsType.GetProperty(nameof(this.Model.EmployeeName)),
+        this.ModelsType.GetProperty(nameof(this.Model.ExpirationMonthName)),
+        this.ModelsType.GetProperty(nameof(this.Model.ExpirationYear)),
+        this.ModelsType.GetProperty(nameof(this.Model.DateOfIssueName)),
+        this.ModelsType.GetProperty(nameof(this.Model.BankName)),   
+        this.ModelsType.GetProperty(nameof(this.Model.CurrencyName)),
+        this.ModelsType.GetProperty(nameof(this.Model.CardTypeName)),
+        this.ModelsType.GetProperty(nameof(this.Model.Comment)),
+        this.ModelsType.GetProperty(nameof(this.Model.Hidden))
+        };
+
+    #endregion
+
+    #region
+    protected override async Task OnInitializedAsync()
+    {
+        this.ScaffoldJCMainBaseCascadingParameter.FinishUpdatingMainCollectionsEvent += this.UpdateGetMainCollectionTItemsFromDB;
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task<List<EmployeeCreditCardView>> GetCollectionTItemsFromParent()
+    => this.BankCardsCascadingParameter?.CreditCards ?? new();
+
+    public override async Task UpdateCollectionTItemsFromParent()
+    {
+        this.Items = (await this.GetCollectionTItemsFromParent()) ?? new();
+        this.ItemsFiltered = new(this.Items);
+        this.ItemsFilteredChecked = new();
+    }
+
+    protected override async Task UpdateGetMainCollectionTItemsFromDB()
+    {
+        this.Items = new();
+        try
+        {
+            await this.BankCardsCascadingParameter?.Init_CreditCard();
+            await this.UpdateCollectionTItemsFromParent();
+        }
+        catch (Exception exc)
+        {
+            exc?.LogError(this.logger, this.GetType()?.Name ?? string.Empty, nameof(UpdateGetMainCollectionTItemsFromDB));
+        }
+
+         await this.IsRenderTrueAsync();
+    }
+
+    protected override void InitButtons()
+    {
+        this.ButtonBaseClassList = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (() =>
+        {
+            this.IsRenderGroupAdding = true;
+            this.StateHasChanged();
+        });
+        b1.LabelForButton = "Добавить новые карты";
+        b1.IsActive = this.IsActive;
+        b1.TitleIfIsActive = "Кликните для добавления новых карт";
+        b1.TitleIfIsNonActive = "Добавление новых карт станет возможным после загрузки коллекций, необходимых для выполнения операции";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (() =>
+        {
+            this.IsRenderSortWindow = true;
+            this.StateHasChanged();
+        });
+        b2.LabelForButton = "Сортировать карты";
+        b2.IsActive = this.IsRender;
+        b2.TitleIfIsActive = "Кликните для настройки групповой сортировки карт";
+        b2.TitleIfIsNonActive = "Групповая сортировка карт станет возможной после загрузки журнала";
+        //
+        ButtonBaseClass b3 = new();
+        b3.CallbackToParent = (async () =>
+        {
+            await this.ProgressBarOpenAsync();
+            var uri = GateWayConfigs.Value.BaseUrl + "/banks" + "/cards";
+            var resGenerate = await this.InitGeneratePrintForm(uri, this.ItemsFiltered);
+            if (!resGenerate.Item1)
+            {
+                this.Message = resGenerate.Item2;
+                this.Title = "Предупреждение";
+                this.ShowMessage = true;
+                this.StateHasChanged();
+            }
+            await this.ProgressBarCloseAsync();
+        });
+        b3.LabelForButton = "Печатная форма";
+        b3.IsActive = this.IsRender;
+        b3.TitleIfIsActive = "Кликните для формирования печатной формы отчета";
+        b3.TitleIfIsNonActive = "Печатная форма отчета станет доступной после полной загрузки страницы";
+        this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { b1, b3 });
+    }
+    #endregion
+}
+

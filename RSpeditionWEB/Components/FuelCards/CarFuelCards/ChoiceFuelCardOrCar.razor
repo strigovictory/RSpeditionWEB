@@ -1,0 +1,710 @@
+﻿@inject IApies api
+@inject Serilog.ILogger logger
+@inherits ObjItemsEventBase
+@using RSpeditionWEB.Models.ResponseModels
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        <div class="adapt_table scroll font-journal" style="@StyleMaxHeightName">
+            <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+                <thead class="adapt_table_inner_thead">
+                    <tr style="border-top: 2px solid white;">
+                        <th colspan="4">
+                           @* @if (this.IsCarsChoice)
+                            {
+                                <span>
+                                    Выбор номера тягача
+                                </span>
+                            }
+                            else
+                            {*@
+                                <span>
+                                    Выбор номера топливной карты
+                                </span>
+                            @*}*@
+                        </th>
+                    </tr>
+                    <tr>
+                        <th data-label="Отметить">
+                            @*@if (this.IsCarsChoice)
+                            {
+                                @if (this.Model?.SelectedCars?.All(_ => _.IsChecked) ?? false)
+                                {
+                                    <input type="checkbox"
+                               checked
+                               title="Отметить все"
+                               @oninput="@((ChangeEventArgs args) => {  var isCheckedAll = (bool)(args?.Value ?? false);
+                                                                                            this.Model?.SelectedCars?.ForEach(_ => _.IsChecked = isCheckedAll);
+                                                                                            this.InitButtons(); })" />
+                                }
+                                else
+                                {
+                                    <input type="checkbox"
+                               title="Отметить все"
+                               @oninput="@((ChangeEventArgs args) => {  var isCheckedAll = (bool)(args?.Value ?? false);
+                                                                                            this.Model?.SelectedCars?.ForEach(_ => _.IsChecked = isCheckedAll);
+                                                                                            this.InitButtons(); })" />
+                                }  
+                            }
+                            else
+                            {*@
+                            @if (this.Model?.SelectedCards?.All(card => card.IsChecked) ?? false)
+                                {
+                                    <input type="checkbox"
+                               checked
+                               title="Отметить все"
+                               @oninput="@((ChangeEventArgs args) => {  var isCheckedAll = (bool)(args?.Value ?? false);
+                                                                                            this.Model?.SelectedCards?.ForEach(card => card.IsChecked = isCheckedAll);
+                                                                                            this.InitButtons(); })" />
+                                }
+                                else
+                                {
+                                    <input type="checkbox"
+                               title="Отметить все"
+                               @oninput="@((ChangeEventArgs args) => {  var isCheckedAll = (bool)(args?.Value ?? false);
+                                                                                            this.Model?.SelectedCards?.ForEach(card => card.IsChecked = isCheckedAll);
+                                                                                            this.InitButtons(); })" />
+                                }
+                            @*}*@
+                        </th>
+                        <th data-label="№">
+                            №
+                        </th>
+                        <th data-label="Из отчета">
+                            Из отчета
+                        </th>
+                        <th data-label="Из БД">
+                            Из БД
+                        </th>
+                    </tr>
+                </thead>
+                <tbody style="width: 100%;">
+                    @*@if (this.IsCarsChoice)
+                    {
+                        @for (var i = 0; i < this.Model?.SelectedCars?.Count; i++)
+                        {
+                            var index = i;
+                            var item = this.Model?.SelectedCars?.ElementAt(index) ?? null;
+                            TruckResponse car = new();
+                            var typeCar = car.GetType();
+                            var propsCar = new List<PropertyInfo> { typeCar.GetProperty(nameof(car.CarNumber)),
+                            typeCar.GetProperty(nameof(car.CarNumber))};
+                            var textPropCar = typeCar.GetProperty(nameof(car.CarNumber));
+                            var tempAttrCar = typeCar.GetCustomDisplayValues(nameof(car.CarNumber));
+                            var labelForSearchCar = tempAttrCar.Item1 ?? string.Empty;
+                            var errors = (item?.IsChecked ?? false) ? this.ValidateModel_Car(item) : new();
+                            var isActive = item?.IsChecked ?? false;
+                            <tr>
+                                <td data-label="Отметить">
+                                    @if (item.IsChecked)
+                                    {
+                                        <input type="checkbox"
+                               checked
+                               title="Отметить"
+                               @oninput="@((ChangeEventArgs args) => {  var isCheckedAll = (bool)(args?.Value ?? false);
+                                                                                            item.IsChecked = isCheckedAll;
+                item.SelectedCarId = isCheckedItem ? item.SelectedCarId: 0;
+                                                                                            this.InitButtons(); })" />
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox"
+                               title="Отметить"
+                               @oninput="@((ChangeEventArgs args) => {  var isCheckedAll = (bool)(args?.Value ?? false);
+                item.IsChecked = isCheckedAll;
+                item.SelectedCarId = isCheckedItem ? item.SelectedCarId: 0;
+                                                                                            this.InitButtons(); })" />
+                                    }
+                                </td>
+                                <td data-label="№">
+                                    @(index + 1)
+                                </td>
+                                <td data-label="Из отчета">
+                                    <input type="text"
+                               disabled
+                               value="@(item?.CarNum ?? string.Empty)"
+                               rows="1" />
+                                </td>
+                                <td data-label="Из БД">
+                                    @if (isActive)
+                                    {
+                                        var trucksByProvider = this.UploadReport_CascadingParameter?.FuelCardsContainer_CascadingParameter?.Cards?.Where(_ => _.ProviderId == FuelProviderId)?.OrderBy(_ => _.Number)?.ToList() ?? new();
+
+                                        <SearchSelectTItems Items="@(this.UploadReport_CascadingParameter?.FuelCardsContainer_CascadingParameter?.Trucks?.OrderBy(_ => _.CarNumber)?.ToList() ?? new())"
+                                                            GetObjItems="@(() => (this.UploadReport_CascadingParameter?.FuelCardsContainer_CascadingParameter?.Trucks?.OrderBy(_ => _.CarNumber)?.Cast<object>()?.ToList() ?? new()))"
+                                                            T="@TruckResponse"
+                                                            KeyPropInfo="@(typeCar.GetProperty(nameof(car.Id)))"
+                                                            MaxSizeSelect="4"
+                                                            InitParameters="@null"
+                                                            LabelForSearch="@labelForSearchCar"
+                                                            Placeholder="@labelForSearchCar"
+                                                            ShowSelectedItems="@true"
+                                                            ShowSearchResult="@true"
+                                                            IsMultiple="@false"
+                                                            PropertiesInfoForSearch="@propsCar"
+                                                            TextProperty="@textPropCar"
+                                                            SendToParent_FoundAndSelectedItems="@((List<TruckResponse> selectedItems) => {
+                                                                                                                                    var selectedItem = selectedItems?.FirstOrDefault() ?? null;
+                                                                                                                                    if(selectedItem != null)
+                                                                                                                                        this.Model.SelectedCars[index].SelectedCarId = selectedItem.Id;
+                                                                                                                                    else
+                                                                                                                                        this.Model.SelectedCars[index].SelectedCarId = 0;
+
+                                                                                                                                    this.InitButtons();
+                                                                                                                                })" />
+                                    }
+                                    else
+                                    {
+                                        <span class="disabled"></span>
+                                    }
+                                </td>
+                            </tr>
+                            @if ((errors?.Count ?? 0) > 0)
+                            {
+                                <tr>
+                                    <td colspan="4" style="text-align: left;">
+                                        <ul class="validation-message">
+                                            @foreach (var error in errors)
+                                            {
+                                                <li>
+                                                    @error
+                                                </li>
+                                            }
+                                        </ul>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    }
+                    else
+                    {*@
+                        @for (var i = 0; i < this.Model?.SelectedCards?.Count; i++)
+                        {
+                            var index = i;
+                            var item = this.Model?.SelectedCards?.ElementAt(index) ?? null;
+                            FuelCardFullModel card = new();
+                            var typeCard = card.GetType();
+                            var propsCard = new List<PropertyInfo> { typeCard.GetProperty(nameof(card.Number)) };
+                            var textPropCard = typeCard.GetProperty(nameof(card.Number));
+                            var tempAttrCard = typeCard.GetCustomDisplayValues(nameof(card.Number));
+                            var labelForSearchCard = tempAttrCard.Item1 ?? string.Empty;
+                            var errors = (item?.IsChecked ?? false) ? this.ValidateModelCard(item) : new();
+                            var isActive = item?.IsChecked ?? false;
+                            <tr>
+                                <td data-label="Отметить">
+                                    @if (item.IsChecked)
+                                    {
+                                        <input type="checkbox"
+                                           checked
+                                           title="Отметить"
+                                           @oninput="@((ChangeEventArgs args) => {  var isCheckedItem = (bool)(args?.Value ?? false);
+                                                                                    item.IsChecked = isCheckedItem;
+                                                                                    item.SelectedCardId = isCheckedItem ? item.SelectedCardId: 0;
+                                                                                    this.InitButtons(); })" />
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox"
+                                           title="Отметить"
+                                           @oninput="@((ChangeEventArgs args) => {  var isCheckedItem = (bool)(args?.Value ?? false);
+                                                                                    item.IsChecked = isCheckedItem;
+                                                                                    item.SelectedCardId = isCheckedItem ? item.SelectedCardId: 0;
+                                                                                    this.InitButtons(); })" />
+                                    }
+                                </td>
+                                <td data-label="№">
+                                    @(index + 1)
+                                </td>
+                                <td data-label="Из отчета">
+                                    <input type="text"
+                               disabled
+                               value="@(item?.CardNum ?? string.Empty)"
+                               rows="1" />
+                                </td>
+                                <td data-label="Из БД">
+                                    @if (isActive)
+                                    {
+                                        var cardsByProvider = this.UploadReportCascadingParameter?.FuelCardsContainerCascadingParameter?.Cards?.Where(card => card.ProviderId == FuelProviderId)?.OrderBy(card => card.Number)?.ToList() ?? new();
+                                        <SearchSelectTItems Items="@cardsByProvider"
+                                                            GetObjItems="@(() => (cardsByProvider?.Cast<object>()?.ToList() ?? new()))"
+                                                            T="@FuelCardFullModel"
+                                                            KeyPropInfo="@(typeCard.GetProperty(nameof(card.Id)))"
+                                                            MaxSizeSelect="4"
+                                                            InitParameters="@null"
+                                                            LabelForSearch="@labelForSearchCard"
+                                                            Placeholder="@labelForSearchCard"
+                                                            IsMultiple="@false"
+                                                            PropertiesInfoForSearch="@propsCard"
+                                                            TextProperty="@textPropCard"
+                                                            SendToParentFoundAndSelectedItems="@((List<FuelCardFullModel> selectedItems)
+                                                                                                                             => {
+                                                                                                                                    var selectedItem = selectedItems?.FirstOrDefault() ?? null;
+                                                                                                                                    if(selectedItem != null)
+                                                                                                                                        this.Model.SelectedCards[index].SelectedCardId = selectedItem.Id;
+                                                                                                                                    else
+                                                                                                                                        this.Model.SelectedCards[index].SelectedCardId = 0;
+
+                                                                                                                                    this.InitButtons();
+                                                                                                                                })" />
+                                    }
+                                    else
+                                    {
+                                        <span class="disabled"></span>
+                                    }
+                                </td>
+                            </tr>
+                            @if ((errors?.Count ?? 0) > 0)
+                            {
+                                <tr>
+                                    <td colspan="4" style="text-align: left;">
+                                        <ul class="validation-message">
+                                            @foreach (var error in errors)
+                                            {
+                                                <li>
+                                                    @error
+                                                </li>
+                                            }
+                                        </ul>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    @*}*@
+                </tbody>
+            </table>
+        </div>
+        <div class="stickyBottomContainer" style="top: 85vh !important;">
+            <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList"
+                             WidthForButtonWrapper="40%" />
+        </div>
+    }
+    else
+    {
+        <ProgressBar />
+    }
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () =>
+                                                                              {
+                                                                                  this.ShowMessage = false;
+                                                                                  if(this.IsSuccess && this.InvokeParentHendlerSuccess.HasDelegate)
+                                                                                      await this.InvokeParentHendlerSuccess.InvokeAsync();
+                                                                                  else if(!this.IsSuccess && this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                      await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                              })">
+            <ResultOperation IsNumberedList="false"
+                         ResList="null"
+                         ResMessage="@this.Message"
+                         Devider="'!'" />
+            @if (this.ButtonBaseClassListInner?.Count > 0)
+            {
+                <div class="stickyBottomContainer" style="top: 0vh !important;">
+                    <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassListInner"
+                                     WidthForButtonWrapper="100%" />
+                </div>
+            }
+
+            @if (this.IsRenderSuccessItems)
+            {
+                <ItemsWithReasonList Items="@(this.GetTupleSuccess())"
+                                     NameItem="Транзакции, успешно сохраненные в БД"
+                                     IsDetailsHide="true" />
+            }
+            @if (this.IsRenderSecondSuccessItems)
+            {
+                <ItemsWithReasonList Items="@(this.GetTupleSecondarySuccess())"
+                                     NameItem="Транзакции, успешно обновленные в БД"
+                                     IsDetailsHide="true" />
+            }
+            @if (this.IsRenderNotSuccessItems)
+            {
+                <ItemsWithReasonList Items="@(this.GetTupleNotSuccess())"
+                                     NameItem="Транзакции, НЕ сохраненные в БД" />
+            }
+        </ModalWindowWithEventCallback>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    #region   
+    [CascadingParameter]
+    public UploadReport UploadReportCascadingParameter { get; set; }
+
+    [Parameter]
+    public List<NotParsedTransaction> CouldNotParsedTranzactions { get; set; }
+
+    [Parameter]
+    public int FuelProviderId { get; set; }
+
+    private bool IsRenderSuccessItems { get; set; } = false;
+    private bool IsRenderSecondSuccessItems { get; set; } = false;
+    private bool IsRenderNotSuccessItems { get; set; } = false;
+    private List<FuelTransactionShortResponse> SuccessItems { get; set; } = new();
+    private List<FuelTransactionShortResponse> SecondarySuccessItems { get; set; } = new();
+    private List<NotSuccessResponseItemDetailed<NotParsedTransaction>> NotSuccessItems { get; set; } = new();
+
+    private bool IsSuccess { get; set; }
+
+    private bool IsCarsChoice => this.CouldNotParsedTranzactions?.Any(tr => !string.IsNullOrEmpty(tr.CarNumber)) ?? false;
+
+    class ChoiceCardOrCar
+    {
+        public List<ChoiceCar> SelectedCars { get; set; } = new();
+        public List<ChoiceCard> SelectedCards { get; set; } = new();
+    }
+
+    abstract class CheckedBase
+    {
+        public bool IsChecked { get; set; }
+    }
+
+    class ChoiceCard : CheckedBase
+    {
+        [StringLength(30, ErrorMessage = "Номер топливной карты должен содержать от {2} до {1} символов.", MinimumLength = 1)]
+        public string CardNum { get; set; } // номер топливной карты 
+
+        [ValidateIdAttribute(PropName = "Топливная карта")]
+        public int SelectedCardId { get; set; } //  идентификатор выбранной пользователем топливной карты
+    }
+
+    class ChoiceCar : CheckedBase
+    {
+        [StringLength(20, ErrorMessage = "Номер тягача должен содержать от {2} до {1} символов.", MinimumLength = 1)]
+        public string CarNum { get; set; }// номер тягача
+
+        [ValidateIdAttribute(PropName = "Тягач")]
+        public int SelectedCarId { get; set; }// идентификатор выбранного пользователем тягача 
+    }
+
+    private ChoiceCardOrCar Model { get; set; }
+
+    private bool ModelIsValid => this.ValidateModel();
+
+    #endregion
+
+    #region
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();    
+        this.InitModel();
+        InitButtonsInner();
+        this.IsRender = true;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        this.InitButtons();
+    }
+
+    private void InitModel()
+    {
+        this.Model = new();
+        this.Model.SelectedCars = new();
+        this.Model.SelectedCards = new();
+
+        if (this.IsCarsChoice)
+        {
+            this.CouldNotParsedTranzactions?
+                                           .Select(tr => tr.CarNumber)?
+                                           .Where(tr => !string.IsNullOrEmpty(tr))?
+                                           .Distinct()?
+                                           .ToList()?
+                                           .ForEach(tr => this.Model?
+                                                                   .SelectedCars?
+                                                                   .Add(new ChoiceCar 
+                                                                       {
+                                                                           CarNum = tr ?? string.Empty,
+                                                                           SelectedCarId = 0,
+                                                                           IsChecked = true
+                                                                       }));
+        }
+        else
+        {
+            this.CouldNotParsedTranzactions?
+                                           .Select(tr => tr.CardNumber)?
+                                           .Where(tr => !string.IsNullOrEmpty(tr))?
+                                           .Distinct()?
+                                           .ToList()?
+                                           .ForEach(tr => this.Model?
+                                                                   .SelectedCards?
+                                                                   .Add(new ChoiceCard
+                                                                           {
+                                                                               CardNum = tr ?? string.Empty,
+                                                                               SelectedCardId = 0,
+                                                                               IsChecked = true
+                                                                           }));
+        }
+    }
+
+    private bool ValidateModel() => this.IsCarsChoice 
+                                    ?
+                                    (this.Model?.CheckModelIsValid().Item1 ?? false)
+                                    &
+                                    (this.Model?.SelectedCars?.Where(car => car.IsChecked)?.All(car => car.CheckModelIsValid().Item1) ?? false)
+                                    :
+                                    (this.Model?.CheckModelIsValid().Item1 ?? false)
+                                    &
+                                    (this.Model?.SelectedCards?.Where(card => card.IsChecked)?.All(card => card.CheckModelIsValid().Item1) ?? false)
+                                    ;
+
+    private List<string> ValidateModelCar(ChoiceCar car) => car.CheckModelIsValid().Item2 ?? null;
+
+    private List<string> ValidateModelCard(ChoiceCard card) => card.CheckModelIsValid().Item2 ?? null;
+
+    protected override void InitButtons()
+    {
+        var isAnyItemsChecked = ((this.Model?.SelectedCards?.Any() ?? false) && (this.Model?.SelectedCards?.Any(card => card.IsChecked) ?? false))
+                                ||
+                                ((this.Model?.SelectedCars?.Any() ?? false) && (this.Model?.SelectedCars?.Any(car => car.IsChecked) ?? false));
+        var isActive = this.ModelIsValid && isAnyItemsChecked;
+        this.ButtonBaseClassList = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (async() =>
+        {
+            var res = this.BuildResult();
+            if (res?.Count > 0)
+                await this.SendFilledTranzactionsToSave(res);
+        });
+        b1.LabelForButton = 
+        //this.IsCarsChoice ? $"Сохранить транзакции по выбранным тягачам" : 
+        $"Сохранить транзакции по выбранным картам";
+        b1.IsActive = isActive;
+        b1.TitleIfIsActive = "Кликните для добавления в БД транзакций";
+        b1.TitleIfIsNonActive = 
+        //this.IsCarsChoice 
+        //? isAnyItemsChecked ? "Добавление новых транзакций станет возможным после того, как отмеченные тягачи будут валидны" : "Добавление новых транзакций станет возможным после выбора хотя бы одного тягача"
+        //:
+        isAnyItemsChecked ? "Добавление новых транзакций станет возможным после того, как отмеченные номера топливных карт будут валидны" : "Добавление новых транзакций станет возможным после выбора хотя бы одной топливной карты";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (() =>
+        {
+            this.InitModel();
+            this.StartObjItemsChangedEvent();
+            this.ValidateModel();
+            this.StateHasChanged();
+        });
+        b2.LabelForButton = $"Отмена";
+        b2.IsActive = this.IsRender;
+        b2.TitleIfIsActive = "Кликните для отмены всех внесенных изменений";
+        b2.TitleIfIsNonActive = "";
+
+        if (IsUserHasFuelRoleInHierarchy(FuelRoles.Fuel_Provisioner))
+        {
+            ButtonBaseClassList.Add(b1);
+        }
+
+        ButtonBaseClassList.Add(b2);
+    }
+
+    private List<NotParsedTransactionFilled> BuildResult()
+    {
+        List<NotParsedTransactionFilled> res = new();
+
+        this.CouldNotParsedTranzactions?.ForEach(tr => res.Add(
+            new NotParsedTransactionFilled
+            {
+                CardNumber = tr.CardNumber, 
+                CarNumber = tr.CarNumber,
+                NotFuelType = tr.NotFuelType,
+                ProviderId = tr.ProviderId,
+                OperationDate = tr.OperationDate,
+                FuelTypeId = tr.FuelTypeId,
+                Quantity = tr.Quantity,
+                Cost = tr.Cost,
+                CurrencyId = tr.CurrencyId,
+                TotalCost = tr.TotalCost,
+                IsCheck = tr.IsCheck,
+                CountryId = tr.CountryId,
+                TransactionID = tr.TransactionID,
+                IsDaily = tr.IsDaily,
+                IsMonthly = tr.IsMonthly,
+                RegionId = tr.RegionId,
+                RegionName = tr.RegionName,
+                CheckID = tr.CheckID,
+                IsStorno = tr.IsStorno,
+                IsModified = tr.IsModified,
+                ProviderFuelType = tr.ProviderFuelType,
+                ProviderFuelTypeName = tr.ProviderFuelTypeName,
+            }));
+
+        if(this.IsCarsChoice)
+        {
+            foreach(var selectedCar in this.Model?.SelectedCars?.Where(car => car.IsChecked && !string.IsNullOrEmpty(car.CarNum))?.ToList() ?? new())
+            {
+                res?
+                    .Where(tr => tr.CarNumber.Equals(selectedCar.CarNum, StringComparison.InvariantCultureIgnoreCase))?
+                    .ToList()?
+                    .ForEach(tr => tr.CarIdSelected = selectedCar.SelectedCarId)
+                    ;
+            }
+            res = res?.Where(tr => tr.CarIdSelected != 0)?.ToList() ?? new();
+        }
+        else
+        {
+            foreach (var selectedCard in this.Model?.SelectedCards?.Where(card => card.IsChecked && !string.IsNullOrEmpty(card.CardNum))?.ToList() ?? new())
+            {
+                res?
+                    .Where(tr => !string.IsNullOrEmpty(tr.CardNumber) && tr.CardNumber.Equals(selectedCard.CardNum, StringComparison.InvariantCultureIgnoreCase))?
+                    .ToList()?
+                    .ForEach(tr => tr.FuelCardIdSelected = selectedCard.SelectedCardId)
+                    ;
+            }
+            res = res?.Where(tr => tr.FuelCardIdSelected != 0)?.ToList() ?? new();
+        }
+
+        return res;
+    }
+
+    private List<ButtonBaseClass> ButtonBaseClassListInner { get; set; }
+
+    protected void InitButtonsInner()
+    {
+        this.ButtonBaseClassListInner = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (() =>
+        {
+            this.IsRenderSuccessItems = this.IsRenderSuccessItems ? false : true;
+            this.StateHasChanged();
+        });
+        b1.LabelForButton = "Транзакции, успешно сохраненные в БД";
+        b1.IsActive = this.SuccessItems?.Count > 0;
+        b1.TitleIfIsActive = "Кликните для отображения перечня сохраненных транзакций";
+        b1.TitleIfIsNonActive = "Коллекция сохраненных транзакций пустая";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (() =>
+        {
+            this.IsRenderNotSuccessItems = this.IsRenderNotSuccessItems ? false : true;
+            this.StateHasChanged();
+        });
+        b2.LabelForButton = "Транзакции, НЕ сохраненные в БД";
+        b2.IsActive = this.NotSuccessItems?.Count > 0;
+        b2.TitleIfIsActive = "Кликните для отображения перечня не сохраненных транзакций";
+        b2.TitleIfIsNonActive = "Коллекция не сохраненных транзакций пустая";
+        //
+        ButtonBaseClass b3 = new();
+        b3.CallbackToParent = (() =>
+        {
+            this.IsRenderSecondSuccessItems = this.IsRenderSecondSuccessItems ? false : true;
+            this.StateHasChanged();
+        });
+        b3.LabelForButton = "Транзакции, успешно обновленные в БД";
+        b3.IsActive = this.SecondarySuccessItems?.Count > 0;
+        b3.TitleIfIsActive = "Кликните для отображения перечня обновленных транзакций";
+        b3.TitleIfIsNonActive = "Коллекция обновленных транзакций пустая";
+        //
+        if (this.SuccessItems?.Count > 0)
+            this.ButtonBaseClassListInner.Add(b1);
+        if (this.NotSuccessItems?.Count > 0)
+            this.ButtonBaseClassListInner.Add(b2);
+        if (this.SecondarySuccessItems?.Count > 0)
+            this.ButtonBaseClassListInner.Add(b3);
+    }
+
+    private async Task SendFilledTranzactionsToSave(List<NotParsedTransactionFilled> res)
+    {
+        this.Message = string.Empty;
+        this.SuccessItems = new();
+        this.NotSuccessItems = new();
+        this.CouldNotParsedTranzactions = new();
+
+        if (res?.Count > 0)
+        {
+            var transactionsFilled = new NotParsedTransactionsFilled(FuelProviderId, res.FirstOrDefault()?.IsMonthly ?? false, User, res);
+
+            var resPars = await this.api?.FuelParserApi?.PostFilledTransactions(transactionsFilled, this.Token);
+
+            this.IsSuccess = resPars != default;
+            this.SuccessItems = resPars?.SuccessItems ?? new();
+            this.SecondarySuccessItems = resPars?.SecondarySuccessItems ?? new();
+            this.NotSuccessItems = resPars?.NotSuccessItems ?? new();
+            this.CouldNotParsedTranzactions = resPars?.NotSuccessItems?.Select(item => item.NotSuccessItem)?.ToList() ?? new();
+            this.Message = !this.IsSuccess
+             ? $"Произошла ошибка ! Операция не была выполнена! "
+             : this.Message;
+
+            if (SuccessItems.Any() || SecondarySuccessItems.Any())
+            {
+                Message += $"Операция успешно завершена! Подробности: ";
+
+                if (SuccessItems.Any())
+                {
+                    Message += $"добавлены транзакции в количестве {SuccessItems.Count} шт. !";
+                }
+
+                if (NotSuccessItems.Any())
+                {
+                    Message += $"не добавлены транзакции в количестве {NotSuccessItems.Count} шт. !";
+                }
+
+                if (SecondarySuccessItems.Any())
+                {
+                    Message += $"обновлены транзакции в количестве {SecondarySuccessItems.Count} шт. !";
+                }
+            }
+            else
+            {
+                Message += resPars.Result ?? string.Empty;
+            }
+        }
+        else
+        {
+            this.Message =
+            //this.IsCarsChoice ? "Нет отмеченных тягачей, по которым транзакции м.б. сохранены в БД.":
+            "Нет отмеченных карт, по которым транзакции м.б. сохранены в БД.";
+            this.IsSuccess = false;
+        }
+
+        this.Title = "Результат сохранения в БД не добавленных ранее транзакций";
+        InitButtonsInner();
+        this.RenderMessage();
+    }
+
+    protected virtual List<(int, string, string)> GetTupleNotSuccess()
+    {
+        List<(int, string, string)> res = new();
+        for (var i = 0; i < NotSuccessItems.Count; i++)
+        {
+            var item = NotSuccessItems[i];
+            var name = item.NotSuccessItem.ToString();
+            var reason = item.Reason;
+            res.Add((i+1, name, reason));
+        }
+        return res;
+    }
+
+    protected virtual List<(int, string, string)> GetTupleSuccess()
+    {
+        List<(int, string, string)> res = new();
+        for (var i = 0; i < SuccessItems.Count; i++)
+        {
+            var item = SuccessItems[i];
+            var name = item.ToString();
+            res.Add((i+1, name, string.Empty));
+        }
+        return res;
+    }
+
+    protected virtual List<(int, string, string)> GetTupleSecondarySuccess()
+    {
+        List<(int, string, string)> res = new();
+        for (var i = 0; i < this.SecondarySuccessItems.Count; i++)
+        {
+            var item = this.SecondarySuccessItems[i];
+            var name = item.ToString();
+            res.Add((i+1, name, string.Empty));
+        }
+        return res;
+    }
+    #endregion
+}

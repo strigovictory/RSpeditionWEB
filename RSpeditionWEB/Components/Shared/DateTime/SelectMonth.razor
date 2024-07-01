@@ -1,0 +1,140 @@
+﻿@inherits ComponentBaseClass
+
+<label_small_black>
+    @LabelForMonthChoice
+</label_small_black>
+@if (this.MonthsBinaryList != null && this.MonthsBinaryList.Count == 12)
+{
+    <select @bind="@this.MonthInt"
+            size="@this.SizeSelect">
+        @if (this.IsNeedSelectNull.HasValue)
+        {
+            <option value="-1">
+                Месяц
+            </option>
+        }
+        @for (int i = 0; i < this.MonthsBinaryList.Count; i++)
+        {
+            // Порядковый номер месяца в году
+            int temp = i + 1;
+            string name = this.MonthsBinaryList.ElementAt(i).GetStringMonth();
+            if (temp == this.monthInt)
+            {
+                <option value="@temp" selected>
+                    @name
+                </option>
+            }
+            else
+            {
+                <option value="@temp">
+                    @name
+                </option>
+            }
+        }
+    </select>
+}
+
+@code {
+    [CascadingParameter]
+    public ComponentBaseClass ComponentBaseClassCascadingParameter { get; set; }
+
+    [Parameter]
+    public bool? IsNeedSelectNull { get; set; }
+
+    // Делегат обратного вызова для вызова обновления родительского компонента
+    [Parameter]
+    public EventCallback<int> InvokeParentHendler { get; set; }
+
+    [Parameter]
+    public string LabelForMonthChoice { get; set; }
+
+    // Текущее значение атрибута Size тега Select
+    [Parameter]
+    public int SizeSelect { get; set; }
+
+    [Parameter]
+    public int MonthIntDefault
+    {
+        get => monthInt;
+        set => monthInt = value;
+    }
+
+    public delegate int GetIntDelegate();
+
+    [Parameter]
+    public GetIntDelegate GetMonth {get; set;}
+
+    // Коллекция месяцев с возможностью перебора в цикле
+    private List<MonthsBinary> MonthsBinaryList { get; set; } = new();
+
+    // Порядковый номер месяца в рамках года
+    private int monthInt;
+    private int MonthInt
+    {
+        get
+        {
+            return monthInt;
+        }
+        set
+        {
+            monthInt = value;
+            Func<Task> f = async () =>
+            {
+                await this.ProgressBarOpen();
+                await this.InvokeParentHendler.InvokeAsync(value);
+                await this.ProgressBarClose();
+            };
+            f();
+        }
+    }
+
+    // Переопределенные события жизненного цикла компонента
+    #region
+    /// <summary>
+    /// Метод задает параметры, предоставляемые родительским элементом компонента в дереве отрисовки или из параметров маршрута.
+    /// </summary>
+    /// <param name="parameters">Параметры, предоставляемые родительским элементом компонента в дереве отрисовки или из параметров маршрута</param>
+    /// <returns></returns>
+    public override async Task SetParametersAsync(ParameterView parameters)
+    {
+        if (parameters.TryGetValue<int>(nameof(this.SizeSelect), out var valueSizeSelect))
+        {
+            if (valueSizeSelect == 0)
+            {
+                this.SizeSelect = 1;
+            }
+        }
+
+        if (parameters.TryGetValue<string>(nameof(this.LabelForMonthChoice), out var valueLabelForMonthChoice))
+        {
+            if (valueLabelForMonthChoice == null)
+            {
+                this.LabelForMonthChoice = "Месяц";
+            }
+        }
+
+        await base.SetParametersAsync(parameters);
+    }
+
+    /// <summary>
+    /// Асинхронный метод срабатывает при первоначальной отрисовке компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.MonthsBinaryList = Enum.GetValues(typeof(MonthsBinary)).Cast<MonthsBinary>()?.ToList() ?? new();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        monthInt = GetMonth?.Invoke() ?? MonthIntDefault;
+    }
+
+    #endregion
+
+    new private async Task ProgressBarOpen() => await this.ComponentBaseClassCascadingParameter?.ProgressBarOpenAsync();
+
+    new private async Task ProgressBarClose() => await this.ComponentBaseClassCascadingParameter?.ProgressBarCloseAsync();
+}

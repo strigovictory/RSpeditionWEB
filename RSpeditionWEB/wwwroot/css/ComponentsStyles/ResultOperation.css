@@ -1,0 +1,33 @@
+﻿.result_operation_left {
+    text-align: left;
+    line-height: 1;
+}
+.result_operation_left * {
+    text-align: left;
+}
+
+        .result_operation_left ul li {
+            list-style-type: none;
+            background: inherit;
+            margin: 5px;
+            text-align: left;
+        }
+
+.result_operation_center {
+    text-align: center;
+}
+
+    .result_operation_center * {
+        text-align: center;
+    }
+
+    .result_operation_center ul {
+        padding: 3px;
+    }
+
+        .result_operation_center ul li {
+            list-style-type: none;
+            background: inherit;
+            margin: 3px;
+            text-align: center;
+        }

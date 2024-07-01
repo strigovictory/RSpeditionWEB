@@ -1,0 +1,137 @@
+﻿@inject IApies api
+@inherits ChildComponentBaseClass
+
+<CascadingValue Value="@this">
+    <AuthorizeView>
+        <GroupMovingToArchiveChild InvokeParentHendlerCheckedItems="@((List<object> checkedCards) => { this.CarFuelCardsToArchiveChecked = new(checkedCards.Cast<FuelCardFullModel>());
+                                                                                                     this.InitButtons(); })"
+                                    FuelCardsToMoveToArchive="@this.CarFuelCardsToArchive">
+        </GroupMovingToArchiveChild>
+        <div class="stickyBottomContainer" style="top: 0vh !important;">
+            <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList"
+                             WidthForButtonWrapper="50%">
+            </ButtonContainer>
+        </div>
+    </AuthorizeView>
+
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="Результат перемещения в архив группы топливных карт"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { if (this.ShouldUpdateParent && this.InvokeParentHendlerAfterGroupUpdating.HasDelegate)
+                                                                                        await this.InvokeParentHendlerAfterGroupUpdating.InvokeAsync(this.CarFuelCardsMoovedToArchive?.Cast<object>()?.ToList<object>() ?? new());
+                                                                                    else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                        await this.InvokeParentHendlerCancel.InvokeAsync();})">
+            <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@this.Message">
+            </ResultOperation>
+        </ModalWindowWithEventCallback>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    private List<FuelCardFullModel> carFuelCardsToArchiveParent;
+
+    [Parameter]
+    public List<FuelCardFullModel> CarFuelCardsToArchiveParent
+    {
+        get => this.carFuelCardsToArchiveParent;
+        set
+        {
+            var notArchived = value?.Where(_ => !_.IsArchived)?.ToList() ?? new();
+            this.carFuelCardsToArchiveParent = notArchived;
+            this.CarFuelCardsToArchive = new(notArchived);
+            this.CarFuelCardsToArchiveChecked = new(notArchived);
+        }
+    }
+
+    // Блок кнопок в футере окна
+    private List<ButtonBaseClass> ButtonBaseClassList { get; set; }
+
+    // Карты, отмеченные для перемещения в архив
+    private List<FuelCardFullModel> CarFuelCardsToArchive { get; set; }
+
+    // Карты, отмеченные для перемещения в архив
+    private List<FuelCardFullModel> CarFuelCardsToArchiveChecked { get; set; }
+
+    // Карты, уже перемещенные в архив
+    private List<FuelCardFullModel> CarFuelCardsMoovedToArchive { get; set; }
+
+    /// <summary>
+    /// Асинхронный метод срабатывает при первоначальной отрисовке компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        this.ButtonBaseClassList = new();
+        this.InitButtons();
+    }
+
+    /// <summary>
+    /// Метод вызывается после инициализации компонента OnInitializedAsync и когда родительский компонент повторно отрисовывается
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        this.InitButtons();
+    }
+
+    /// <summary>
+    /// Метод для инициализации блока с кнопками в футере компнента
+    /// </summary>
+    private void InitButtons()
+    {
+        var isActive = this.CarFuelCardsToArchiveChecked?.Count > 0;
+        this.ButtonBaseClassList = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (async () =>
+        {
+            await this.ProgressBarOpenAsync();
+            await this.MoveSelectedFuelCardsToArchive();
+            await this.ProgressBarCloseAsync();
+            this.RenderMessage();
+        });
+        b1.LabelForButton = $"Переместить отмеченные топливные карты в архив ({ this.CarFuelCardsToArchiveChecked?.Count ?? 0} шт.)";
+        b1.IsActive = isActive;
+        b1.TitleIfIsActive = "Кликните для перемещения группы отмеченных топливных карт в архив";
+        b1.TitleIfIsNonActive = "Для перемещения д.б. отмечена хотя бы одна карта";
+        if (IsUserHasFuelRoleInHierarchy(FuelRoles.Fuel_Provisioner))
+        {
+            this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { b1 });
+        }
+    }
+
+    /// <summary>
+    /// Метод для вызова группового удаления коллекции транзакций
+    /// </summary>
+    /// <returns></returns>
+    private async Task MoveSelectedFuelCardsToArchive()
+    {
+        this.Message = string.Empty;
+
+        var content = this.CarFuelCardsToArchiveChecked?.Select(_ => Mapper.Map<FuelCardModel>(_))?.ToList() ?? new();
+        // Пройтись по всей коллекции и установить флаг в положение true
+        content?.ForEach(_ => _.IsArchived = true);
+
+        var res = await this.api?.FuelCardAPI?.PutCards(new(User, content), this.Token) ?? new();
+
+        if (res != null && (res?.SuccessItems?.Count ?? 0) > 0 && (res?.NotSuccessItems?.Count ?? 0) == 0)
+        {
+            this.ShouldUpdateParent = true;
+            this.Message = res?.Result 
+            ?? $"Операция успешно завершена ! В архив была перемещена коллекция топливных карт в количестве {this.CarFuelCardsMoovedToArchive?.Count ?? 0} шт.";
+        }
+        else
+        {
+            this.ShouldUpdateParent = true;
+            this.Message = $"Операция закончилась с ошибкой! {res?.Result ?? string.Empty}.";
+        }
+    }
+}

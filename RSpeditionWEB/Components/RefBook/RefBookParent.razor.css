@@ -1,0 +1,118 @@
+﻿.inputRadioConteiner{
+    text-align: center;
+    vertical-align:central;
+    display: inherit;
+}
+.inputRadioConteiner > span {
+    color: white;
+    cursor: pointer;
+    font-size: x-small;
+}
+
+img{
+    width: 10px;
+    margin-left: 3px;
+    vertical-align: central;
+}
+
+label {
+    text-decoration: none;
+    color: white;
+    font-weight: bold;
+}
+
+    label:hover {
+        background-color: #2C2E32;
+        color: #09bd40;
+    }
+
+.vukasgetulpon {
+    padding-right: 10px;
+    margin-right: 10px;
+    width: 100%;
+}
+
+    .vukasgetulpon p {
+        margin: 0 0 5px;
+    }
+
+    .vukasgetulpon a {
+        display: block;
+        padding: 10px 15px;
+        margin-bottom: 5px;
+    }
+
+        .vukasgetulpon a:hover {
+            color: #09bd40;
+        }
+
+.zornetukodsa {
+    display: block;
+}
+
+.vukasgetulpon a, .zornetukodsa {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+    .vukasgetulpon a:hover, .zornetukodsa:hover {
+        background-color: #2C2E32;
+        color: #09bd40;
+    }
+
+.gsazemipolan {
+    cursor: pointer;
+}
+
+.gsazemipolan {
+    display: block;
+    padding: 10px 15px;
+}
+
+.terdsaxemik {
+    display: none;
+    position: absolute;
+    cursor: pointer;
+    width: 100%;
+    height: 40px;
+    margin: 0 0 0 -15px;
+    opacity: 0;
+}
+
+.tukolopas {
+    max-height: 0;
+    overflow: hidden;
+}
+
+.tukolopas a {
+    background: #272525;
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+    min-width: 90px;
+}
+
+    .tukolopas a:hover {
+        background: #151414;
+        color: #09bd40;
+        font-weight: bold;
+    }
+
+:checked ~ .gsazemipolan {
+    background: #434e61;
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#3a4250), color-stop(100%,#2d343e));
+    background: -moz-linear-gradient(top, #3a4352 0%, #2f3742 100%);
+}
+
+.terdsaxemik:checked ~ .tukolopas {
+    max-height: 200px;
+}
+
+.tukolopas, .vukasgetulpon a, .zornetukodsa {
+    -webkit-transform: translateZ(0);
+    -webkit-transition: all 0.3s;
+    -moz-transition: all 0.3s;
+    -o-transition: all 0.3s;
+    transition: all 0.3s;
+}

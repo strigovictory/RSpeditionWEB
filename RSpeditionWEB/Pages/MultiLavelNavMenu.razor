@@ -1,0 +1,301 @@
+﻿@page "/MultiLavelNavMenu"
+@inject IConfiguration config
+@inject NavigationManager navManager
+@inject ProtectedSessionStorage sessionStore
+@inherits ComponentBaseClass
+
+<CascadingAuthenticationState>
+	<AuthorizeView>
+		<Authorized>
+			<div id="nav" class="nav">
+				<div class="container">
+					<ul class="mcd-menu"
+						style="@this.WidthNavMenu"
+						@onmouseover="@(() => { this.IsNavMenuHover = true; })"
+						@onmouseout="@(() => { this.IsNavMenuHover = false;})">
+						@foreach (var itemLavel_1 in this.LavelFirst ?? new())
+						{
+							<li>
+								<a title="@itemLavel_1.Strong" @onclick="@(() => { if(itemLavel_1.RouteAction is not null) itemLavel_1.RouteAction.Invoke(string.Empty);})">
+									<strong>
+										<img src="@itemLavel_1.Src" class="img_logo_40" />
+										@if (this.IsNavMenuHover)
+										{
+											@itemLavel_1.Strong
+										}
+									</strong>
+									@if (!this.IsNavMenuHover)
+									{
+										<small>@itemLavel_1.Strong</small>
+									}
+								</a>
+								@if (this.LavelSecond?.Keys?.Any(_ => itemLavel_1.CompareTo(_) == 0) ?? false)
+								{
+									var itemsLavel_2 = this.LavelSecond?.FirstOrDefault(_ => itemLavel_1.CompareTo(_.Key) == 0).Value;
+									<ul>
+										@foreach (var itemLavel_2 in itemsLavel_2 ?? new())
+										{
+											<li>
+												<a title="@itemLavel_2.Strong" @onclick="@(() => { if(itemLavel_2.RouteAction is not null) itemLavel_2.RouteAction.Invoke(string.Empty);} )">
+													<strong>
+														<img src="@itemLavel_2.Src" class="img_logo_40" />
+														@itemLavel_2.Strong
+													</strong>
+												</a>
+												@if (this.LavelThird?.Keys?.Any(_ => itemLavel_2.CompareTo(_) == 0) ?? false)
+												{
+													var itemsLavel_3 = this.LavelThird?.FirstOrDefault(_ => itemLavel_2.CompareTo(_.Key) == 0).Value;
+													<ul>
+														@foreach (var itemLavel_3 in itemsLavel_3 ?? new())
+														{
+															<li>
+																<a title="@itemLavel_3.Strong" @onclick="@(() => { if(itemLavel_3.RouteAction is not null) itemLavel_3.RouteAction.Invoke(string.Empty); })">
+																	<strong>
+																		<img src="@itemLavel_3.Src" class="img_logo_40" />
+																		@itemLavel_3.Strong
+																	</strong>
+																</a>
+																@if (this.LavelForth?.Keys?.Any(_ => itemLavel_3.CompareTo(_) == 0) ?? false)
+																{
+																	var itemsLavel_4 = this.LavelForth?.FirstOrDefault(_ => itemLavel_3.CompareTo(_.Key) == 0).Value;
+																	<ul>
+																		@foreach (var itemLavel_4 in itemsLavel_4 ?? new())
+																		{
+																			<li>
+																				<a title="@itemLavel_4.Strong" @onclick="@(() => { if(itemLavel_4.RouteAction is not null) itemLavel_4.RouteAction.Invoke(string.Empty); })">
+																					<strong>
+																						<img src="@itemLavel_4.Src" class="img_logo_40" />
+																						@itemLavel_4.Strong
+																					</strong>
+																				</a>
+																			</li>
+																		}
+																	</ul>
+																}
+															</li>
+														}
+													</ul>
+												}
+											</li>
+										}
+									</ul>
+								}
+							</li>
+						}
+					</ul>
+				</div>
+			</div>
+		</Authorized>
+		<NotAuthorized>
+			<div id="nav" class="nav">
+				<div class="container">
+					<ul class="mcd-menu"
+						style="@this.WidthNavMenu"
+						@onmouseover="@(() => { this.IsNavMenuHover = true; })"
+						@onmouseout="@(() => { this.IsNavMenuHover = false;})">
+						@foreach (var itemLavel_1 in this.LavelFirst ?? new())
+						{
+							<li>
+								<a title="@itemLavel_1.Strong" @onclick="@(() => { this.navManager.NavigateTo(this.navManager?.BaseUri ?? "/", true); })">
+									<strong>
+										<img src="@itemLavel_1.Src" class="img_logo_40" />
+										@if (this.IsNavMenuHover)
+										{
+											@itemLavel_1.Strong
+										}
+									</strong>
+									@if (!this.IsNavMenuHover)
+									{
+										<small>@itemLavel_1.Strong</small>
+									}
+								</a>
+								@if (this.LavelSecond?.Keys?.Any(_ => itemLavel_1.CompareTo(_) == 0) ?? false)
+								{
+									var itemsLavel_2 = this.LavelSecond?.FirstOrDefault(_ => itemLavel_1.CompareTo(_.Key) == 0).Value;
+									<ul>
+										@foreach (var itemLavel_2 in itemsLavel_2 ?? new())
+										{
+											<li>
+												<a title="@itemLavel_2.Strong" @onclick="@(() => { this.navManager.NavigateTo(this.navManager?.BaseUri ?? "/", true); } )">
+													<strong>
+														<img src="@itemLavel_2.Src" class="img_logo_40" />
+														@itemLavel_2.Strong
+													</strong>
+												</a>
+												@if (this.LavelThird?.Keys?.Any(_ => itemLavel_2.CompareTo(_) == 0) ?? false)
+												{
+													var itemsLavel_3 = this.LavelThird?.FirstOrDefault(_ => itemLavel_2.CompareTo(_.Key) == 0).Value;
+													<ul>
+														@foreach (var itemLavel_3 in itemsLavel_3 ?? new())
+														{
+															<li>
+																<a title="@itemLavel_3.Strong" @onclick="@(() => { this.navManager.NavigateTo(this.navManager?.BaseUri ?? "/", true); })">
+																	<strong>
+																		<img src="@itemLavel_3.Src" class="img_logo_40" />
+																		@itemLavel_3.Strong
+																	</strong>
+																</a>
+																@if (this.LavelForth?.Keys?.Any(_ => itemLavel_3.CompareTo(_) == 0) ?? false)
+																{
+																	var itemsLavel_4 = this.LavelForth?.FirstOrDefault(_ => itemLavel_3.CompareTo(_.Key) == 0).Value;
+																	<ul>
+																		@foreach (var itemLavel_4 in itemsLavel_4 ?? new())
+																		{
+																			<li>
+																				<a title="@itemLavel_4.Strong" @onclick="@(() => { this.navManager.NavigateTo(this.navManager?.BaseUri ?? "/", true); })">
+																					<strong>
+																						<img src="@itemLavel_4.Src" class="img_logo_40" />
+																						@itemLavel_4.Strong
+																					</strong>
+																				</a>
+																			</li>
+																		}
+																	</ul>
+																}
+															</li>
+														}
+													</ul>
+												}
+											</li>
+										}
+									</ul>
+								}
+							</li>
+						}
+					</ul>
+				</div>
+			</div>
+		</NotAuthorized>
+	</AuthorizeView>
+</CascadingAuthenticationState>
+
+
+@code {
+	private class NavMenuItem : IComparable
+	{
+		public NavMenuItem()
+		{ }
+
+		public NavMenuItem(string strong, Action<string> act, string src)
+		{
+			this.Strong = strong;
+			this.RouteAction = act;
+			this.Src = src;
+		}
+		public string Strong { get; set; } = string.Empty;
+		public Action<string> RouteAction { get; set; }
+		public string Src { get; set; } = string.Empty;
+
+		public int CompareTo(object obj) => this.Strong == (obj as NavMenuItem).Strong ? 0 : -1;
+	}
+
+	private string enterLabelStrong;
+	private string EnterLabelStrong
+	{
+		get => this.IsUserAuth ? "Выход" : "Вход";
+	}
+
+	private string enterLabelSrc;
+	private string EnterLabelSrc
+	{
+		get => this.IsUserAuth ? "exit" : "door";
+	}
+
+	private string BaseSrc => "/css/open-iconic/icon/";
+
+	private void NavToUri(string uri) => this.navManager.NavigateTo(uri, true);
+
+	private bool IsNavMenuHover { get; set; } = false;
+	private string WidthNavMenu => this.IsNavMenuHover ? "width: 250px" : "width: 75px";
+
+	private NavMenuItem Item_L1_services => new("Разделы", null, $"{this.BaseSrc}directory.png");
+
+	private List<NavMenuItem> LavelFirst
+		=> new List<NavMenuItem>
+		{
+			new NavMenuItem("Главная", (string uri) => this.NavToUri("/"), $"{this.BaseSrc}house.png"),
+			this.Item_L1_services,
+		};
+
+	private NavMenuItem Item_L2_fuel => new NavMenuItem("Топливо", (string uri) => this.NavToUri("/FuelCardsCont"), $"{this.BaseSrc}gas-station.png");
+	private NavMenuItem Item_L2_sim => new NavMenuItem("Sim-карты", (string uri) => this.NavToUri("/SimCards"), $"{this.BaseSrc}memory-card.png");
+	private NavMenuItem Item_L2_mobile => new NavMenuItem("Связь", (string uri) => this.NavToUri("/MobileCom"), $"{this.BaseSrc}phone.png");
+	private NavMenuItem Item_L2_gps => new NavMenuItem("GPS-трекеры", (string uri) => this.NavToUri("/GPSTrackers"), $"{this.BaseSrc}gps.png");
+	private NavMenuItem Item_L2_bank => new NavMenuItem("Банк", (string uri) => this.NavToUri("/BanksCards"), $"{this.BaseSrc}banknotes.png");
+	private NavMenuItem Item_L2_admin => new NavMenuItem("Админ", (string uri) => this.NavToUri("/Super_Administrator"), $"{this.BaseSrc}support.png");
+
+	private Dictionary <NavMenuItem, List<NavMenuItem>> LavelSecond
+		=> new Dictionary<NavMenuItem, List<NavMenuItem>>
+		{
+			{
+				this.Item_L1_services,
+				new List<NavMenuItem>
+				{
+					Item_L2_fuel,
+					//Item_L2_sim,
+					//Item_L2_mobile,
+					//Item_L2_gps,
+					//Item_L2_bank,
+					//Item_L2_admin
+				}
+			}
+		};
+
+	private Dictionary<NavMenuItem, List<NavMenuItem>> LavelThird
+		=> new Dictionary<NavMenuItem, List<NavMenuItem>>
+		{
+			{
+				Item_L2_fuel,
+				new List<NavMenuItem>
+				{
+					new NavMenuItem("Загрузка отчета", (string uri) => this.NavToUri("/FuelCardsCont/TabsRef0"), $"{this.BaseSrc}upload.png"),
+					new NavMenuItem("Транзакции", (string uri) => this.NavToUri("/FuelCardsCont/TabsRef1"), $"{this.BaseSrc}list.png"),
+					new NavMenuItem("Карты", (string uri) => this.NavToUri("/FuelCardsCont/TabsRef2"), $"{this.BaseSrc}key.png"),
+					new NavMenuItem("История закрепления карт", (string uri) => this.NavToUri("/FuelCardsCont/TabsRef3"), $"{this.BaseSrc}history.png"),
+					new NavMenuItem("Аналитика", (string uri) => this.NavToUri("/FuelCardsCont/TabsRef4"), $"{this.BaseSrc}brain.png"),
+					new NavMenuItem("Статистика", (string uri) => this.NavToUri("/FuelCardsCont/TabsRef5"), $"{this.BaseSrc}chart.png")
+				}
+			},
+			//{
+			//	Item_L2_sim,
+			//	new List<NavMenuItem>
+			//	{
+			//		new NavMenuItem("Карты", (string uri) => this.NavToUri("/SimCards/TabsRef0"), $"{this.BaseSrc}list.png"),
+			//		new NavMenuItem("Статистика", (string uri) => this.NavToUri("/SimCards/TabsRef1"), $"{this.BaseSrc}chart.png")
+			//	}
+			//},
+			//{
+			//	Item_L2_mobile,
+			//	new List<NavMenuItem>
+			//	{                   
+			//		new NavMenuItem("Загрузка отчета", (string uri) => this.NavToUri("/MobileCom/TabsRef0"), $"{this.BaseSrc}upload.png"),
+			//		new NavMenuItem("Коммуникации", (string uri) => this.NavToUri("/MobileCom/TabsRef1"), $"{this.BaseSrc}list.png"),
+			//		new NavMenuItem("Статистика", (string uri) => this.NavToUri("/MobileCom/TabsRef2"), $"{this.BaseSrc}chart.png")
+			//	}
+			//},
+			//{
+			//	Item_L2_gps,
+			//	new List<NavMenuItem>
+			//	{
+			//		new NavMenuItem("Трекеры", (string uri) => this.NavToUri("/GPSTrackers/TabsRef0"), $"{this.BaseSrc}list.png"),
+			//		new NavMenuItem("Статистика", (string uri) => this.NavToUri("/GPSTrackers/TabsRef1"), $"{this.BaseSrc}chart.png")
+			//	}
+			//},
+			//{
+			//	Item_L2_bank,
+			//	new List<NavMenuItem>
+			//	{
+			//		new NavMenuItem("Загрузка отчета", (string uri) => this.NavToUri("/BanksCards/TabsRef0"), $"{this.BaseSrc}upload.png"),
+			//		new NavMenuItem("Операции", (string uri) => this.NavToUri("/BanksCards/TabsRef1"), $"{this.BaseSrc}list.png"),
+			//		new NavMenuItem("Карты", (string uri) => this.NavToUri("/BanksCards/TabsRef2"), $"{this.BaseSrc}creditcard.png"),
+			//		new NavMenuItem("Статистика", (string uri) => this.NavToUri("/BanksCards/TabsRef3"), $"{this.BaseSrc}chart.png")
+			//	}
+			//}
+		};
+
+	private Dictionary<NavMenuItem, List<NavMenuItem>> LavelForth
+	=> new Dictionary<NavMenuItem, List<NavMenuItem>>
+	{
+
+	};
+}

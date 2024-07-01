@@ -1,0 +1,57 @@
+﻿@using RSpeditionWEB.Models.ID;
+@inject IAuthorizationService AuthorizationService
+@inject ProtectedSessionStorage sessionStore
+@inject IConfiguration config
+@inject NavigationManager navManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<Error>
+    <CascadingAuthenticationState>
+        <Router AppAssembly="@typeof(Program).Assembly" PreferExactMatches="@true">
+            <Found Context="routeData">
+                <AuthorizeRouteView RouteData="@routeData"
+                                    DefaultLayout="@typeof(MainLayout)">
+                    <NotAuthorized>
+                        <AuthorizeUser ReturnUrl="@this.ReturnUrl"
+                                       SendWebUserToParent="@(async (WebUser user) => { this.navManager.NavigateTo(this.ReturnUrl, true); })">
+                        </AuthorizeUser>
+                    </NotAuthorized>
+                    <Authorizing>
+                        <div class="dm-overlay">
+                            <div class="dm-table">
+                                <div class="dm-cell">
+                                    <div class="dm-modal">
+                                        <ProgressBarInner TitleProcess="Идет загрузка" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Authorizing>
+                </AuthorizeRouteView>
+            </Found>
+            <NotFound>
+                <LayoutView Layout="@typeof(MainLayout)">
+                    <NotFound />
+                </LayoutView>
+            </NotFound>
+        </Router>
+    </CascadingAuthenticationState>
+</Error>
+
+
+@code {
+
+    private string ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        this.ReturnUrl = navManager.BaseUri ?? "/";
+
+        await base.OnParametersSetAsync();
+    }
+}

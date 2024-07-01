@@ -1,0 +1,29 @@
+﻿@using System.Timers;
+
+    <div class="dm-overlay">
+        <div class="dm-table">
+            <div class="dm-cell">
+                <div class="dm-modal">
+                    <ProgressBarInner TitleProcess="@this.TitleProcess" />
+                    <div style="color: white !important; font-size: large !important; font-weight: bold !important;">
+                    @if ((!this.IsTimerNotRender.HasValue || !this.IsTimerNotRender.Value) && (this.ComponentBaseClass?.IsTimerEnabled ?? false))
+                        {
+                            @this.ComponentBaseClass.Counter
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+@code {
+    [CascadingParameter]
+    public ComponentBaseClass ComponentBaseClass { get; set; }
+
+    // Строка, отображаемая во время выполнения процесса
+    [Parameter]
+    public string TitleProcess { get; set; } = "Подождите...";
+
+    [Parameter]
+    public bool? IsTimerNotRender { get; set; }
+}

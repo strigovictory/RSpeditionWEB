@@ -1,0 +1,200 @@
+﻿@inject AdminApi reflService
+@inherits ChildComponentBaseClass
+
+@if (this.IsRender)
+{
+    var label_DisplayName = this.TablesColumn.GetType().GetDisplayAttributeValues(nameof(this.TablesColumn.DisplayName)) ?? string.Empty;
+    var label_IsVisible = this.TablesColumn.GetType().GetDisplayAttributeValues(nameof(this.TablesColumn.IsVisible)) ?? string.Empty;
+    var label_IsReadOnly = this.TablesColumn.GetType().GetDisplayAttributeValues(nameof(this.TablesColumn.IsReadOnly)) ?? string.Empty;
+    var label_IsNeedFilter = this.TablesColumn.GetType().GetDisplayAttributeValues(nameof(this.TablesColumn.IsNeedFilter)) ?? string.Empty;
+    var label_PropNameSelected = this.TablesColumn.GetType().GetDisplayAttributeValues(nameof(this.TablesColumn.FK_PropNameSelected)) ?? string.Empty;
+    var label_Index = this.TablesColumn.GetType().GetDisplayAttributeValues(nameof(this.TablesColumn.SortOrder)) ?? string.Empty;
+    var label_IsIdentity = this.TablesColumn.GetType().GetDisplayAttributeValues(nameof(this.TablesColumn.IsIdentity)) ?? string.Empty;
+
+    @*Форма для редактирования настроек столбца таблицы*@
+    <div class="form">
+        <EditForm Model="@this.TablesColumn"
+                  OnValidSubmit="@this.HandleValidSubmit"
+                  OnInvalidSubmit="@(() => { this.Message = "Внесены некорректные данные";
+                                             Title = "Предупреждение";
+                                             this.ShowMessage = true;})">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <input type="hidden" @bind-value="this.TablesColumn.DBName" />
+            <input type="hidden" @bind-value="this.TablesColumn.IsIdentity" />
+            @*Наименование*@
+            <div class="form_label">
+                <label>@label_DisplayName</label>
+            </div>
+            <div class="form-group">
+                <InputTextArea @bind-Value="@this.TablesColumn.DisplayName" />
+                <ValidationMessage For="() => this.TablesColumn.DisplayName" />
+            </div>
+            @*Порядок следования*@
+            <div class="form_label">
+                <label>
+                    @label_Index
+                </label>
+            </div>
+            <div class="form-group">
+                <InputNumber @bind-Value="@this.TablesColumn.SortOrder" />
+                <ValidationMessage For="() => this.TablesColumn.SortOrder" />
+            </div>
+            @* Видимость*@
+            <div class="form_label">
+                <label>@label_IsVisible</label>
+            </div>
+            <div class="form-group">
+                <InputCheckbox @bind-Value="@this.TablesColumn.IsVisible" />
+                <ValidationMessage For="() => this.TablesColumn.IsVisible" />
+            </div>
+            @* Идентификатор*@
+            <div class="form_label">
+                <label>@label_IsIdentity</label>
+            </div>
+            <div class="form-group">
+                <InputCheckbox @bind-Value="@this.TablesColumn.IsIdentity" />
+                <ValidationMessage For="() => this.TablesColumn.IsIdentity" />
+            </div>
+            @* Только чтение*@
+            <div class="form_label">
+                <label>@label_IsReadOnly</label>
+            </div>
+            <div class="form-group">
+                <InputCheckbox @bind-Value="@this.TablesColumn.IsReadOnly" />
+                <ValidationMessage For="() => this.TablesColumn.IsReadOnly" />
+            </div>
+            @* Необходимость фильтра*@
+            <div class="form_label">
+                <label>@label_IsNeedFilter</label>
+            </div>
+            <div class="form-group">
+                <InputCheckbox @bind-Value="@this.TablesColumn.IsNeedFilter" />
+                <ValidationMessage For="() => this.TablesColumn.IsNeedFilter" />
+            </div>
+            @* Выбор свойства внешнего ключа *@
+            @if (!string.IsNullOrEmpty(this.TablesColumn.FK_ClassName))
+            {
+                <div class="form_label">
+                    <label>@label_PropNameSelected</label>
+                </div>
+                <div class="form-group">
+                    @{
+                        var selectedProp = this.FK_PropsNames?.Find(_ => _.Equals(this.TablesColumn?.FK_PropNameSelected, StringComparison.InvariantCultureIgnoreCase));
+                    }
+                    <select @oninput="@((ChangeEventArgs arg) => {  var val = arg?.Value?.ToString() ?? string.Empty;
+                                                                    this.TablesColumn.FK_PropNameSelected = this.FK_PropsNames?.FirstOrDefault(_ => _.Equals(val, StringComparison.InvariantCultureIgnoreCase)) ?? string.Empty;
+                                                             })">
+                        @if (this.FK_PropsNames != null && this.FK_PropsNames?.Count > 0)
+                        {
+                            @foreach (var name in this.FK_PropsNames)
+                            {
+                                @if (name.Equals(this.TablesColumn.FK_PropNameSelected, StringComparison.InvariantCultureIgnoreCase))
+                                {
+                                    <option value="@name" selected>
+                                        @name
+                                    </option>
+                                }
+                                else
+                                {
+                                    <option value="@name">
+                                        @name
+                                    </option>
+                                }
+                            }
+                        }
+                        else
+                        {
+                            <option>
+                                Нет элементов
+                            </option>
+                        }
+                    </select>
+                </div>
+            }
+            <div class="form-group">
+                <div class="validation-message">@this.Message</div>
+                <div class="form-group">
+                    <button type="submit"
+                            class="my-btn">
+                        Сохранить
+                    </button>
+                    <button type="button"
+                            class="my-btn"
+                            @onclick="@(() => { this.SetInitialValuesInModel();
+                                                this.shouldRender = false; })">
+                        Отменить изменения
+                    </button>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+
+}
+else
+{
+    <ProgressBar />
+}
+
+@code {
+    // Модель настроек столбца таблицы из родителя
+    [Parameter]
+    public TablesColumn TablesColumnFromParent { get; set; }
+
+    // Модель, которую пользователь редактирует в форме
+    private TablesColumn TablesColumn { get; set; }
+
+    // Свойство, которое переопределяет необходимость отрисовки текущего компонента
+    private bool shouldRender = true;
+
+    protected override bool ShouldRender() => shouldRender;
+
+    private List<string> FK_PropsNames { get; set; }
+
+    /// <summary>
+    /// Метод для первоначальной инициализации компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        // Клонировать обьект из родительского компонента в модель для редактирования внутри формы
+        this.SetInitialValuesInModel();
+        this.InitFKProps();
+        this.IsRender = true;
+    }
+
+    /// <summary>
+    /// Метод для инициализации коллекции наименований свойств, которые есть у внешнего ключа и которые могут быть использованы для фильттрации и сортировки
+    /// </summary>
+    private void InitFKProps()
+    {
+        // тип
+        var typeFk = typeof(TableSettingView).Assembly.GetTypes()?.ToList()?.FirstOrDefault(_ => _.Name.Equals(this.TablesColumn.FK_ClassName ?? string.Empty, StringComparison.InvariantCultureIgnoreCase));
+
+        // свойства
+        this.FK_PropsNames = typeFk?.GetPropertiesSomeType()?.Select(_ => _.Name)?.ToList() ?? new();
+    }
+
+    /// <summary>
+    /// Метод для установки значений модели в первоначальное состояние
+    /// </summary>
+    private void SetInitialValuesInModel() =>
+    this.TablesColumn = TablesColumnFromParent.Clone() as TablesColumn;
+
+    // Main methods
+    #region
+    /// <summary>
+    /// Метод для выполнения операции над моделью в случае ее валидности
+    /// </summary>
+    private async void HandleValidSubmit()
+    {
+        if (this.InvokeParentHendlerAfterUpd.HasDelegate)
+        {
+            await this.InvokeParentHendlerAfterUpd.InvokeAsync(this.TablesColumn);
+        }
+    }
+
+    #endregion
+
+}

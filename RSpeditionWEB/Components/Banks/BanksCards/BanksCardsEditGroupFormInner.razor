@@ -1,0 +1,275 @@
+﻿@inherits EditFormBase<EmployeeCreditCard_View_GUID>
+
+<CascadingValue Value="@this">
+    @if (this.IsRender && this.Model != null)
+    {
+        var label_CardNumber = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.CardNumber)).Item1 ?? string.Empty;
+        var label_Rbsnumber = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.Rbsnumber)).Item1 ?? string.Empty;
+        var label_DateOfIssue = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.DateOfIssueName)).Item1 ?? string.Empty;
+        var label_ExpirationMonth = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.ExpirationMonthName)).Item1 ?? string.Empty;
+        var label_ExpirationYear = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.ExpirationYear)).Item1 ?? string.Empty;
+        var label_Comment = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.Comment)).Item1 ?? string.Empty;
+        var label_Hidden = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.Hidden)).Item1 ?? string.Empty;
+        var colspan = this.IsCreate ? 12 : 11;
+        BankCardType cardType = new();
+        var type_cardType = cardType.GetType();
+        var props_cardType = new List<PropertyInfo> { type_cardType.GetProperty(nameof(cardType.Name)) };
+        var textProp_cardType = type_cardType.GetProperty(nameof(cardType.Name));
+        var label_CardType = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.CardType)).Item1 ?? string.Empty;
+        var cardTypeCurrent = this.BanksCardEditGroupFormCascadingParameter?.BankCardTypes?.FirstOrDefault(_ => _.Abbrev.Equals(this.Model?.CardType ?? string.Empty, StringComparison.InvariantCultureIgnoreCase)) ?? null;
+        var initPar_cardType = cardTypeCurrent == null ? null : new List<BankCardType> { cardTypeCurrent };
+        var placeholder_cardType = cardTypeCurrent == null ? label_CardType ?? string.Empty : cardTypeCurrent?.Name ?? label_CardType;
+        CurrencyResponse curr = new();
+        var type_curr = curr.GetType();
+        var props_curr = new List<PropertyInfo> { type_curr.GetProperty(nameof(curr.Name)) };
+        var textProp_curr = type_curr.GetProperty(nameof(curr.Name));
+        var label_curr = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.CurrencyName)).Item1 ?? string.Empty;
+        var currCurrent = this.BanksCardEditGroupFormCascadingParameter?.Currencies?.FirstOrDefault(_ => _.Id == (this.Model?.CurrencyId ?? 0)) ?? null;
+        var initPar_curr = currCurrent == null ? null : new List<CurrencyResponse> { currCurrent };
+        var placeholder_curr = currCurrent == null ? label_curr ?? string.Empty : currCurrent?.Name ?? label_curr;
+        EmployeeView empl = new();
+        var type_empl = empl.GetType();
+        var props_empl = new List<PropertyInfo> { type_empl.GetProperty(nameof(empl.FullName)), 
+                                                  type_empl.GetProperty(nameof(empl.FullLongName)), 
+                                                  type_empl.GetProperty(nameof(empl.LastNamePassport)),
+                                                  type_empl.GetProperty(nameof(empl.LastNamePrevious)), 
+                                                  type_empl.GetProperty(nameof(empl.LastName)) };
+        var textProp_empl = type_empl.GetProperty(nameof(empl.FullName));
+        var label_empl = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.EmployeeName)).Item1 ?? string.Empty;
+        var emplCurrent = this.BanksCardEditGroupFormCascadingParameter?.Employees?.FirstOrDefault(_ => _.Id == (this.Model?.EmployeeId ?? 0)) ?? null;
+        var initPar_empl = emplCurrent == null ? null : new List<EmployeeView> { emplCurrent };
+        var placeholder_empl = emplCurrent == null ? label_empl ?? string.Empty : emplCurrent?.FullName ?? emplCurrent?.FullLongName ?? emplCurrent?.LastNamePassport ?? label_empl;
+
+        <tr>
+                <td data-label="№">
+                    @(this.Index + 1)
+                </td>
+                <td data-label="@label_empl">
+                    <SearchSelectTItems Items="@(this.BanksCardEditGroupFormCascadingParameter?.Employees?.OrderBy(_ => _.FullName).ToList() ?? new())"
+                                        T="@EmployeeView"
+                                        KeyPropInfo="@(type_empl.GetProperty(nameof(empl.Id)))"
+                                        MaxSizeSelect="4"
+                                        InitParameters="@initPar_empl"
+                                        LabelForSearch="@label_empl"
+                                        Placeholder="@placeholder_empl"
+                                        IsMultiple="@false"
+                                        PropertiesInfoForSearch="@props_empl"
+                                        TextProperty="@textProp_empl"
+                                        SendToParentFoundAndSelectedItems="@(async(List<EmployeeView> selectedItems)
+                                                                                                                     => { if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                                              this.Model.EmployeeId = this.BanksCardEditGroupFormCascadingParameter?.Employees?.FirstOrDefault(_ => _.Id == selectedItems.FirstOrDefault().Id)?.Id ?? 0;
+                                                                                                                          else
+                                                                                                                              this.Model.EmployeeId = 0;
+                                                                                                                          if(this.InvokeParentHandlerDataChanges.HasDelegate)
+                                                                                                                              await this.InvokeParentHandlerDataChanges.InvokeAsync(this.Model); })" />
+                </td>
+                <td data-label="@label_CardNumber">
+                    <input type="text"
+                           @bind-value="@this.Model.CardNumber"
+                           @oninput="@(async(ChangeEventArgs arg) => { this.Model.CardNumber = arg.Value?.ToString() ?? string.Empty;
+                                                                       if(this.InvokeParentHandlerDataChanges.HasDelegate)
+                                                                           await this.InvokeParentHandlerDataChanges.InvokeAsync(this.Model); })" />
+                </td>
+                <td data-label="@label_Rbsnumber">
+                    <input type="text"
+                           @bind-value="@this.Model.Rbsnumber"
+                           @oninput="@(async(ChangeEventArgs arg) => { this.Model.Rbsnumber = arg.Value?.ToString() ?? string.Empty;
+                                                                       if(this.InvokeParentHandlerDataChanges.HasDelegate)
+                                                                           await this.InvokeParentHandlerDataChanges.InvokeAsync(this.Model); })" />
+                </td>
+                <td data-label="@label_CardType">
+                    <SearchSelectTItems Items="@(this.BanksCardEditGroupFormCascadingParameter?.BankCardTypes?.OrderBy(_ => _.Name).ToList() ?? new())"
+                                        T="@BankCardType"
+                                        KeyPropInfo="@(type_cardType.GetProperty(nameof(cardType.Id)))"
+                                        MaxSizeSelect="4"
+                                        InitParameters="@initPar_cardType"
+                                        LabelForSearch="@label_CardType"
+                                        Placeholder="@placeholder_cardType"
+                                        IsMultiple="@false"
+                                        PropertiesInfoForSearch="@props_cardType"
+                                        TextProperty="@textProp_cardType"
+                                        SendToParentFoundAndSelectedItems="@(async(List<BankCardType> selectedItems)
+                                                                                                                     => { if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                                              this.Model.CardType = this.BanksCardEditGroupFormCascadingParameter?.BankCardTypes?.FirstOrDefault(_ => _.Id == selectedItems.FirstOrDefault().Id)?.Abbrev ?? string.Empty;
+                                                                                                                          else
+                                                                                                                              this.Model.CardType = string.Empty;
+                                                                                                                          if(this.InvokeParentHandlerDataChanges.HasDelegate)
+                                                                                                                              await this.InvokeParentHandlerDataChanges.InvokeAsync(this.Model); })" />
+                </td>
+                <td data-label="@label_ExpirationMonth">
+                    <SelectMonth LabelForMonthChoice=""
+                                 MonthIntDefault="@(this.Model?.ExpirationMonth ?? -1)"
+                                 SizeSelect="1"
+                                 IsNeedSelectNull="true"
+                                 InvokeParentHendler="@(async(int month) => { if(month == -1)
+                                                                                this.Model.ExpirationMonth = null;
+                                                                              else
+                                                                                 this.Model.ExpirationMonth = month;
+                                                                              this.Model.ExpireDate_WereChanged();
+                                                                              if(this.InvokeParentHandlerDataChanges.HasDelegate)
+                                                                                  await this.InvokeParentHandlerDataChanges.InvokeAsync(this.Model); })" />
+                </td>
+                <td data-label="@label_ExpirationYear">
+                    <SelectYear YearList="@(new List<int>(50).GetListYears())"
+                                LabelForYear=""
+                                IsNeedSelectNull="true"
+                                YearDefault="@(this.Model?.ExpirationYear ?? -1)"
+                                InvokeParentHendler="@(async(int year) => { if(year == -1)
+                                                                                this.Model.ExpirationYear = null;
+                                                                             else
+                                                                                this.Model.ExpirationYear = year;
+                                                                             this.Model.ExpireDate_WereChanged(); 
+                                                                              if(this.InvokeParentHandlerDataChanges.HasDelegate)
+                                                                                  await this.InvokeParentHandlerDataChanges.InvokeAsync(this.Model); })" />
+                </td>
+                <td data-label="@label_DateOfIssue">
+                    <input type="date"
+                           TValue="DateTime?"
+                           @bind-value="@this.Model.DateOfIssue"
+                           @oninput="@(async(ChangeEventArgs arg) => { this.Model.IssueDate_WereChanged(arg);
+                                                                       if(this.InvokeParentHandlerDataChanges.HasDelegate)
+                                                                           await this.InvokeParentHandlerDataChanges.InvokeAsync(this.Model); })" />
+                </td>
+                <td data-label="@label_Comment">
+                    <textarea @bind="@this.Model.Comment"
+                              @oninput="@(async(ChangeEventArgs arg) => { this.Model.Comment = arg.Value?.ToString() ?? string.Empty;
+                                                                          if(this.InvokeParentHandlerDataChanges.HasDelegate)
+                                                                              await this.InvokeParentHandlerDataChanges.InvokeAsync(this.Model); })"
+                              rows="5" />
+                </td>
+                <td data-label="@label_curr">
+                    <SearchSelectTItems Items="@(this.BanksCardEditGroupFormCascadingParameter.Currencies?.OrderBy(_ => _.Name).ToList() ?? new())"
+                                        T="@CurrencyResponse"
+                                        KeyPropInfo="@(type_curr.GetProperty(nameof(curr.Id)))"
+                                        MaxSizeSelect="3"
+                                        InitParameters="@initPar_curr"
+                                        LabelForSearch="@label_curr"
+                                        Placeholder="@placeholder_curr"
+                                        IsMultiple="@false"
+                                        PropertiesInfoForSearch="@props_curr"
+                                        TextProperty="@textProp_curr"
+                                        SendToParentFoundAndSelectedItems="@(async(List<CurrencyResponse> selectedItems)
+                                                                                                                 => { if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                                          this.Model.CurrencyId = this.BanksCardEditGroupFormCascadingParameter.Currencies?.FirstOrDefault(_ => _.Id == (selectedItems?.FirstOrDefault()?.Id ?? 0))?.Id ?? null;
+                                                                                                                      else
+                                                                                                                          this.Model.CurrencyId = null;
+                                                                                                                      if(this.InvokeParentHandlerDataChanges.HasDelegate)
+                                                                                                                          await this.InvokeParentHandlerDataChanges.InvokeAsync(this.Model); })" />
+                </td>
+                <td data-label="@label_Hidden">
+                    @if (this.Model.Hidden)
+                    {
+                        <div class="squaredOne">
+                            <input type="checkbox"
+                                   checked
+                                   id="bankCardEditF_id"
+                                   @bind-value="@this.Model.Hidden"
+                                   @oninput="@(async(ChangeEventArgs arg) => { this.Model.Hidden = (bool)arg.Value;
+                                                                               if(this.InvokeParentHandlerDataChanges.HasDelegate)
+                                                                                   await this.InvokeParentHandlerDataChanges.InvokeAsync(this.Model); } )" />
+                            <label for="bankCardEditF_id"></label>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="squaredOne">
+                            <input type="checkbox"
+                                   id="bankCardEditF_id"
+                                   @bind-value="@this.Model.Hidden"
+                                   @oninput="@(async(ChangeEventArgs arg) => { this.Model.Hidden = (bool)arg.Value; 
+                                                                               if(this.InvokeParentHandlerDataChanges.HasDelegate)
+                                                                                   await this.InvokeParentHandlerDataChanges.InvokeAsync(this.Model);} )" />
+                            <label for="bankCardEditF_id"></label>
+                        </div>
+                    }
+                </td>
+                @if (this.IsCreate)
+                {
+                    <td data-label="Удалить"
+                        @onclick="@(async () => { if(this.InvokeParentHandler_RemoveRow.HasDelegate)
+                                                      await this.InvokeParentHandler_RemoveRow.InvokeAsync(this.Model.GuideId); })"
+                        style="cursor: pointer; font-size: xx-large !important;"
+                        title="Кликните для удаления gps-трекера из партии">
+                        -
+                    </td>
+                }
+            </tr>
+            @if (!this.IsModelValid)
+            {
+            var temp = this.ValidErrors;
+            <tr>
+                    <td colspan="@colspan" style="text-align: left;" class="validation-message">
+                        <ResultOperation Devider="'!'"
+                                         ResList="null"
+                                         ResMessage="@this.ValidErrors"
+                                         ListStyleType="disc"/>
+                    </td>
+                </tr>
+            }
+    }
+    else
+    {
+        <div>
+            Идет загрузка формы...
+        </div>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+        [CascadingParameter]
+        public BanksCardsEditGroupForm BanksCardEditGroupFormCascadingParameter { get; set; }
+
+        [Parameter]
+        public EventCallback<EmployeeCreditCard_View_GUID> InvokeParentHandlerDataChanges { get; set; }
+
+        [Parameter]
+        public EventCallback<string> InvokeParentHandler_RemoveRow { get; set; }
+
+        [Parameter]
+        public int Index { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.InitModelsInner();
+        this.IsRender = true;
+    }
+
+    private void InitModelsInner()
+    {
+        if (this.IsCreate)
+        {
+            this.Model.DateOfIssue = DateTime.Now;
+            this.Model.ExpirationMonth = DateTime.Now.Month;
+            this.Model.ExpirationYear = DateTime.Now.Year;
+        }
+    }
+
+    protected override (bool, string) ValidateModel()
+    {
+        {
+            var check1 = this.Model?.CheckModelIsValid();
+            var check3 = string.IsNullOrEmpty(this.Model?.ManualValidationMessage_IssueDate ?? string.Empty) 
+                      && string.IsNullOrEmpty(this.Model?.ManualValidationMessage_ExpirDate ?? string.Empty);
+
+            return (
+                        (check1.HasValue && check1.Value.isValid) && check3,
+                        (check1.HasValue ? check1.Value.errors?.ConvertListToString() : string.Empty)
+                        + (check3 ? string.Empty : $"{this.Model?.ManualValidationMessage_IssueDate ?? string.Empty}" 
+                        + $"{this.Model?.ManualValidationMessage_ExpirDate ?? string.Empty}")
+                   );
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        this.Model = this.BanksCardEditGroupFormCascadingParameter?.Model?.Cards?.FirstOrDefault(_ => _.GuideId == (this.Model?.GuideId ?? string.Empty)) ?? null;
+        if(this.Model != null)
+            this.Model.BankId = this.BanksCardEditGroupFormCascadingParameter?.Model?.BankId ?? null;
+    }
+}

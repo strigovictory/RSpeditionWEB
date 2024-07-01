@@ -1,0 +1,260 @@
+﻿@inherits FuelTranzBase<FuelTranz>
+
+<CascadingValue Value="this">
+    @if(this.IsRender)
+    {
+        <tr>
+            <td data-label="№">
+                @this.NumRow
+            </td>
+            <td data-label="@this.FuelTranzGroupAddParentCascadingVal.Label_Day">
+                <input type="date"
+                       @bind="@this.Model.OperationDateDay"
+                       @oninput="@((ChangeEventArgs arg) => {if(DateTime.TryParse(arg?.Value?.ToString() ?? string.Empty, out DateTime val))
+                                                                 this.Model.OperationDateDay = val;
+                                                             else
+                                                                 this.Model.OperationDateDay = null;   
+                                                             this.SendToParentChangedData?.Invoke(); })" />
+
+            </td>
+            <td data-label="@this.FuelTranzGroupAddParentCascadingVal.Label_Time">
+                <div>
+                    <span>Часы:</span>
+                    <select @bind="@this.Model.OperationDateTimeHour"
+                            @oninput="@((ChangeEventArgs arg) => { if(int.TryParse(arg?.Value?.ToString() ?? string.Empty, out int val))
+                                                                   this.Model.OperationDateTimeHour = val;
+                                                               else
+                                                                   this.Model.OperationDateTimeHour = 0;
+                                                              this.SendToParentChangedData?.Invoke(); })">
+                        @foreach (var timeVal in this.Model.TimeRangeHour)
+                        {
+                            <option value="@timeVal">@timeVal</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <span>Мин:</span>
+                    <select @bind="@this.Model.OperationDateTimeMin"
+                            @oninput="@((ChangeEventArgs arg) => { if(int.TryParse(arg?.Value?.ToString() ?? string.Empty, out int val))
+                                                                   this.Model.OperationDateTimeMin = val;
+                                                               else
+                                                                   this.Model.OperationDateTimeMin = 0;
+                                                               this.SendToParentChangedData?.Invoke(); })">
+                        @foreach (var timeVal in this.Model.TimeRangeMin)
+                        {
+                            <option value="@timeVal">@timeVal</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <span>Сек:</span>
+                    <select @bind="@this.Model.OperationDateTimeSec"
+                            @oninput="@((ChangeEventArgs arg) => { if(int.TryParse(arg?.Value?.ToString() ?? string.Empty, out int val))
+                                                               this.Model.OperationDateTimeSec = val;
+                                                           else
+                                                               this.Model.OperationDateTimeSec = 0;
+                                                           this.SendToParentChangedData?.Invoke(); })">
+                        @foreach (var timeVal in this.Model.TimeRangeSec)
+                        {
+                            <option value="@timeVal">@timeVal</option>
+                        }
+                    </select>
+                </div>
+            </td>
+            <td data-label="@this.FuelTranzGroupAddParentCascadingVal.Label_CardId">
+                <SearchSelectTItems Items="@AvailableCards"
+                                    GetObjItems="@(() => AvailableCards?.Cast<object>()?.ToList() ?? new())"
+                                    T="@FuelCardFullModel"
+                                    KeyPropInfo="@this.FuelTranzGroupAddParentCascadingVal?.AttrFuelCardView.keyPropInfo"
+                                    MaxSizeSelect="4"
+                                    InitParameters="@null"
+                                    LabelForSearch="@this.FuelTranzGroupAddParentCascadingVal?.AttrFuelCardView.labelForSearch"
+                                    Placeholder="Поиск"
+                                    IsMultiple="@false"
+                                    PropertiesInfoForSearch="@this.FuelTranzGroupAddParentCascadingVal?.AttrFuelCardView.props"
+                                    TextProperty="@this.FuelTranzGroupAddParentCascadingVal?.AttrFuelCardView.textProp"
+                                    SendToParentFoundAndSelectedItems="@((List<FuelCardFullModel> selectedItems) => { var item = selectedItems?.FirstOrDefault() ?? null;
+                                                                                                                   if(item is not null && item is FuelCardFullModel val)
+                                                                                                                       this.Model.CardId = val.Id;
+                                                                                                                   else
+                                                                                                                       this.Model.CardId = 0;
+                                                                                                                   this.SendToParentChangedData?.Invoke(); })" />
+            </td>
+            <td data-label="@this.FuelTranzGroupAddParentCascadingVal.Label_FuelTypeId">
+                <SearchSingleTItem IIdItems="@(this.FuelTranzGroupAddParentCascadingVal?.FuelTypesOnly?.Cast<IId>()?.ToList() ?? new())"
+                                   PropertiesInfoForSearch="@this.FuelTranzGroupAddParentCascadingVal?.AttrTRideCostCategory.props"
+                                   ShowLabel="false"
+                                   TextProperty="@this.FuelTranzGroupAddParentCascadingVal?.AttrTRideCostCategory.textProp"
+                                   LabelForSearch="@this.FuelTranzGroupAddParentCascadingVal?.AttrTRideCostCategory.labelForSearch"
+                                   Placeholder="Поиск"
+                                   MinSizeSelect="2"
+                                   MaxSizeSelect="7"
+                                   IIdOuterInitParameter="@(this.FuelTranzGroupAddParentCascadingVal?.FuelTypesOnly?.FirstOrDefault(_ => _.Id == (this.Model?.FuelTypeId ?? 0)) ?? null)"
+                                   SendToParentSelectedIIdItem="@((IId item) => {if(item is FuelTypeResponse val)
+                                                                                      this.Model.FuelTypeId = val.Id;
+                                                                                  else
+                                                                                      this.Model.FuelTypeId = 0;
+                                                                                  this.SendToParentChangedData?.Invoke(); })" />
+            </td>
+            <td data-label="@this.FuelTranzGroupAddParentCascadingVal.Label_Quantity">
+                <InputNumber class="form-control"
+                             TValue="decimal"
+                             Value="@Model.Quantity"
+                             ValueExpression="@(() => Model.Quantity)"
+                             ValueChanged="@((decimal val) => { this.Model.Quantity = val.RoundingDecimal(2);
+                                                                 SendToParentChangedData?.Invoke();  })" />
+            </td>
+            <td data-label="@this.FuelTranzGroupAddParentCascadingVal.Label_CountryId">
+                <SearchSingleTItem IIdItems="@(this.FuelTranzGroupAddParentCascadingVal?.FuelTranzJournalCascadingVal.FuelCardsCascadingParameter.Countries?.Cast<IId>()?.ToList() ?? new())"
+                                   PropertiesInfoForSearch="@this.FuelTranzGroupAddParentCascadingVal?.AttrCountry.props"
+                                   ShowLabel="false"
+                                   TextProperty="@this.FuelTranzGroupAddParentCascadingVal?.AttrCountry.textProp"
+                                   LabelForSearch="@this.FuelTranzGroupAddParentCascadingVal?.AttrCountry.labelForSearch"
+                                   Placeholder="Поиск"
+                                   MinSizeSelect="2"
+                                   MaxSizeSelect="7"
+                                   IIdOuterInitParameter="@(this.FuelTranzGroupAddParentCascadingVal?.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.Countries?.FirstOrDefault(_ => _.Id == (this.Model?.CountryId ?? 0)) ?? null)"
+                               SendToParentSelectedIIdItem="@((IId item) => {if(item is CountryResponse val)
+                                                                                          this.Model.CountryId = val.Id;
+                                                                                      else
+                                                                                          this.Model.CountryId = null;
+                                                                                      this.SendToParentChangedData?.Invoke(); })" />
+            </td>
+            <td data-label="@this.FuelTranzGroupAddParentCascadingVal.Label_CurrencyId">
+                <SearchSingleTItem IIdItems="@(this.FuelTranzGroupAddParentCascadingVal?.FuelTranzJournalCascadingVal.FuelCardsCascadingParameter.Currencies?.Cast<IId>()?.ToList() ?? new())"
+                                   PropertiesInfoForSearch="@this.FuelTranzGroupAddParentCascadingVal?.AttrCurrency.props"
+                                   ShowLabel="false"
+                                   TextProperty="@this.FuelTranzGroupAddParentCascadingVal?.AttrCurrency.textProp"
+                                   LabelForSearch="@this.FuelTranzGroupAddParentCascadingVal?.AttrCurrency.labelForSearch"
+                                   Placeholder="Поиск"
+                                   MinSizeSelect="2"
+                                   MaxSizeSelect="7"
+                                   IIdOuterInitParameter="@(this.FuelTranzGroupAddParentCascadingVal?.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.Currencies?.FirstOrDefault(_ => _.Id == (this.Model?.CurrencyId ?? 0)) ?? null)"
+                                   SendToParentSelectedIIdItem="@((IId item) => {if(item is CurrencyResponse val)
+                                                                                          this.Model.CurrencyId = val.Id;
+                                                                                      else
+                                                                                          this.Model.CurrencyId = null;
+                                                                                      this.SendToParentChangedData?.Invoke(); })" />
+            </td>
+            <td data-label="@this.FuelTranzGroupAddParentCascadingVal.Label_Cost">
+                <InputNumber TValue="@(decimal?)"
+                             class="form-control"
+                             Value="@this.Model.Cost"
+                             ValueExpression="@(() => Model.Cost)"
+                             ValueChanged="@((decimal? val) => { this.Model.Cost = val.HasValue ? val.Value.RoundingDecimal(3) : null;
+                                                                 this.SendToParentChangedData?.Invoke(); })" />
+            </td>
+            <td data-label="@this.FuelTranzGroupAddParentCascadingVal.Label_TotalCost">
+                <InputNumber TValue="@(decimal?)"
+                             class="form-control"
+                             Value="@this.Model.TotalCost"
+                             ValueExpression="@(() => Model.TotalCost)"
+                             ValueChanged="@((decimal? val) => { this.Model.TotalCost = val.HasValue ? val.Value.RoundingDecimal(3) : null;
+                                                                         this.SendToParentChangedData?.Invoke(); })" />
+            </td>
+            <td data-label="Удалить"
+                @onclick="@(async () => { if(this.InvokeParentHandlerSendChangesRemoveRow.HasDelegate)
+                                              await this.InvokeParentHandlerSendChangesRemoveRow.InvokeAsync(this.GuideId); })"
+                style="cursor: pointer; font-size: xx-large !important;"
+                title="Кликните для удаления транзакции из партии">
+                -
+            </td>
+        </tr>
+        @if (!this.IsModelValid)
+        {
+            <tr>
+                <td colspan="11" style="text-align: left;">
+                    <ul class="validation-message">
+                        @foreach (var error in this.ValidErrors?.ConvertStringToList('!') ?? new())
+                        {
+                            <li>
+                                @error
+                            </li>
+                        }
+                    </ul>
+                </td>
+            </tr>
+        }
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка ..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    #region // Свойства компонента
+
+    Func<Task> SendToParentChangedData { get; set; }
+
+    [CascadingParameter]
+    public FuelTranzGroupAddParent FuelTranzGroupAddParentCascadingVal { get; set; }
+
+    [Parameter]
+    public string GuideId { get; set; }
+
+    [Parameter]
+    public int NumRow { get; set; }
+
+    [Parameter]
+    public EventCallback<DateTime> InvokeParentHandlerDate{ get; set; }
+
+    [Parameter]
+    public EventCallback<(string ident, FuelTranz tr)> InvokeParentHandlerDataChanges { get; set; }
+
+    [Parameter]
+    public EventCallback<string> InvokeParentHandlerSendChangesRemoveRow { get; set; }
+
+    private List<FuelCardFullModel> AvailableCards 
+    => this.FuelTranzGroupAddParentCascadingVal?.FuelCardsBySomeDivisionBySomeProvider?.OrderBy(_ => _.Number)?.ToList() ?? new();
+
+    #endregion
+
+    private void CheckedChanged()
+        => this.SendToParentChangedData?.Invoke();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await this.PrimaryInitCard();
+
+        this.SendToParentChangedData = 
+        this.InvokeParentHandlerDataChanges.HasDelegate
+        ? 
+        async () => await this.InvokeParentHandlerDataChanges.InvokeAsync((this.GuideId, this.Model))
+        : 
+        null
+        ;
+
+        this.IsRender = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender)
+            this.FuelTranzGroupAddParentCascadingVal.ObjItemsChangedEvent += this.ReactOnEventInParent;
+    }
+
+    private void ReactOnEventInParent()
+    {
+        this.Model.CardId = 0; // если в родительском компоненте изменились подр-е или поставщик топлива - номер выбранной топл.карты подлежит очистке
+        this.StartObjItemsChangedEvent();
+        this.StateHasChanged();
+    }
+
+    private async Task PrimaryInitCard()
+    {
+        this.Model.FuelTypeId = this.FuelTranzGroupAddParentCascadingVal?.Model?.FuelTypeId ?? default;
+        this.Model.CountryId = this.FuelTranzGroupAddParentCascadingVal?.Model?.CountryId ?? null;
+        this.Model.Cost = this.FuelTranzGroupAddParentCascadingVal?.Model?.Cost ?? null;
+        this.Model.CurrencyId = this.FuelTranzGroupAddParentCascadingVal?.Model?.CurrencyId ?? null;
+        this.Model.OperationDateTimeHour = this.Model?.TimeRangeHour?.FirstOrDefault() ?? 0;
+        this.Model.OperationDateTimeMin = this.Model?.TimeRangeMin?.FirstOrDefault() ?? 0;
+        if (this.InvokeParentHandlerDataChanges.HasDelegate)
+            await this.InvokeParentHandlerDataChanges.InvokeAsync((this.GuideId, this.Model));
+    }
+}

@@ -1,0 +1,393 @@
+﻿@inject IApies api
+@inherits EditFormBase<SimCard_View_GroupModel_Parent>
+@inject IMapper mapper
+
+
+<CascadingValue Value="@this">
+@if (this.IsRender)
+{
+    var label_ReceiveDate = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.ReceiveDate)).Item1 ?? string.Empty;
+    var label_DiscardDate = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.DiscardDate)).Item1 ?? string.Empty;
+    var label_isDiscarded = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.Fdiscarded)).Item1 ?? string.Empty;
+    var label_CellularOperator = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.CellularOperator)).Item1 ?? string.Empty; 
+    var label_DivisionName = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.DivisionName)).Item1 ?? string.Empty;
+    var innerItem = new SimCard_View_GroupModel_Child();
+    var innerItemsType = innerItem.GetType();
+    var label_SimCardNumber = innerItemsType.GetCustomDisplayValues(nameof(innerItem.SimCardNumber)).Item1 ?? string.Empty;
+    var label_TelephoneNumber = innerItemsType.GetCustomDisplayValues(nameof(innerItem.TelephoneNumber)).Item1 ?? string.Empty;
+    var colspan = this.IsCreate ? 4 : 3;
+
+    <div class="form_flex">
+        <EditForm EditContext=@this.EditContext>
+            <DataAnnotationsValidator />
+                <div class="flexRow">
+                    <div class="flexColumn">
+                        <div>
+                            <label_small_black>@label_ReceiveDate</label_small_black>
+                        </div>
+                        <div>
+                            <InputDate TValue="DateTime"
+                                       @bind-Value="@this.Model.ReceiveDate"
+                                       @oninput="@((ChangeEventArgs arg) => { this.ReceiveDateWereChanged(arg); })" />
+                        </div>
+                        <div class="validation-message">
+                            @this.ManualValidationMessage_ReceiveDate
+                        </div>
+                        <div class="validation-message">
+                            @this.GetPropsValidMessage(nameof(this.Model.ReceiveDate))
+                        </div>
+                    </div>
+                </div>
+                <div class="flexRow">
+                    <div class="flexColumn">
+                        <div>
+                            <label_small_black>@label_DivisionName</label_small_black>
+                        </div>
+                        <div>
+                                @{
+                                    DivisionResponse divis = new();
+                                    var type_divis = divis.GetType();
+                                    var props_divis = new List<PropertyInfo> { type_divis.GetProperty(nameof(divis.Name)) };
+                                    var textProp_divis = type_divis.GetProperty(nameof(divis.Name));
+                                    var temp_divis = type_divis.GetCustomDisplayValues(nameof(divis.Name));
+                                    var labelForSearch_divis = temp_divis.Item1 ?? string.Empty;
+                                }
+                            <SearchSelectTItems Items="@(this.SimCardsFilters_CascadingVal?.SimCardsCascadingParameter?.Divisions?.OrderBy(_ => _.Name)?.ToList() ?? new())"
+                                                      T="@DivisionResponse"    
+                                                      KeyPropInfo="@(type_divis.GetProperty(nameof(divis.Id)))"
+                                                       MaxSizeSelect="4"
+                                                       InitParameters="@null"
+                                                       LabelForSearch="@labelForSearch_divis"
+                                                       Placeholder="@labelForSearch_divis"
+                                                       IsMultiple="@false"
+                                                       PropertiesInfoForSearch="@props_divis"
+                                                       TextProperty="@textProp_divis"
+                                                       SendToParentFoundAndSelectedItems="@((List<DivisionResponse> selectedItems) 
+                                                                                             => {
+                                                                                                    if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                        this.Model.FkDivisionId = selectedItems?.FirstOrDefault()?.Id ?? 0;
+                                                                                                    else
+                                                                                                        this.Model.FkDivisionId = 0;
+                                                                                                })" />
+                        </div>
+                        <div class="validation-message">
+                            @this.GetPropsValidMessage(nameof(this.Model.FkDivisionId))
+                        </div>
+                    </div>
+                     <div class="flexColumnLast">
+                         <div>
+                             <label_small_black>@label_CellularOperator</label_small_black>
+                        </div>
+                        <div>
+                                @{
+                                    MobileOperator oper = new();
+                                    var type_oper = oper.GetType();
+                                    var props_oper = new List<PropertyInfo> { type_oper.GetProperty(nameof(oper.Name)) };
+                                    var textProp_oper = type_oper.GetProperty(nameof(oper.Name));
+                                    var labelForSearch_oper =  type_oper.GetCustomDisplayValues(nameof(oper.Name)).Item1 ?? string.Empty;
+                                }
+                            <SearchSelectTItems Items="@(MobileHelper.MobileOperators?.OrderBy(_ => _.Name)?.ToList() ?? new())"
+                                                       T="@MobileOperator"    
+                                                       KeyPropInfo="@(type_oper.GetProperty(nameof(oper.Id)))"
+                                                       MaxSizeSelect="4"
+                                                       InitParameters="@null"
+                                                       LabelForSearch="@labelForSearch_oper"
+                                                       Placeholder="@labelForSearch_oper"
+                                                       IsMultiple="@false"
+                                                       PropertiesInfoForSearch="@props_oper"
+                                                       TextProperty="@textProp_oper"
+                                                       SendToParentFoundAndSelectedItems="@((List<MobileOperator> selectedItems) 
+                                                                                             => {
+                                                                                                    if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                        this.Model.CellularOperator = MobileHelper.MobileOperators?.FirstOrDefault(_ => _.Id == selectedItems.FirstOrDefault().Id)?.Abbrev ?? string.Empty;
+                                                                                                    else
+                                                                                                        this.Model.CellularOperator = string.Empty;
+                                                                                                })" />
+                        </div>
+                        <div class="validation-message">
+                            @this.GetPropsValidMessage(nameof(this.Model.CellularOperator))
+                        </div>
+                     </div>
+                </div>
+        </EditForm>
+    </div>
+    <div class="adapt_table scroll font-journal">
+        <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+            <thead class="adapt_table_inner_thead">
+                <tr style="border-top: 2px solid white;">
+                    <th data-label="№">
+                        №
+                    </th>
+                    <th data-label="@label_TelephoneNumber">
+                        @label_TelephoneNumber
+                    </th>
+                    <th data-label="@label_SimCardNumber">
+                        @label_SimCardNumber
+                    </th>
+                    @if(this.IsCreate)
+                   {
+                       <th data-label="Удалить">
+                           Удалить
+                       </th>
+                   }
+                </tr>
+            </thead>
+            <tbody style="width: 100%;">
+                <Virtualize Items="@(this.Model?.SimCard_View_GroupModel_Childs ?? new())" ItemSize="25">
+                            <ItemContent>
+                                <SimCardsEditGroupFormInner Index="@(this.Model.SimCard_View_GroupModel_Childs.IndexOf(context))"
+                                                            Item="@context"
+                                                            @key="@context.GuideId"
+                                                            InvokeParentHandler_DataChanges="@((SimCard_View_GroupModel_Child itemChanged) =>
+                                                                                              { 
+                                                                                                  var ind = this.Model.SimCard_View_GroupModel_Childs.FindIndex(_ => _.GuideId.Equals(itemChanged.GuideId));
+                                                                                                  this.Model.SimCard_View_GroupModel_Childs[ind] = itemChanged;
+                                                                                              })"
+                                                            InvokeParentHandler_RemoveRow="@((string indexRemoved) => {  this.Model.SimCard_View_GroupModel_Childs.RemoveAll(_ => _.GuideId.Equals(indexRemoved)); })" />
+                            </ItemContent>
+                        </Virtualize>
+                    <tr style="vertical-align: central;">
+                        <td colspan="@colspan">
+                            <button type="button"
+                                @onclick="@(() => { this.Model.SimCard_View_GroupModel_Childs.Add(new SimCard_View_GroupModel_Child()); })"
+                                class="button_tr_100">
+                                <span><b>+</b> Добавить еще одну sim-карту</span>
+                            </button>
+                        </td>
+                    </tr>
+            </tbody>
+        </table>
+     </div>
+     <div>
+                    @if (!this.IsModelValid && this.Model.SimCard_View_GroupModel_Childs.Count > 0)
+                    {
+                                <ul class="validation-message">
+                                    @if (!string.IsNullOrEmpty(this.ValidErrors))
+                                    {
+                                        <li>
+                                            @this.ValidErrors
+                                        </li>
+                                    }
+                                     @if (!string.IsNullOrEmpty(this.ManualValidationMessage_DiscardDate))
+                                    {
+                                        <li>
+                                            @this.ManualValidationMessage_DiscardDate
+                                        </li>
+                                    } 
+                                    @if (!string.IsNullOrEmpty(this.ManualValidationMessage_ReceiveDate))
+                                    {
+                                        <li>
+                                            @this.ManualValidationMessage_ReceiveDate
+                                        </li>
+                                    }
+                                </ul>
+                    }
+     </div>
+    <br />
+    <div>
+            <ButtonDouble EventCallbackToParent="@(async () => { await this.ProgressBarOpenAsync();
+                                                                 await this.StartOperation();
+                                                                 await this.ProgressBarCloseAsync();})"
+                      EventCallbackToParentReset="@(async () => { await this.MedelsInitialization();
+                                                                  this.MedelsInitializationInner();
+                                                                  this.ManualValidationMessage_ReceiveDate = string.Empty;
+                                                                  this.ManualValidationMessage_DiscardDate = string.Empty; })"
+                      LabelForButton="Сохранить"
+                      LabelForButtonReset="Отмена"
+                      IsActive="@((this.Model?.SimCard_View_GroupModel_Childs?.Count ?? 0) > 0
+                                && (this.IsModelValid)
+                                && string.IsNullOrEmpty(this.ManualValidationMessage_ReceiveDate)
+                                && string.IsNullOrEmpty(this.ManualValidationMessage_DiscardDate))"
+                      TitleIfIsNonActive="Сохранение изменений возможно, если они валидны"
+                      TitleIfIsActive="Кликните, чтобы сохранить изменения"
+                      TitleReset="Кликните, чтобы отменить внесенные изменения">
+        </ButtonDouble>
+    </div>
+        @if (this.ShowMessage)
+        {
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false;
+                                                                                    if (this.ShouldUpdateParent)
+                                                                                        await this.InvokeParentHendlerAfterCreating.InvokeAsync(this.Model);
+                                                                                    else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                        await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                                  })">
+                <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@this.Message">
+                </ResultOperation>
+            </ModalWindowWithEventCallback>
+        }
+}
+else
+{
+    <div>
+        Идет загрузка формы...
+    </div>
+}
+     <div id="@this.IdForProgressBar" style="display: none;">
+         <ProgressBar />
+     </div>
+</CascadingValue>
+
+@code 
+{
+    // PROPS
+    #region 
+    [CascadingParameter]
+    public SimCardsFilters SimCardsFilters_CascadingVal { get; set; }
+
+    private string ManualValidationMessage_ReceiveDate{ get; set; }
+
+    private string ManualValidationMessage_DiscardDate{ get; set; }
+
+    public string ValidationMessage_SimCardNumber(SimCard_View_GroupModel_Child innerModel)  => innerModel.GetValidationMessageForProp(nameof(innerModel.SimCardNumber));
+
+    public string ValidationMessage_Telephone(SimCard_View_GroupModel_Child innerModel)  => innerModel.GetValidationMessageForProp(nameof(innerModel.FkTelephoneId));
+
+    #endregion
+
+    // METHODS
+    #region 
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ReturnUrl = this.SimCardsFilters_CascadingVal?.ReturnUrl ?? "/";
+        this.IdForProgressBar = "simCardEditForm_idProgrBar";
+        this.MedelsInitializationInner();
+        this.IsRender = true;
+    }
+
+    protected override (bool, string) ValidateModel() => (this.Model.CheckModelIsValid().Item1 
+                                            & (this.Model?.SimCard_View_GroupModel_Childs?.All(_ => _.CheckModelIsValid().Item1) ?? false), "");
+
+    private void MedelsInitializationInner()
+    {
+        this.Model.SimCard_View_GroupModel_Childs = new();
+        this.Model.ReceiveDate = DateTime.Today; 
+    }
+
+    private void ReceiveDateWereChanged(ChangeEventArgs val)
+    {
+        DateTime res = default;
+
+        if (val == null ||
+           val?.Value == null ||
+           string.IsNullOrEmpty(val?.Value.ToString()) ||
+           string.IsNullOrWhiteSpace(val?.Value.ToString()) ||
+           !DateTime.TryParse(val?.Value?.ToString(), out res))
+        {
+            this.ManualValidationMessage_ReceiveDate = "Неверный формат даты";
+        }
+        else
+        {
+            this.Model.ReceiveDate = res;
+            this.ManualValidationMessage_ReceiveDate = string.Empty;
+        }
+
+        this.ValidateModel();
+    }
+
+    private void DiscardDateWereChanged(ChangeEventArgs val)
+    {
+        DateTime res = default;
+
+        if (!DateTime.TryParse(val?.Value?.ToString(), out res))
+        {
+            this.ManualValidationMessage_DiscardDate = "Неверный формат даты";
+        }
+        else
+        {
+            this.Model.DiscardDate = res;
+            this.ManualValidationMessage_DiscardDate = string.Empty;
+        }
+
+        this.ValidateModel();
+    }
+
+    public override async Task StartOperation()
+    {
+        this.Message = string.Empty;
+
+        var isValid = this.Model.CheckModelIsValid();
+
+        if (isValid.Item1)
+        {
+            var putPostModel = this.MapGroupModel_To_TSimCards();
+
+            string errorsValid = string.Empty;
+            var isValidItems = true;
+
+            foreach(var item in putPostModel)
+            {
+                var resCheckValid = item.CheckModelIsValid();
+                if (!resCheckValid.Item1)
+                {
+                    errorsValid += resCheckValid.Item2?.ItemsToString("! ");
+                    isValidItems = false;
+                }
+            }
+
+            if (isValidItems)
+            {
+                this.OperationsResult = await this.api?.MobileApi?.PostSimCards(putPostModel, this.Token);
+                await this.ProccessingResponse();
+            }
+            else
+            {
+                this.Message = $"Операция не м.б. выполнена, т.к. данные не валидны ! {errorsValid}";
+                this.Title = "Предупреждение";
+            }
+        }
+        else
+        {
+            this.Message = "Операция не м.б. выполнена, т.к. данные не валидны !";
+            this.Title = "Предупреждение";
+        }
+
+        this.RenderMessage();
+    }
+
+    public override async Task ProccessingResponse()
+    {
+        if (this.OperationsResult == null)
+        {
+            this.Message = string.IsNullOrEmpty(this.OperationsResult.Result)
+                           ? "Операция закончилась с ошибкой ! Новые sim-карты не были сохранены в системе !"
+                           : this.OperationsResult?.Result ?? string.Empty;
+            this.Title = "Предупреждение";
+        }
+        else
+        {
+            this.Message = string.IsNullOrEmpty(this.OperationsResult.Result)
+                           ? "Операция успешно завершена ! Новые sim-карты были сохранены в системе !"
+                           : this.OperationsResult?.Result ?? string.Empty;
+
+            this.Title = "Результат добавления коллекции sim-карт";
+            this.ShouldUpdateParent = true;
+        }
+    }
+
+    private List<SimCardView> MapGroupModel_To_TSimCards()
+    {
+        List<SimCardView> res = new();
+
+        foreach (var item in this.Model?.SimCard_View_GroupModel_Childs ?? new())
+        {
+            res.Add
+            (
+                new SimCardView
+                {
+                    FkTelephoneId = item?.FkTelephoneId ?? 0,
+                    FkDivisionId = this.Model?.FkDivisionId ?? 0,
+                    ReceiveDate = this.Model?.ReceiveDate ?? default,
+                    CellularOperator = this.Model?.CellularOperator ?? string.Empty,
+                    SimCardNumber = item?.SimCardNumber ?? string.Empty
+                }
+            );
+        }
+
+        return res;
+    }
+    #endregion
+}

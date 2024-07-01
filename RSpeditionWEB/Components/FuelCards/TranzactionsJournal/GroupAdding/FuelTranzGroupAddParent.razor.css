@@ -1,0 +1,93 @@
+﻿
+.button_tr_100 {
+    width: 100%;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    background-color: #3F3C3C !important;
+    color: white;
+    border-radius: 0px;
+    border-width: 0px;
+    padding: 3px;
+}
+
+    .button_tr_100 span {
+        font-size: x-small;
+        font-weight: bold;
+    }
+
+.adapt_table table thead tr th {
+    vertical-align: middle !important;
+}
+
+.btnTransparent {
+    border: none;
+    background-color: inherit !important;
+}
+
+img {
+    border: none;
+    width: 15px;
+}
+
+/* Флекс-контейнер с направлением в столбец */
+.flexColumnMargin0 {
+    display: flex;
+    display: -webkit-flex;
+    flex-wrap: wrap; /* Многострочный контейнер */
+    flex-direction: column; /* Направление главной оси контейнера - вертикальное */
+    justify-content: flex-start; /* Выравнивание по главной оси */
+    align-content: flex-start; /* Выравнивание по поперечной оси всех строк контейнера */
+    align-items: flex-start; /* Выравнивание по поперечной оси внутри строки */
+}
+
+
+
+/*******************************************************************************************************************************************************************************/
+.tdGrouped {
+    background-color: #09bd70;
+    box-shadow: inset 1px 1px 10px #024638;
+    font-weight: bold;
+    font-size: medium;
+}
+
+    .tdGrouped td:first-child {
+        border-right: none !important;
+    }
+
+td > img {
+    background: inherit;
+}
+
+/* Флекс-контейнер с направлением в строку */
+.flexRowWithInnerBlocks {
+    display: flex;
+    display: -webkit-flex;
+    flex-wrap: wrap; /* Многострочный контейнер */
+    width: 100%;
+    flex-direction: row; /* Направление главной оси контейнера - горизонтальное */
+    justify-content: center; /* Выравнивание по главной оси */
+    align-content: flex-start; /* Выравнивание по поперечной оси всех строк контейнера */
+    align-items: flex-start; /* Выравнивание по поперечной оси внутри строки */
+}
+
+    .flexRowWithInnerBlocks > .boxShadowInner {
+        display: inline-flex;
+        display: -webkit-inline-box;
+        flex-wrap: wrap; /* Многострочный контейнер */
+        flex-direction: row; /* Направление главной оси контейнера - горизонтальное */
+        justify-content: center; /* Выравнивание по главной оси */
+        align-content: flex-start; /* Выравнивание по поперечной оси всех строк контейнера */
+        align-items: flex-start; /* Выравнивание по поперечной оси внутри строки */
+    }
+
+    .boxShadowInner {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, .2);
+        border-radius: 5px;
+        margin: 0;
+        padding: 0;
+    }
+
+
+
+

@@ -1,0 +1,52 @@
+﻿@inherits ChildComponentBaseClass
+
+@if (this.IsRender)
+{
+    var topVal = this.Top + "px";
+    var leftVal = this.Left + "px";
+    var crossTop = (this.Top - 15) + "px";
+    var crossLeft = (this.Left - 15) + "px";
+    <div style="top: @crossTop; left: @crossLeft;"
+         class="cross"
+         @onclick="@(async() => {if(this.InvokeParentHendlerCancel.HasDelegate)
+                                    await this.InvokeParentHendlerCancel.InvokeAsync();})">
+        x
+    </div>
+    <div id="context-menu" style="top: @topVal; left: @leftVal;">
+        <ol>
+            @for(var i = 0; i < this.MenuItems.Count; i++)
+            {
+                var group = this.MenuItems.ElementAt(i);
+                foreach(var item in group)
+                {
+                    <li @onclick="@(async() => {if(this.SendToParent_SelctedItem.HasDelegate)
+                                                    await this.SendToParent_SelctedItem.InvokeAsync(item.Key);})">@item.Value</li>
+                }
+                if (i != this.MenuItems.Count - 1)
+                {
+                    <hr class="hrpressed" />
+                }
+            }
+        </ol>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public EventCallback<string> SendToParent_SelctedItem { get; set; }
+
+    [Parameter]
+    public double Top { get; set; }
+
+    [Parameter]
+    public double Left { get; set; }
+
+    [Parameter]
+    public List<Dictionary<string, string>> MenuItems { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IsRender = true;
+    }
+}

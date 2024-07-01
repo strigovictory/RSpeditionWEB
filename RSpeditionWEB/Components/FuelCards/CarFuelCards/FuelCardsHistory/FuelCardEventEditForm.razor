@@ -1,0 +1,571 @@
+﻿@using RSpeditionWEB.Models.RequestModels;
+@implements IDisposable
+@inherits FuelCardEventBase
+@inject IFuelApies api
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+{
+    FuelCardsEventResponse item = new();
+    var typeItem = item.GetType();
+    //
+    var labelEventStartDate = typeItem.GetCustomDisplayValues(nameof(item.StartDate)).Item1 ?? string.Empty;
+    var labelFinishDate = typeItem.GetCustomDisplayValues(nameof(item.FinishDate)).Item1 ?? string.Empty;
+    var labelComment = typeItem.GetCustomDisplayValues(nameof(item.Comment)).Item1 ?? string.Empty;
+    var labelChangeDate = typeItem.GetCustomDisplayValues(nameof(item.ModifiedOn)).Item1 ?? string.Empty;
+    var labelCar = typeItem.GetCustomDisplayValues(nameof(item.CarId)).Item1 ?? string.Empty;
+    var labelEventType = typeItem.GetCustomDisplayValues(nameof(item.EventTypeId)).Item1 ?? string.Empty; 
+    var labelEmpl = typeItem.GetCustomDisplayValues(nameof(item.EmployeeId)).Item1 ?? string.Empty;
+    var labelDivision = typeItem.GetCustomDisplayValues(nameof(item.DivisionID)).Item1 ?? string.Empty;
+    var typeSelectedEvent = this.KitEventTypes?.FirstOrDefault(_ => _.Id == this.Model?.EventTypeId);
+    this.Model.ModifiedBy = this.AuthenticationState.Result?.User?.Identity?.Name ?? string.Empty;
+    this.Model.ModifiedOn = DateTime.Today;
+    //
+    DivisionResponse division = new();
+    var typeDivision = division.GetType();
+    var propsDivision = new List<PropertyInfo> { typeDivision.GetProperty(nameof(division.Name)) };
+    var textPropDivision = typeDivision.GetProperty(nameof(division.Name));
+    var tempAttrDivision = typeDivision.GetCustomDisplayValues(nameof(division.Name));
+    var labelForDivision = tempAttrDivision.Item1 ?? string.Empty;
+    var placeholderDivision = tempAttrDivision.Item2 ?? string.Empty;
+    var divisions = this.FuelCardStatusHistoryCascadingParameter?.FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.Divisions?
+        .Where(div => div.IsMainDivision)?.ToList() ?? new();
+    var divisionsIId = divisions?.Cast<IId>()?.ToList() ?? new();
+    var divisionSelected = this.Model.DivisionID.HasValue ? divisions?.FirstOrDefault(_ => _.Id == this.Model.DivisionID.Value) : null;
+    var divisionNameSelected = divisionSelected?.Name ?? string.Empty;
+
+    <div class="form">
+        <EditForm Model="@this.Model">
+            <DataAnnotationsValidator />
+            @*Тип события - смена типа события недоступна в режиме редактирования события*@
+            <div>
+                <div class="form_label">@labelEventType</div>
+                @if (this.IsCreate)
+                {
+                    <div>
+                            @{
+                                KitEventTypeView eventItem = new();
+                                var typeEventItem = eventItem.GetType();
+                                var propsEventItem = new List<PropertyInfo> { typeEventItem.GetProperty(nameof(eventItem.Name)) };
+                                var textEventItem = typeEventItem.GetProperty(nameof(eventItem.Name));
+                                var tempAttrEventItem = typeEventItem.GetCustomDisplayValues(nameof(eventItem.Name));
+                                var labelForSearchEventItem = tempAttrEventItem.Item1 ?? string.Empty;
+                                var placeholderEventItem = tempAttrEventItem.Item2 ?? string.Empty;
+                                // Разновидность последнего события в цепочке событий по карте
+                                var typeLastEvent = this.KitEventTypes?.FirstOrDefault(_ => _.Id == this.TEventLast?.EventTypeId);
+                                var iidItems = (typeLastEvent?.Name ?? string.Empty).Equals(Enum.GetName(EventType.Тягач))
+                                || (typeLastEvent?.Name ?? string.Empty).Equals(Enum.GetName(EventType.Водитель))
+                                    ? this.KitEventTypes?.ToList() ?? new() // событие Тягач /Водитель может следовать несколько ряд подряд в отличие от остальных событий
+                                                : this.KitEventTypes?.Except(new List<KitEventTypeView> { typeLastEvent })?.ToList() ?? new();
+                                var selectedValue = this.KitEventTypes?.FirstOrDefault(_ => _.Id == Model.EventTypeId);
+                            }
+                            <SearchSelectTItems Items="@iidItems"
+                                                T="@KitEventTypeView"
+                                                KeyPropInfo="@(typeEventItem.GetProperty(nameof(KitEventTypeView.Id)))"
+                                                MaxSizeSelect="4"
+                                                InitParameters="@(selectedValue != null ? new List<KitEventTypeView>{selectedValue} : null)"
+                                                LabelForSearch="@labelForSearchEventItem"
+                                                Placeholder="Поиск"
+                                                IsMultiple="@false"
+                                                PropertiesInfoForSearch="@propsEventItem"
+                                                TextProperty="@textEventItem"
+                                                SendToParentFoundAndSelectedItems="@((List<KitEventTypeView> selectedItems) =>
+                                                                                         { var item = selectedItems?.FirstOrDefault();
+                                                                                            if (item != null && item is KitEventTypeView)
+                                                                                                this.Model.EventTypeId = item.Id;
+                                                                                            else
+                                                                                                this.Model.EventTypeId = 0;
+                                                                                            ResetModelsFK();
+                                                                                            if(this.Model.EventTypeId == this.KitEventTypes?.FirstOrDefault(_ => _.Name == EventType.Архив.ToString())?.Id)
+                                                                                            {
+                                                                                                InitLastFuelCardEvent();
+                                                                                                this.Model.DivisionID = TEventLast?.DivisionID;
+                                                                                            }
+                                                                                            this.InitValidateEventTypeModel();})" />
+
+                    </div>
+                    <div class="validation-message">@(this.ValidationMessageTypeEvent ?? string.Empty)</div>
+                }
+                else
+                {
+                    <div>
+                        <input type="text"
+                               disabled 
+                               value="@(typeSelectedEvent?.Name ?? string.Empty)" />
+                    </div>
+                }
+            </div>
+                @*Склад*@
+                @if (this.Model.EventTypeId == this.KitEventTypes?.FirstOrDefault(kit => kit.Name == EventType.Склад.ToString())?.Id)
+                {
+                    <div>
+                        <div class="form_label">@labelForDivision</div>
+                        <div>
+                            <SearchSelectTItems Items="@(divisions ?? new())"
+                                                T="@DivisionResponse"
+                                                GetObjItems="@(() => divisions?.Cast<object>()?.ToList() ?? new())"
+                                                KeyPropInfo="@(typeDivision.GetProperty(nameof(division.Name)))"
+                                                MaxSizeSelect="5"
+                                                InitParameters="@(divisionSelected != null ? new List<DivisionResponse>{divisionSelected} : new())"
+                                                LabelForSearch="@labelForDivision"
+                                                Placeholder="@placeholderDivision"
+                                                IsMultiple="@false"
+                                                PropertiesInfoForSearch="@propsDivision"
+                                                TextProperty="@textPropDivision"
+                                                SendToParentFoundAndSelectedItems="@(async(List<DivisionResponse> selectedItems)
+                                                                                             => { var selectedItem = selectedItems?.FirstOrDefault();
+                                                                                                  this.Model.DivisionID = selectedItem?.Id ?? null; })" />
+
+                        </div>
+                        <div class="validation-message">@(this.ValidationMessageDivision ?? string.Empty)</div>
+                    </div>
+                }
+                
+                @*Архив*@
+                @if (this.Model.EventTypeId == this.KitEventTypes?.FirstOrDefault(kit => kit.Name == EventType.Архив.ToString())?.Id)
+                {
+                    <div>
+                        <div class="form_label">@labelForDivision</div>
+                        <div>
+                            <input type="text"
+                                   class="form-control"
+                                   readonly
+                                   disabled
+                                   title="Значение определяется автоматически"
+                                   style="min-width: 200px; padding: 5px;"
+                                   value="@divisionNameSelected" />
+                        </div>
+                        <div class="validation-message">@(this.ValidationMessageDivision ?? string.Empty)</div>
+                    </div>
+                }
+
+                @*Водитель*@
+                @if (this.Model.EventTypeId == this.KitEventTypes?.FirstOrDefault(kit => kit.Name == EventType.Водитель.ToString())?.Id)
+                {
+                    <div>
+                        <div class="form_label">@labelEmpl</div>
+                        <div>
+                            @if (this.EventsStartDate.HasValue)
+                            {
+                                EmployeesAssignmentsResponse empl = new();
+                                var typeEmpl = empl.GetType();
+                                var propsEmpl = new List<PropertyInfo> { typeEmpl.GetProperty(nameof(empl.EmployeeName)) };
+                                var textPropEmpl = typeEmpl.GetProperty(nameof(empl.EmployeeName));
+                                var tempAttrEmpl = typeEmpl.GetCustomDisplayValues(nameof(empl.EmployeeName));
+                                var labelForSearchEmpl = tempAttrEmpl.Item1 ?? string.Empty;
+                                var placeholderEmpl = tempAttrEmpl.Item2 ?? string.Empty;
+                                var initEmpl = Model.EmployeeId.HasValue 
+                                ? new List<EmployeesAssignmentsResponse>(AvailableEmployeesAssignments.Where(ass => ass.EmployeeId == Model.EmployeeId))?.ToList() ?? new()
+                                : new();
+                                <SearchSelectTItems Items="@(AvailableEmployeesAssignments ?? new())"
+                                                    T="@EmployeesAssignmentsResponse"
+                                                    GetObjItems="@(() => AvailableEmployeesAssignments?.Cast<object>()?.ToList() ?? new())"
+                                                    KeyPropInfo="@(typeEmpl.GetProperty(nameof(empl.EmployeeId)))"
+                                                    MaxSizeSelect="5"
+                                                    InitParameters="@initEmpl"
+                                                    LabelForSearch="@labelForSearchEmpl"
+                                                    Placeholder="@placeholderEmpl"
+                                                    IsMultiple="@false"
+                                                    PropertiesInfoForSearch="@propsEmpl"
+                                                    TextProperty="@textPropEmpl"
+                                                    SendToParentFoundAndSelectedItems="@(async(List<EmployeesAssignmentsResponse> selectedItems)
+                                                                                             => { EmployeesAssignmentsSelected = selectedItems?.FirstOrDefault();
+                                                                                                  this.Model.EmployeeId = EmployeesAssignmentsSelected?.EmployeeId ?? default;
+                                                                                                  this.Model.DivisionID = (EmployeesAssignmentsSelected?.Assignments?.Count ?? 0) > 1 ? 0 : EmployeesAssignmentsSelected?.Assignments?.FirstOrDefault()?.DivisionId ?? 0;
+                                                                                                  this.InitValidateEmployeeModel(); })" />
+                            }
+                            else
+                            {
+                                <span>Для выбора водителя, необходимо установить дату начала события</span>
+                            }
+                        </div>
+                        <div class="validation-message">@(this.ValidationMessageEmpl ?? string.Empty)</div>
+                    </div>
+                    <div>
+                        <div class="form_label">@labelForDivision</div>
+                        <div class="flexRow_Center_Center">
+                            <div class="flexColumn_Center_Start">
+                                @if ((EmployeesAssignmentsSelected?.Assignments?.Count ?? 0) > 1)
+                                {
+                                    @foreach (var emplAssigmentsDivision in EmployeesAssignmentsSelected?.Assignments ?? new())
+                                    {
+                                        var divisionRender = divisions?.FirstOrDefault(_ => _.Id == emplAssigmentsDivision.DivisionId);
+                                        var divisionName = divisionRender.Name;
+                                        var divisionId = divisionRender.Id;
+                                        var idRadio = $"division_{divisionId}";
+                                        <div>
+                                            @if (Model.DivisionID == divisionId)
+                                            {
+                                                <input type="radio"
+                                                       id="@idRadio"
+                                                       checked
+                                                       name="divisionChoice"
+                                                       value="@divisionId"
+                                                @oninput="@(async(ChangeEventArgs arg) => { Model.DivisionID = int.TryParse(arg?.Value?.ToString() ?? "0", out var val) ? val: 0;
+                                                                                                   this.InitValidateEmployeeModel(); })">
+                                                <span class="top">@divisionName</span>
+                                            }
+                                            else
+                                            {
+                                                <input type="radio"
+                                                       id="@idRadio"
+                                                       name="divisionChoice"
+                                                       value="@divisionId"
+                                                @oninput="@(async(ChangeEventArgs arg) => { Model.DivisionID = int.TryParse(arg?.Value?.ToString() ?? "0", out var val) ? val: 0;
+                                                                                            this.InitValidateEmployeeModel(); })">
+                                                <span class="top">@divisionName</span>
+                                            }
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <input type="text"
+                                           class="form-control"
+                                           readonly
+                                           disabled
+                                           title="Значение определяется автоматически"
+                                           style="min-width: 200px; padding: 5px;"
+                                           value="@divisionNameSelected" />
+                                }
+                            </div>
+                        </div>
+                        <div class="validation-message">@(this.ValidationMessageDivision ?? string.Empty)</div>
+                    </div>
+                }
+
+            @*Тягач*@
+            @if (this.Model.EventTypeId == this.KitEventTypes?.FirstOrDefault(kit => kit.Name == EventType.Тягач.ToString())?.Id)
+            {
+                <div>
+                    <div class="form_label">@labelCar</div>
+                    <div>
+                            @if (this.EventsStartDate.HasValue)
+                            {
+                                TrucksLicensePlate trucksLicensePlate = new();
+                                var typeTrucksLicensePlate = trucksLicensePlate.GetType();
+                                var propsTrucksLicensePlate = new List<PropertyInfo> { typeTrucksLicensePlate.GetProperty(nameof(trucksLicensePlate.LicensePlate)) };
+                                var textPropTrucksLicensePlate = typeTrucksLicensePlate.GetProperty(nameof(trucksLicensePlate.LicensePlate));
+                                var tempAttrTrucksLicensePlate = typeTrucksLicensePlate.GetCustomDisplayValues(nameof(trucksLicensePlate.LicensePlate));
+                                var labelForSearchTrucksLicensePlate = tempAttrTrucksLicensePlate.Item1 ?? string.Empty;
+                                var placeholderTrucksLicensePlate = tempAttrTrucksLicensePlate.Item2 ?? string.Empty;
+                                var initTruck = Model.CarId.HasValue
+                                ? new List<TrucksLicensePlate>(AvailableTrucksLicensePlates.Where(plate => plate.TruckId == Model.CarId))?.ToList() ?? new()
+                                : new();
+
+                                <SearchSelectTItems Items="@(AvailableTrucksLicensePlates ?? new())"
+                                                    T="@TrucksLicensePlate"
+                                                    GetObjItems="@(() => AvailableTrucksLicensePlates?.Cast<object>()?.ToList() ?? new())"
+                                                    KeyPropInfo="@(typeTrucksLicensePlate.GetProperty(nameof(trucksLicensePlate.TruckId)))"
+                                                    MaxSizeSelect="5"
+                                                    InitParameters="@initTruck"
+                                                    LabelForSearch="@labelForSearchTrucksLicensePlate"
+                                                    Placeholder="@placeholderTrucksLicensePlate"
+                                                    IsMultiple="@false"
+                                                    PropertiesInfoForSearch="@propsTrucksLicensePlate"
+                                                    TextProperty="@textPropTrucksLicensePlate"
+                                                    SendToParentFoundAndSelectedItems="@(async(List<TrucksLicensePlate> selectedItems)
+                                                                                             => { var truckLicensePlateVal = selectedItems?.FirstOrDefault();
+                                                                                                  this.Model.CarId = truckLicensePlateVal?.TruckId;
+                                                                                                  this.Model.DivisionID = truckLicensePlateVal?.DivisionId;
+                                                                                                  this.InitValidateCarModel(); })" />
+                            }
+                            else
+                            {
+                                <span>Для выбора тягача, необходимо установить дату начала события</span>
+                            }
+                        </div>
+                    <div class="validation-message">@(this.ValidationMessageCar ?? string.Empty)</div>
+                </div>
+                    <div>
+                        <div class="form_label">@labelForDivision</div>
+                        <div>
+                            <input type="text"
+                                   class="form-control"
+                                   readonly
+                                   disabled
+                                   title="Значение определяется автоматически"
+                                   style="min-width: 200px; padding: 5px;"
+                                   value="@divisionNameSelected" />
+                        </div>
+                        <div class="validation-message">@(this.ValidationMessageDivision ?? string.Empty)</div>
+                    </div>
+            }
+            
+            @*Дата начала события*@
+            <div>
+                <div class="form_label">@labelEventStartDate</div>
+                <div>
+                    <InputDate TValue="DateTime?"
+                               class="form-control"
+                               ParsingErrorMessage="@ValidationMessageStartDate"
+                               @bind-Value="@this.EventsStartDate"
+                               @oninput="@((ChangeEventArgs arg) => {
+                                                                       if (DateTime.TryParse(arg?.Value?.ToString(), out DateTime res))
+                                                                           EventsStartDate = res.Date;
+                                                                        else
+                                                                            EventsStartDate = null;
+                                                                        ResetModelsFK();
+                                                                        if(this.Model.EventTypeId == this.KitEventTypes?.FirstOrDefault(_ => _.Name == EventType.Архив.ToString())?.Id)
+                                                                        {
+                                                                            InitLastFuelCardEvent();
+                                                                            this.Model.DivisionID = IsCreate ? TEventLast?.DivisionID: TItemFromParent?.DivisionID;
+                                                                        }
+                                                                        CheckPropDates(); })" />
+                </div>
+                <div class="validation-message">
+                    <ul>
+                        @foreach (var mess in this.ValidationMessageStartDate?.ConvertStringToList('!') ?? new())
+                        {
+                            <li>@mess</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+
+            @*Дата окончания события - для нового события является открытой / незаполненной (null)*@
+            @if (!this.IsCreate)
+            {
+                <div>
+                    <div class="form_label">@labelFinishDate</div>
+                    <div>
+                        <InputDate TValue="DateTime?"
+                                   class="form-control"
+                                   ParsingErrorMessage="@this.ValidationMessageFinishDate"
+                                   @bind-Value="@this.EventsFinishDate"
+                                   @oninput="@((ChangeEventArgs arg) => {
+                                                                            if (DateTime.TryParse(arg?.Value?.ToString(), out DateTime res))
+                                                                            {
+                                                                                this.EventsFinishDate = res.Date;
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                this.EventsFinishDate = null;
+                                                                            }
+
+                                                                            this.CheckPropDates();
+                                                                        })" />
+                    </div>
+                    <div class="validation-message">
+                        <ul>
+                            @foreach (var mess in this.ValidationMessageFinishDate?.ConvertStringToList('!') ?? new())
+                            {
+                                <li>@mess</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+
+            @*Комментарий*@
+            <div>
+                <div class="form_label">@labelComment</div>
+                <div>
+                    <InputTextArea class="form-control"
+                               @bind-Value="this.Model.Comment" />
+                </div>
+                <div class="validation-message">@(this.ValidationMessageComment ?? string.Empty)</div>
+            </div>
+             <div>
+                <ButtonDouble EventCallbackToParent="@(async () => { await this.ProgressBarOpenAsync();
+                                                                     ResponseBase res = default;
+                                                                     if (!this.IsCreate)
+                                                                         res = await this.EditFuelCardEvent();
+                                                                     else
+                                                                         res = await this.CreateNewFuelCardEvent();
+                                                                     await this.ProgressBarCloseAsync();
+                                                                     if (this.InvokeParentHendlerResponseBaseAfterAction.HasDelegate)
+                                                                         await this.InvokeParentHendlerResponseBaseAfterAction.InvokeAsync(res); })"
+                                  EventCallbackToParentReset="@(async() => { await this.ResetValues(); 
+                                                                             this.StartValidating();
+                                                                            })"
+                                  LabelForButton="Сохранить"
+                                  LabelForButtonReset="Отмена"
+                                  IsActive="@(this.IsModelValid)"
+                                  TitleIfIsNonActive="Сохранение возможно, если данные валидны"
+                                  TitleIfIsActive="Кликните, чтобы сохранить изменения"
+                                  TitleReset="Кликните, чтобы отменить внесенные изменения" 
+                                  IsRenderActionButton="@IsUserHasMinimumFuelRole"/>
+                </div>
+        </EditForm>
+    </div>
+    <div id="@this.IdForProgressBar" style="display: none;">
+            <ProgressBar />
+    </div>
+}
+else
+{
+    <ProgressBarInner TitleProcess="Идет загрузка ..." />
+}
+</CascadingValue>
+
+@code {
+    [CascadingParameter]
+    public FuelCardHistory FuelCardStatusHistoryCascadingParameter { get; set; }
+
+    public override bool IsCreate => this.TItemFromParent == null 
+                                  || this.TItemFromParent == default 
+                                  || this.TItemFromParent?.Id == 0 
+                                  || this.TItemFromParent?.Id == default;
+
+    protected override async Task<List<TrucksLicensePlatesStatusesModel>> GetTrucksLicensePlatesStatuses()
+        => await FuelCardStatusHistoryCascadingParameter?.FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.GetTrucksLicensePlatesStatuses();
+
+    protected override async Task<List<EmployeesAssignmentsResponse>> GetEmployeesAssignmentsDrivers()
+        => await FuelCardStatusHistoryCascadingParameter?.FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.GetEmployeesAssignmentsDrivers();
+
+    protected override List<TruckResponse> Trucks
+        => FuelCardStatusHistoryCascadingParameter?.FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.Trucks ?? new();
+
+    /// <summary>
+    /// Метод для первоначальной инициализации компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IsRender = true;
+    }
+
+    /// <summary>
+    ///
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task MedelsInitialization()
+    {
+        await ActualizeTrucksEmployeesFromDb();
+        await ActualizeEmployeesAssignmentsFromDb();
+
+        await this.ResetValues();
+
+        if (!this.IsCreate)
+        {
+            await this.InitPreviousFuelCardEvent();
+            await InitNextFuelCardEvent();
+        }
+        else
+        {
+            this.InitLastFuelCardEvent();
+        }
+
+        this.StartValidating();
+    }
+
+    protected override async Task ResetValues()
+    {
+        if (!this.IsCreate)
+        {
+            this.Model = (this.TItemFromParent?.Clone()) as FuelCardsEventResponse;
+            this.EventsStartDate = this.Model?.StartDate ?? null;
+            this.EventsFinishDate = this.Model?.FinishDate ?? null;
+        }
+        else
+        {
+            this.Model = new();
+            this.Model.StartDate = DateTime.Now;
+            this.EventsStartDate = DateTime.Now;
+            this.Model.FinishDate = null;
+            this.EventsFinishDate = null;
+            this.Model.CardId = this.EventSource?.Id ?? 0;
+        }
+
+        SetAvailableTrucksAndEmployees();
+    }
+
+    private void ResetModelsFK()
+    {
+        this.Model.EmployeeId = null;
+        this.Model.CarId = null;
+        this.Model.DivisionID = null;
+        InitValidateModel();
+        SetAvailableTrucksAndEmployees();
+        StartObjItemsChangedEvent();
+    }
+
+    private void SetAvailableTrucksAndEmployees()
+    {
+        ActualizeAvailableTrucksLicensePlates(Model.StartDate);
+        ActualizeAvailableEmployeesAssignments(Model.StartDate);
+    }
+
+    private void StartValidating()
+    {
+        this.CheckPropDates();
+        this.InitValidateCarModel();
+        this.InitValidateEmployeeModel();
+        this.InitValidateEventTypeModel();
+    }
+
+    /// <summary>
+    /// Метод для получения события, предшествующего текущему
+    /// </summary>
+    /// <returns></returns>
+    private void InitLastFuelCardEvent()
+        => this.TEventLast = this.FuelCardStatusHistoryCascadingParameter?
+                                                                                .FuelCardEvents?
+                                                                                .OrderByDescending(kit => kit.StartDate.Date)?
+                                                                                .ThenByDescending(kit => kit.Id)?
+                                                                                .FirstOrDefault()
+                                                                                ??
+                                                                                null
+                                                                                ;
+
+    /// <summary>
+    /// Метод для получения события, предшествующего текущему
+    /// </summary>
+    /// <returns></returns>
+    private async Task InitPreviousFuelCardEvent()
+        => this.TEventPrevious = await this.api?.FuelCardsEventsApi?.GetCardsEventPrevious(this.Model?.Id ?? 0, this.Token);
+
+    /// <summary>
+    /// Метод для получения события, следующего за текущим
+    /// </summary>
+    /// <returns></returns>
+    private async Task InitNextFuelCardEvent()
+        => this.TEventNext = await this.api?.FuelCardsEventsApi?.GeCardsEventNext(this.Model?.Id ?? 0, this.Token);
+
+    private void InitValidateModel()
+    {
+        InitValidateCarModel();
+        InitValidateEmployeeModel();
+        InitValidateEventTypeModel();
+    }
+
+    /// <summary>
+    /// Метод для запуска валидации привязки к авто
+    /// </summary>
+    private void InitValidateCarModel() => this.CheckCarProp(this.Model?.CarId, this.Model?.EventTypeId ?? 0);
+
+    private void InitValidateEmployeeModel() => this.CheckEmplProp(this.Model?.EmployeeId, this.Model?.EventTypeId ?? 0);
+
+    /// <summary>
+    /// Метод для запуска валидации привязки к разновидности события
+    /// </summary>
+    private void InitValidateEventTypeModel() => this.CheckEventTypeProp(this.Model?.EventTypeId ?? null);
+
+    /// <summary>
+    /// Метод для редактирования события топливной карты
+    /// </summary>
+    /// <returns></returns>
+    private async Task<ResponseBase> EditFuelCardEvent()
+    {
+        this.Model.StartDate = this.EventsStartDate?.Date ?? this.Model?.StartDate ?? DateTime.Today;
+        this.Model.FinishDate = this.EventsFinishDate?.Date ?? null;
+        var requestModel = new RequestSingleAction<FuelCardsEventResponse>(User, this.Model);
+        var result = await this.api?.FuelCardsEventsApi?.PutCardsEvent(requestModel, this.Token);
+        return result;
+    }
+
+    /// <summary>
+    /// Метод для создания нового события топливной карты
+    /// </summary>
+    /// <returns></returns>
+    private async Task<ResponseBase> CreateNewFuelCardEvent()
+    {
+        this.Model.StartDate = this.EventsStartDate?.Date ?? DateTime.Today;
+        this.Model.FinishDate = this.EventsFinishDate?.Date ?? null;
+        var requestModel = new RequestSingleAction<FuelCardsEventResponse>(User, this.Model);
+        var result = await this.api?.FuelCardsEventsApi?.PostCardsEvent(requestModel, this.Token);
+        return result;
+    }
+}

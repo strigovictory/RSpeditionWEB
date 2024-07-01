@@ -1,0 +1,33 @@
+﻿@implements ITab
+
+<li>
+    <a @onclick="@this.ActivateTab" class="nav-link @TitleCssClass" role="button">
+        @Title
+    </a>
+</li>
+
+
+@code {
+    // Контейнер табсет, в который добавлена текущая вкладка
+    [CascadingParameter]
+    public TabSet ContainerTabSet { get; set; }
+
+    [Parameter]
+    public string Title { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    private string TitleCssClass =>
+        ContainerTabSet.ActiveTab == this ? "active" : null;
+
+    protected override void OnInitialized()
+    {
+        ContainerTabSet.AddTab(this);
+    }
+
+    private void ActivateTab()
+    {
+        ContainerTabSet.SetActiveTab(this);
+    }
+}

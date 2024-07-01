@@ -1,0 +1,130 @@
+﻿@inject IApies api
+@inject IMapper mapper
+@inject Serilog.ILogger logger
+@typeparam T where T : Communication
+@inherits ScaffoldJCFiltersBase<T>
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        <div>
+            <ScaffoldJCParent T="@T" 
+                              NumbersFormat="@("{0:N5}")" />
+        </div>
+        @ChildContent
+        var items = this.MobileComOperationsContainerCascadingParameter?
+                                                                        .NotSuccessItems?
+                                                                        .Where(_ => _.NotSuccessItem is T)?
+                                                                        .Select(_ =>
+                                                                        (
+                                                                            this.MobileComOperationsContainerCascadingParameter.NotSuccessItems.IndexOf(_),
+                                                                            _.NotSuccessItem.ToString(),
+                                                                            _.Reason
+                                                                        ))?
+                                                                        .ToList()
+                                                                        ??
+                                                                        new()
+                                                                        ;
+        var name = this.ModelsType.GetModelsDisplayNameValue();
+        <div>
+            <span>Ошибки</span>
+            <ItemsWithReasonList Items="@items"
+                                 NameItem="@name" 
+                                 MaxHeight="40"/>
+        </div>
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Подождите..." />
+    }
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                      InvokeParentHandlerwithUpdParent="@(async () => { if (this.ShouldUpdateParent)
+                                                                                            await this.UpdateAfterAction();
+                                                                                        this.ShowMessage = false;
+                                                                                      })">
+            <ResultOperation Devider="'!'"
+                             ResList="null"
+                             ResMessage="@this.Message" />
+        </ModalWindowWithEventCallback>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    [CascadingParameter]
+    public MobileComOperationsContainer MobileComOperationsContainerCascadingParameter { get; set; }
+
+    [CascadingParameter]
+    public MobileCom MobileComCascadingParameter { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ScaffoldJCMainBaseCascadingParameter = this.MobileComCascadingParameter;
+    }
+
+    public override async Task UpdateCollectionTItemsFromParent()
+    {
+        this.Items = new(await this.GetCollectionTItemsFromParent() ?? new());
+        this.StartFilteringTItemsInvoke(); // запускается метод UpdateFilteredTItems
+        await this.IsRenderTrueAsync();
+    }
+
+    protected override async Task<List<T>> GetCollectionTItemsFromParent()
+        => this.MobileComOperationsContainerCascadingParameter?.SuccessItems?.Where(_ => _ is T).Cast<T>()?.ToList() ?? new();
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+    {
+        List<PropertyInfo> res;
+        var call = new Communication_call();
+        var sms = new Communication_sms();
+        var gprs = new Communication_gprs();
+
+        res = this.Model switch
+        {
+            Communication_call => new List<PropertyInfo>
+            {
+                this.ModelsType.GetProperty(nameof(call.CommunicationTime)),
+                this.ModelsType.GetProperty(nameof(call.CallKindString)),
+                this.ModelsType.GetProperty(nameof(call.SourcePhoneName)),
+                this.ModelsType.GetProperty(nameof(call.DestinationCountry)),
+                this.ModelsType.GetProperty(nameof(call.DestinationPhoneName)),
+                this.ModelsType.GetProperty(nameof(call.Length)),
+                this.ModelsType.GetProperty(nameof(call.Cost)),
+                this.ModelsType.GetProperty(nameof(call.IsCompanyPay))
+            },
+            Communication_sms => new List<PropertyInfo>
+            {
+                this.ModelsType.GetProperty(nameof(sms.CommunicationTime)),
+                this.ModelsType.GetProperty(nameof(sms.SmsKindString)),
+                this.ModelsType.GetProperty(nameof(sms.SourceCountry)),
+                this.ModelsType.GetProperty(nameof(sms.SourcePhoneName)),
+                this.ModelsType.GetProperty(nameof(sms.DestinationCountry)),
+                this.ModelsType.GetProperty(nameof(sms.DestinationPhoneName)),
+                this.ModelsType.GetProperty(nameof(sms.Cost)),
+                this.ModelsType.GetProperty(nameof(sms.Parts)),
+                this.ModelsType.GetProperty(nameof(sms.IsCompanyPay))
+            },
+            Communication_gprs => new List<PropertyInfo>
+            {
+                this.ModelsType.GetProperty(nameof(gprs.CommunicationTime)),
+                this.ModelsType.GetProperty(nameof(gprs.SourcePhoneName)),
+                this.ModelsType.GetProperty(nameof(gprs.DestinationCountry)),
+                this.ModelsType.GetProperty(nameof(gprs.DestinationPhoneName)),
+                this.ModelsType.GetProperty(nameof(gprs.Cost)),
+                this.ModelsType.GetProperty(nameof(gprs.IsCompanyPay))
+            },
+            _ => new()
+        };
+
+        return res;
+    }
+}

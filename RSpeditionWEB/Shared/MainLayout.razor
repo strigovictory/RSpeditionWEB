@@ -1,0 +1,18 @@
+﻿@inherits LayoutComponentBase
+@inject IConfiguration config
+@inject NavigationManager navigator
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@*<NavMenu />*@
+<MultiLavelNavMenu />
+<div style="margin-left: 75px; margin-right: 5px; height: 100vh;">
+    @Body
+</div>
+
+
+        @code{
+            protected override async Task OnInitializedAsync()
+            {
+                await base.OnInitializedAsync();
+            }
+        }

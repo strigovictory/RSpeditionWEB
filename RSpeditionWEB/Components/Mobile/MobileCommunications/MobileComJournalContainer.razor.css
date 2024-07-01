@@ -1,0 +1,91 @@
+﻿/*Две колонки*/
+.textcols {
+    overflow: hidden;
+    line-height: 0.5;
+    padding-top: 1px;
+    margin-bottom: 1px;
+}
+
+.textcols-left {
+    float: left;
+    width: 48%;
+    text-align: right;
+}
+
+.textcols-right {
+    margin-left: 51%;
+    text-align: left;
+}
+
+/*********************************************************************ButtonsGroup**********************************************************************/
+.multi-button {
+    display: inline-flex;
+    border: 2px solid #0000008c;
+    border-radius: 5px;
+    box-shadow: 0px 0px 2px #000;
+}
+
+    .multi-button button {
+        font-family: 'Warnes', cursive;
+        font-size: large;
+        margin: 0;
+        background-color: #363636;
+        background: linear-gradient(#404040, transparent 155%);
+        color: #0000008c;
+        border-color: transparent;
+        outline: 0;
+        cursor: pointer;
+        transition: all 1s ease;
+    }
+
+        .multi-button button:hover {
+            color: #fff;
+            transition: all 1s ease;
+        }
+
+        .multi-button button:active {
+            color: white;
+        }
+
+        .multi-button button:focus {
+            color: white;
+        }
+
+        .multi-button button:nth-child(1):hover {
+            box-shadow: 0px 0px 2px #000;
+            background: #282828;
+            text-shadow: 0 0px 0px transparent, 0 0 1px #6cc3c8, 0 0px 1px transparent, 0 0 0px #6cc3c8, 0 0 25px #6cc3c8, 0 0 0 #6cc3c8, 0 0 5px #6cc3c8, 0 0 6px #6cc3c8;
+        }
+
+        .multi-button button:nth-child(1) {
+            border-right: 1px solid #0000008c;
+        }
+
+            .multi-button button:nth-child(2):hover {
+                border-left: 1px solid #0000008c;
+                box-shadow: 0px 0px 2px #000;
+                background: #282828;
+                text-shadow: 0 0px 0px transparent, 0 0 1px #A1DA45, 0 0px 1px transparent, 0 0 0px #A1DA45, 0 0 25px #A1DA45, 0 0 0 #A1DA45, 0 0 5px #A1DA45, 0 0 6px #A1DA45;
+            }
+
+        .multi-button button:nth-child(3):hover {
+            box-shadow: 0px 0px 2px #000;
+            background: #282828;
+            text-shadow: 0 0px 0px transparent, 0 0 1px #FFDC3E, 0 0px 1px transparent, 0 0 0px #FFDC3E, 0 0 25px #FFDC3E, 0 0 0 #FFDC3E, 0 0 5px #FFDC3E, 0 0 6px #FFDC3E;
+        }
+
+/****************************************************************Вдавленный блок****************************************************************************/
+.shadow_block {
+    background: inherit;
+    margin: 10px 5px 10px 5px;
+    padding: 5px;
+    display: block;
+    box-shadow: inset 2px 2px 5px rgba(154, 147, 140, 0.5), 1px 1px 5px rgba(255, 255, 255, 1);
+}
+
+    .shadow_block span {
+        padding: 2px;
+        color: rgba(255, 255, 255, 1);
+        font-size: medium;
+        font-weight: bold;
+    }

@@ -1,0 +1,514 @@
+﻿@using RSpeditionWEB.Enums.Roles;
+@using RSpeditionWEB.Models.RequestModels;
+@inject IApies api
+@inherits ScaffoldJCFiltersBase<FuelTransactionFullResponse>
+@inject IMapper mapper
+@inject IConfiguration config
+
+<CascadingValue Value="@this">
+@*<div style="text-align: center;">
+        <p class="my-h1 inner-light-shadow">Реестр транзакций по заправкам</p>
+    </div>*@   
+     @if (this.IsRender)
+     {
+        @* Период*@
+        <div class="textcols">
+            <div class="textcols-left">
+                <label_small_black>
+                    Начало периода
+                </label_small_black>
+                <SelectMonth LabelForMonthChoice=""
+                             MonthIntDefault="@this.MonthInt_start"
+                             GetMonth="@(() => MonthInt_start)"
+                             SizeSelect="1"
+                             InvokeParentHendler="@(async(int month) => {this.MonthInt_start = month;
+                                                                         this.SelectedPeriodTranzactionBegin = new DateTime( year: this.Year_start,
+                                                                                                                             month: this.MonthInt_start,
+                                                                                                                             day: 1, hour: 0, minute: 0, second: 0);
+                                                                         StartFilteringTItemsInvoke(); })">
+                </SelectMonth>
+                <SelectYear YearList="@this.YearPeriod"
+                            LabelForYear=""
+                            YearDefault="@this.Year_start"
+                            GetYear="@(() => Year_start)"
+                            InvokeParentHendler="@(async(int year)=> {this.Year_start = year;
+                                                                      this.SelectedPeriodTranzactionBegin = new DateTime( year: this.Year_start,
+                                                                                                                          month: this.MonthInt_start,
+                                                                                                                          day: 1, hour: 0, minute: 0, second: 0);
+                                                                      
+                                                                       StartFilteringTItemsInvoke(); })">
+                </SelectYear>
+            </div>
+            <div class="textcols-right">
+                <label_small_black>
+                    Окончание периода
+                </label_small_black>
+                <SelectMonth LabelForMonthChoice=""
+                             MonthIntDefault="@MonthInt_end"
+                             GetMonth="@(() => MonthInt_end)"
+                             SizeSelect="1"
+                             InvokeParentHendler="@(async(int month) => {this.MonthInt_end = month;
+                                                                         this.SelectedPeriodTranzactionEnd = new DateTime( year: this.Year_end,
+                                                                                                                           month: this.MonthInt_end,
+                                                                                                                           day: DateTime.DaysInMonth(this.Year_end, this.MonthInt_end),
+                                                                                                                           hour: 23, minute: 59, second: 59);
+                                                                         StartFilteringTItemsInvoke(); })">
+                </SelectMonth>
+                <SelectYear YearList="@this.YearPeriod"
+                            LabelForYear=""
+                            YearDefault="@this.Year_end"
+                            GetYear="@(() => Year_end)"
+                            InvokeParentHendler="@(async(int year)=> {this.Year_end = year;
+                                                                      this.SelectedPeriodTranzactionEnd = new DateTime( year: this.Year_end,
+                                                                                                                        month: this.MonthInt_end,
+                                                                                                                        day: DateTime.DaysInMonth(this.Year_end, this.MonthInt_end),
+                                                                                                                        hour: 23, minute: 59, second: 59);
+                                                                      StartFilteringTItemsInvoke(); })">
+                </SelectYear>
+            </div>
+        </div>
+
+        <ScaffoldJCParent T="@FuelTransactionFullResponse"
+                          @ref="@ScaffoldJCParentRef"
+                          SendToParentSelectedItem="@((FuelTransactionFullResponse item) => ReactOnSelectItem(item))" />
+
+        @*Блок кнопок в футере*@
+        <div class="stickyBottomContainer">
+            <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList" />
+        </div>
+        
+        @if (this.IsRenderMenuActions)
+        {
+            <ScaffoldJCMenuActions T="@FuelTransactionFullResponse"
+                                   InvokeParentHendlerCancel="@(() => { this.ItemSelected = null;
+                                                                         this.IsRenderMenuActions = false; })"
+                                   LableItemGenitive="операции по топливной карте">
+                <ChildContentEditItem>
+                    <TranzEditForm Tranzaction="this.ItemSelected"
+                                    InvokeParentHendlerCancel="@(() => { this.ItemSelected = null;
+                                                                          this.IsRenderMenuActions = false; })"
+                                    InvokeParentHendlerAfterCreating="@(async (object obj) => {this.ItemSelected = null;
+                                                                                                this.IsRenderMenuActions = false;
+                                                                                                await this.UpdateAfterAction();  })"
+                                    InvokeParentHendlerAfterUpd="@(async (object obj) => {this.ItemSelected = null;
+                                                                                           this.IsRenderMenuActions = false;
+                                                                                           await this.UpdateAfterAction(); })" />
+                </ChildContentEditItem>
+                <ChildContentDeleteItem>
+                    <div class="validation-message-medium">
+                        @{
+                            var confermation = $"Вы подтверждаете удаление отмеченной транзакции?";
+                            var bnClList = new List<ButtonBaseClass>();
+                            //
+                            ButtonBaseClass b1 = new();
+                            b1.CallbackToParent = (async () =>
+                            {
+                                await this.DeleteTranz();
+                            });
+                            b1.LabelForButton = $"Удалить";
+                            b1.IsActive = this.ItemSelected != null;
+                            b1.TitleIfIsActive = "Кликните для удаления отмеченной транзакции";
+                            b1.TitleIfIsNonActive = "Транзакция не отмечена";
+                            //
+                            if(IsUserHasMinimumFuelRole)
+                            {
+                                bnClList?.AddRange(new List<ButtonBaseClass> { b1 });
+                            }
+                        }
+                        @confermation
+                    </div>
+                    <div class="stickyBottomContainer" style="top: 0vh !important;">
+                        <ButtonContainer ButtonBaseClassList="@bnClList"
+                                 WidthForButtonWrapper="30%" />
+                    </div>
+                </ChildContentDeleteItem>
+            </ScaffoldJCMenuActions>
+        }
+
+        @if(this.IsRenderGroupAdding)
+        {
+            <ModalWindowWithEventCallback Title="Множественное добавление транзакций по топливу"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { this.IsRenderGroupAdding = false; })">
+               <FuelTranzGroupAddParent TItemFromParent="@null"
+                                          OperationsType="@OperationsType.create"
+                                          InvokeParentHendlerAfterGroupCreating="@(async(List<object> addedItem) => { this.IsRenderGroupAdding = false;
+                                                                                                                       await this.UpdateAfterAction(); })"
+                                          InvokeParentHendlerCancel="@((object item) => { this.IsRenderGroupAdding = false; })" />
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.IsRenderGroupDel)
+        {
+            <ModalWindowWithEventCallback Title="Групповое удаление отмеченных транзакций"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { this.IsRenderGroupDel = false; })">
+                <TranzDelParent TranzactionsToDelParent="this.ItemsFilteredChecked"
+                                  InvokeParentHendlerAfterGroupDel="@(async (List<object> obj) => { this.IsRenderGroupDel = false;
+                                                                                                     await this.UpdateAfterAction();})"
+                                  InvokeParentHendlerCancel="@(async () => { this.IsRenderGroupDel = false; })">
+                </TranzDelParent>
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.ShowMessage)
+        {
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { if (this.ShouldUpdateParent)
+                                                                                                await this.UpdateAfterAction();
+                                                                                            this.ShowMessage = false;
+                                                                                            this.IsRenderMenuActions = false; })">
+                <ResultOperation Devider="'!'"
+                                 ResList="null"
+                                 ResMessage="@this.Message" />
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.IsShow_Select_FuelProvider)
+        {
+            var btnIsActive = this.FuelProviderIdSelected != -1;
+            var btnStyle = btnIsActive ? "my-btn" : "my-btn non-active";
+            var btnTitle = btnIsActive ? "Удалить дубликаты из БД" : "Выберите поставщика топлива";
+            <ModalWindowWithEventCallback Title="Удаление дубликатов транзакций"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { this.FuelProviderIdSelected = -1;
+                                                                                            this.IsShow_Select_FuelProvider = false; })">
+                <select @bind="@this.FuelProviderIdSelected"
+                @oninput="@((ChangeEventArgs arg) => {if(int.TryParse(arg?.Value?.ToString() ?? "-1", out var res))
+                                                             this.FuelProviderIdSelected = res; })">
+                    <option value="-1">
+                        Поставщик топлива не выбран
+                    </option>
+                    @foreach (var item in this.FuelCardsCascadingParameter.FuelProviders ?? new())
+                    {
+                        <option value="@(item.Id)">@item.Name</option>
+                    }
+                </select>
+                <button type="button"
+                class="@btnStyle"
+                title="@btnTitle"
+                @onclick="@(async() => {if(btnIsActive && IsUserHasMinimumFuelRole) await this.DeleteDuplikates();})">
+                    Удалить
+                </button>
+            </ModalWindowWithEventCallback>
+        }
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Подождите..." TopValue="40" />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    #region Props
+    [CascadingParameter]
+    public FuelCardsCont FuelCardsCascadingParameter { get; set; }
+
+    private int FuelProviderIdSelected { get; set; } = -1;
+
+    private bool IsShow_Select_FuelProvider { get; set; } = false;
+
+    // Значение выбранного периода - начало
+    public int Year_start { get; set; }
+
+    // Порядковый номер в году выбранного месяца (1-12) - начало периода
+    public int MonthInt_start { get; set; }
+
+    // Значение выбранного периода - окончание
+    public int Year_end { get; set; }
+
+    // Порядковый номер в году выбранного месяца (1-12) - окончание периода
+    public int MonthInt_end { get; set; }
+
+    // Выбранное начало отображения периода транзакций
+    public DateTime SelectedPeriodTranzactionBegin { get; set; }
+
+    // Выбранное окончание отображения периода транзакций
+    public DateTime SelectedPeriodTranzactionEnd { get; set; }
+
+    public List<int> YearPeriod { get; set; }
+    #endregion
+
+    #region Overriden methods
+    protected override async Task OnInitializedAsync()
+    {
+        MinimumFuelRole = FuelRoles.Fuel_Provisioner;
+        await base.OnInitializedAsync();
+    }
+
+    public override List<(PropertyInfo pi, SortOrder sortOrder)> DefaultSortByColumns 
+        => new List<(PropertyInfo pi, SortOrder sortOrder)>
+        {
+            (this.ModelsType.GetProperty(nameof(this.Model.OperationDateOnly)), SortOrder.asc)
+        };
+
+    public override Dictionary<string, List<PropertyInfo>> InitMergedCells()
+        => new Dictionary<string, List<PropertyInfo>>
+        {
+            {
+                "Разновидность услуги",
+                new List<PropertyInfo>
+                {
+                    this.ModelsType.GetProperty(nameof(this.Model.FuelTypeName)),
+                    this.ModelsType.GetProperty(nameof(this.Model.ProviderFuelType)),
+                    this.ModelsType.GetProperty(nameof(this.Model.ProviderFuelTypeName)),                
+                }
+            },
+            {
+                "Тип отчета",
+                new List<PropertyInfo>
+                {
+                    this.ModelsType.GetProperty(nameof(this.Model.IsDailyValue)),
+                    this.ModelsType.GetProperty(nameof(this.Model.IsMonthlyValue)),
+                }
+            },
+            {
+                "Рейс",
+                new List<PropertyInfo>
+                {
+                    this.ModelsType.GetProperty(nameof(this.Model.RideNumber)),
+                    this.ModelsType.GetProperty(nameof(this.Model.RideDate)),
+                }
+            },
+        };
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+        => new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.OperationDateOnly)),
+            this.ModelsType.GetProperty(nameof(this.Model.OperationDate_Time)),
+            this.ModelsType.GetProperty(nameof(this.Model.ProviderName)),
+            this.ModelsType.GetProperty(nameof(this.Model.CardName)),
+            this.ModelsType.GetProperty(nameof(this.Model.DivisionName)),
+            this.ModelsType.GetProperty(nameof(this.Model.Id)),
+            this.ModelsType.GetProperty(nameof(this.Model.TransactionID)),
+            this.ModelsType.GetProperty(nameof(this.Model.ProviderFuelTypeName)),
+            this.ModelsType.GetProperty(nameof(this.Model.ProviderFuelType)),
+            this.ModelsType.GetProperty(nameof(this.Model.FuelTypeName)),
+            this.ModelsType.GetProperty(nameof(this.Model.RegionName)),
+            this.ModelsType.GetProperty(nameof(this.Model.RegionId)),
+            this.ModelsType.GetProperty(nameof(this.Model.Quantity)),
+            this.ModelsType.GetProperty(nameof(this.Model.Cost)),
+            this.ModelsType.GetProperty(nameof(this.Model.TotalCost)),
+            this.ModelsType.GetProperty(nameof(this.Model.CurrencyName)),
+            this.ModelsType.GetProperty(nameof(this.Model.CountryName)),
+            this.ModelsType.GetProperty(nameof(this.Model.IsDailyValue)),
+            this.ModelsType.GetProperty(nameof(this.Model.IsMonthlyValue)),
+            this.ModelsType.GetProperty(nameof(this.Model.IsCheck)),
+            this.ModelsType.GetProperty(nameof(this.Model.RideNumber)),
+            this.ModelsType.GetProperty(nameof(this.Model.RideDate)),
+        };
+
+    public override List<PropertyInfo> InitPropertiesHidden()
+        => new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.Id)),
+            this.ModelsType.GetProperty(nameof(this.Model.TransactionID)),
+            this.ModelsType.GetProperty(nameof(this.Model.DivisionName)),
+            this.ModelsType.GetProperty(nameof(this.Model.ProviderFuelType)),
+            this.ModelsType.GetProperty(nameof(this.Model.ProviderFuelTypeName)),
+            this.ModelsType.GetProperty(nameof(this.Model.Cost)),
+            this.ModelsType.GetProperty(nameof(this.Model.RegionId)),
+            this.ModelsType.GetProperty(nameof(this.Model.RegionName)),
+        };
+
+    protected override Dictionary<PropertyInfo, Func<object, string>> InitPropertiesStylesFormat() 
+        => new Dictionary<PropertyInfo, Func<object, string>>
+        {
+            {this.ModelsType.GetProperty(nameof(this.Model.OperationDateOnly)), (object val) => Convert.ToDateTime(val).FormatingDate()},
+            {this.ModelsType.GetProperty(nameof(this.Model.OperationDate_Time)), (object val) => Convert.ToDateTime(val).FormatingTime()},
+            {this.ModelsType.GetProperty(nameof(this.Model.Quantity)), (object val) => String.Format("{0:N2}", Convert.ToDecimal(val))},
+            {this.ModelsType.GetProperty(nameof(this.Model.Cost)), (object val) => String.Format("{0:N3}", Convert.ToDecimal(val))},
+            {this.ModelsType.GetProperty(nameof(this.Model.TotalCost)), (object val) => String.Format("{0:N3}", Convert.ToDecimal(val))}
+        };
+
+    protected override async Task<List<FuelTransactionFullResponse>> GetCollectionTItemsFromParent()
+        => this.FuelCardsCascadingParameter?.Tranzactions ?? new();
+
+    protected override bool IsVizible(FuelTransactionFullResponse item) => this.IsEquel_Period(item);
+
+    // если пользователь задает неверное значение временного периода (дата начала периода позже даты окончания)-не фильтровать
+    private bool IsEquel_Period(FuelTransactionFullResponse item) 
+        => this.SelectedPeriodTranzactionBegin.Date >= this.SelectedPeriodTranzactionEnd.Date
+        ? false
+        : item?.OperationDate.Date.IsInsidePeriod(this.SelectedPeriodTranzactionBegin.Date, this.SelectedPeriodTranzactionEnd.Date) ?? false;
+
+    protected override void InitGroupBySelector()
+    {
+        this.GroupByKeySelector = (FuelTransactionFullResponse item) => item.ProviderName;
+        this.GroupBySumProps = new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.Quantity)),
+            this.ModelsType.GetProperty(nameof(this.Model.TotalCost))
+        };
+        this.TotalSumProps = new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.Quantity)),
+            this.ModelsType.GetProperty(nameof(this.Model.TotalCost))
+        };
+    }
+
+    public override void ResetFilters(bool isNeedReRender = false) 
+    {
+        InitPeriod();
+        if (isNeedReRender)
+            this.StateHasChanged();
+    }
+
+    private void InitPeriod()
+    {
+        var lastMonth = DateTime.Now.AddMonths(-1);
+        var currentMonth = DateTime.Now;
+
+        this.SelectedPeriodTranzactionBegin = new DateTime(year: lastMonth.Year, month: lastMonth.Month, day: 1, hour: 0, minute: 0, second: 0);
+        this.SelectedPeriodTranzactionEnd = new DateTime(year: currentMonth.Year, month: currentMonth.Month, day: DateTime.DaysInMonth(currentMonth.Year, currentMonth.Month), hour: 23, minute: 59, second: 59);
+
+        this.MonthInt_start = this.SelectedPeriodTranzactionBegin.Month;
+        this.Year_start = this.SelectedPeriodTranzactionBegin.Year;
+
+        this.MonthInt_end = this.SelectedPeriodTranzactionEnd.Month;
+        this.Year_end = this.SelectedPeriodTranzactionEnd.Year;
+
+        this.YearPeriod = new(20);
+        this.YearPeriod = this.YearPeriod.GetListYears();
+    }
+
+    protected override async void InitButtons()
+    {
+        this.ButtonBaseClassList = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (() =>
+        {
+            this.IsRenderGroupAdding = true;
+            this.StateHasChanged();
+        });
+        b1.LabelForButton = "Добавить транзакции";
+        b1.IsActive = this.IsRender && (this.ScaffoldJCMainBaseCascadingParameter?.IsSecondCollectionsInitialized ?? false);
+        this.Title = "Множественное добавление новых транзакций";
+        b1.TitleIfIsActive = "Кликните для добавления новых транзакций в базу данных";
+        b1.TitleIfIsNonActive = "Добавление новых транзакций в базу данных станет возможным после полной загрузки журнала";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (() =>
+        {
+            this.IsRenderGroupDel = true;
+            this.StateHasChanged();
+        });
+        b2.LabelForButton = "Удалить транзакции";
+        b2.IsActive = (this.ItemsFilteredChecked?.Count ?? 0) > 0;
+        b2.TitleIfIsActive = "Кликните для удаления выбранных транзакций из базы данных";
+        b2.TitleIfIsNonActive = "Для удаления д.б.отмечена хотя бы одна транзакция";
+        //
+        ButtonBaseClass b3 = new();
+        b3.CallbackToParent = (() =>
+        {
+            this.IsRenderSortWindow = true;
+            this.StateHasChanged();
+        });
+        b3.LabelForButton = "Сортировать транзакции";
+        b3.IsActive = this.IsRender;
+        b3.TitleIfIsActive = "Кликните для настройки групповой сортировки транзакций";
+        b3.TitleIfIsNonActive = "Групповая сортировка транзакций станет возможной после загрузки журнала";
+        //
+        ButtonBaseClass b4 = new();
+        b4.CallbackToParent = (async () =>
+        {
+            // 1
+            // Вначале начинается отрисовка дочернего компонента ProgressBar - прогресс бара, сигнализирующего о начале и окончании обработки отчета
+            await this.ProgressBarOpenAsync();
+            this.StateHasChanged();
+            // 2
+            var uri = HostUrl + ControllersNames.fuelprint + "/transactions";
+            var resGenerate = await this.InitGeneratePrintForm(uri, this.ItemsFiltered);
+            // 3
+            await this.ProgressBarCloseAsync();
+            this.StateHasChanged();
+            // 4
+            if (!resGenerate.Item1)
+            {
+                this.Message = resGenerate.Item2;
+                this.Title = "Предупреждение";
+                this.RenderMessage();
+            }
+        });
+        b4.LabelForButton = "Печатная форма";
+        b4.IsActive = this.IsRender;
+        b4.TitleIfIsActive = "Кликните для формирования печатной формы отчета";
+        b4.TitleIfIsNonActive = "Печатная форма отчета по топливным тразакциям станет доступной после загрузки отчета";
+        //
+        ButtonBaseClass b5 = new();
+        b5.CallbackToParent = (() =>
+        {
+            this.IsShow_Select_FuelProvider = true;
+            this.StateHasChanged();
+        });
+        b5.LabelForButton = "Удалить дубликаты";
+        b5.IsActive = IsUserHasFuelRoleInHierarchy(FuelRoles.Super_Administrator);
+        b5.TitleIfIsActive = "Удалить дубликаты";
+        b5.TitleIfIsNonActive = "У Вас недостаточный уровень доступа для выполлнения выбранной операции";
+        //
+        this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { b1, b2, b4 });
+        // if (IsUserHasFuelRoleInHierarchy(FuelRoles.Super_Administrator))
+        // {
+        //     ButtonBaseClassList.Add(b5);
+        // }
+    }
+    #endregion
+
+    #region // Components methods
+    private async Task DeleteDuplikates()
+    {
+        // 1
+        var timeStartProcess = DateTime.Now;
+        await this.ProgressBarOpenAsync();
+        this.StateHasChanged();
+        // 2
+        var provId = this.FuelProviderIdSelected == -1 ? 0 : this.FuelProviderIdSelected;
+        var resGenerate = await this.api?.FuelTransactionApi?.DeleteFuelTransctionDuplicates(User, this.Token, provId);
+        if (resGenerate != null)
+        {
+            await this.ScaffoldJCMainBaseCascadingParameter?.RaiseEventStartUpdatingMainCollectionsEvent();
+            this.Title = "Результат операции";
+        }
+        else
+        {
+            this.Title = "Предупреждение";
+        }
+
+        this.Message = resGenerate?.Result ?? string.Empty;
+        var timeFinishProcess = DateTime.Now;
+        var process = timeFinishProcess - timeStartProcess;
+        this.Message += $"Процесс длился {process.Minutes} мин. {process.Seconds} сек.! ";
+        this.IsShow_Select_FuelProvider = false;
+        // 3
+        await this.ProgressBarCloseAsync();
+        // 4
+        this.RenderMessage();
+    }
+
+    private async Task DeleteTranz()
+    {
+        await this.ProgressBarOpenAsync();
+
+        this.Message = string.Empty;
+        var res = await this.api?.FuelTransactionApi?.DeleteTransaction(this.ItemSelected.Id, User, this.Token);
+
+        if (res != null && res != default)
+        {
+            this.Title = "Результат операции";
+            this.ShouldUpdateParent = true;
+            this.Message = res.Result;
+        }
+        else
+        {
+            this.Title = "Предупреждение";
+            this.Message = $"Операция закончилась с ошибкой ! {res.Result ?? string.Empty} !";
+            this.ItemSelected = null;
+        }
+
+        await this.ProgressBarCloseAsync();
+        this.RenderMessage();
+    }
+    #endregion
+}

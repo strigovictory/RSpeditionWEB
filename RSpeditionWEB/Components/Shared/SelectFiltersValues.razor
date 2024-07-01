@@ -1,0 +1,65 @@
+﻿@inherits ChildComponentBaseClass
+
+@if (this.IsRender)
+{
+    <select size="1"
+            @bind="@this.FiltersValueSelected">
+        @for (var i = 0; i < (this.FiltersValuesList?.Count ?? 0); i++)
+        {
+            var val = this.FiltersValuesList.ElementAt(i);
+            if (this.FiltersValueSelected.Equals(val))
+            {
+                <option value="@val"
+                        selected>
+                    @val.ToString()?.ConvertStringUpperToLowerCase()
+                </option>
+            }
+            else
+            {
+                <option value="@val">
+                    @val.ToString()?.ConvertStringUpperToLowerCase()
+                </option>
+            }
+        }
+    </select>
+}
+else
+{
+    <ProgressBarInner TitleProcess="Идет загрузка ...">
+    </ProgressBarInner>
+}
+
+@code {
+    [Parameter]
+    public EventCallback<FiltersValues> SendToParentData { get; set; }
+
+    private List<FiltersValues> FiltersValuesList { get; set; }
+
+    private FiltersValues filtersValueSelected;
+    private FiltersValues FiltersValueSelected
+    {
+        get => this.filtersValueSelected;
+        set
+        {
+            this.filtersValueSelected = value;
+            Func<Task> f = async () =>
+            {
+                if (this.SendToParentData.HasDelegate)
+                    await this.SendToParentData.InvokeAsync(this.FiltersValueSelected);
+            };
+            f();
+        }
+    }
+
+    /// <summary>
+    /// Асинхронный метод срабатывает при первоначальной отрисовке компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.FiltersValuesList = Enum.GetValues(typeof(FiltersValues))?.Cast<FiltersValues>()?.ToList() ?? new();
+        this.filtersValueSelected = FiltersValues.Все;
+        this.IsRender = true;
+    }
+}

@@ -1,0 +1,94 @@
+﻿@typeparam T where T: class, ICloneable, new()
+
+<div class="adapt_table scroll font-journal">
+    <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+        <thead class="adapt_table_inner_thead">
+            <tr>
+                <th data-label="Отметить">
+                    @if (this.Items?.Count == this.ItemsChecked?.Count)
+                    {
+                        <input type="checkbox"
+                           checked
+                           title="Отметить все"
+                           @oninput="@(async (ChangeEventArgs args) => { var isCheckedAll = (bool)(args?.Value ?? false);
+                                                                         this.ItemsChecked = isCheckedAll ? new (this.Items) : new();
+                                                                         if(this.SendCheckedItemsToParent.HasDelegate)
+                                                                             await this.SendCheckedItemsToParent.InvokeAsync(this.ItemsChecked); })" />
+                    }
+                    else
+                    {
+                        <input type="checkbox"
+                           title="Отметить все"
+                           @oninput="@(async (ChangeEventArgs args) => { var isCheckedAll = (bool)(args?.Value ?? false);
+                                                                         this.ItemsChecked = isCheckedAll ? new (this.Items) : new();
+                                                                         if(this.SendCheckedItemsToParent.HasDelegate)
+                                                                             await this.SendCheckedItemsToParent.InvokeAsync(this.ItemsChecked); })" />
+                    }
+                </th>
+                <th data-label="№">
+                    №
+                </th>
+                <th data-label="@this.NameItem">
+                    @this.NameItem
+                </th>
+            </tr>
+        </thead>
+        <tbody style="width: 100%;">
+            <Virtualize Items="@(this.Items ?? new())" ItemSize="25">
+                <ItemContent>
+                    <tr style="text-align: left;">
+                        <td data-label="Отметить">
+                            @if(this.ItemsChecked.Contains(context))
+                            {
+                                <input type="checkbox"
+                                       checked
+                                       @onclick="@(async() => { if(this.ItemsChecked.Contains(context))
+                                                                    this.ItemsChecked.Remove(context);
+                                                                else
+                                                                    this.ItemsChecked.Add(context);
+                                                                if(this.SendCheckedItemsToParent.HasDelegate)
+                                                                    await this.SendCheckedItemsToParent.InvokeAsync(this.ItemsChecked); })" />
+                            }
+                            else
+                            {
+                                <input type="checkbox"
+                                       @onclick="@(async() => { if(this.ItemsChecked.Contains(context))
+                                                                    this.ItemsChecked.Remove(context);
+                                                                else
+                                                                    this.ItemsChecked.Add(context);
+                                                                if(this.SendCheckedItemsToParent.HasDelegate)
+                                                                    await this.SendCheckedItemsToParent.InvokeAsync(this.ItemsChecked); })" />
+                            }
+                        </td>
+                        <td data-label="№" style="text-align: center;">
+                            @(this.Items.IndexOf(context) + 1)
+                        </td>
+                        <td data-label="@this.NameItem" style="text-align: left;">
+                            @context.ToString()
+                        </td>
+                    </tr>
+                </ItemContent>
+            </Virtualize>
+        </tbody>
+    </table>
+</div>
+
+
+@code {
+    [Parameter]
+    public List<T> Items { get; set; }
+
+    public List<T> ItemsChecked { get; set; }
+
+    [Parameter]
+    public string NameItem { get; set; }
+
+    [Parameter]
+    public EventCallback<List<T>> SendCheckedItemsToParent { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ItemsChecked = new(this.Items ?? new());
+    }
+}

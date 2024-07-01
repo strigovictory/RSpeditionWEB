@@ -1,0 +1,115 @@
+﻿@inject AdminApi reflService
+@inherits ChildComponentBaseClass
+
+
+@if(this.IsRender)
+{
+    <CascadingValue Value="@this">
+        <tr>
+            @if (this.ItemDataVisible != null && this.ItemDataVisible?.Count > 0)
+            {
+                foreach (var data in this.ItemDataVisible)
+                {
+                    var label = string.Empty;
+                    if(!string.IsNullOrEmpty(data.Key.FK_ClassName))
+                    {
+                        var iIdVal = this.FK_Values[data.Key.FK_ClassName]?.FirstOrDefault(_ => _.Id.ToString() == data.Value) ?? null;
+
+                        if(iIdVal != null)
+                        {
+                            var classType = this.reflService?.GetTypeByClassName(data.Key.FK_ClassName);
+                            label = (string)classType?.GetProperty(data.Key.FK_PropNameSelected)?.GetValue(iIdVal);
+                        }
+                    }
+                    else
+                    {
+                        label = data.Value ?? string.Empty;
+                    }
+                    <td data-label="@(data.Key?.DBName ?? string.Empty)">
+                        @label
+                    </td>
+                }
+                <td data-label="Действия">
+                    <button type="button"
+                            @onclick="@(async() => { if(this.SendToParentSelectedItem.HasDelegate)
+                                                        await this.SendToParentSelectedItem.InvokeAsync((this.ItemData, OperationsType.update));
+                                              })">
+                            Редактировать
+                    </button>
+                </td> 
+                <td data-label="Действия">
+                    <button type="button"
+                            @onclick="@(async() => { if(this.SendToParentSelectedItem.HasDelegate)
+                                                        await this.SendToParentSelectedItem.InvokeAsync((this.ItemData, OperationsType.delete));
+                                              })">
+                        Удалить
+                    </button>
+               </td>       
+            }
+            else
+            {
+                <td colspan=@this.ColumnsCount>
+                    Нет информации для отображения
+                </td>
+            }
+        </tr>
+    </CascadingValue>
+}   
+else
+{
+    <ProgressBar />
+}
+
+@code {
+    [CascadingParameter]
+    public TablePreview TablePreviewCascadingParameter { get; set; }
+
+    // Набор данных, отображаемых внутри таблицы
+    [Parameter]
+    public Dictionary<TablesColumn, string> ItemData { get; set; }
+
+    [Parameter]
+    public EventCallback<(Dictionary<TablesColumn, string>, OperationsType)> SendToParentSelectedItem { get; set; }
+
+    // Число столбцов в строке
+    [Parameter]
+    public int ColumnsCount { get; set; }
+
+    private Dictionary<string, List<IId>> FK_Values { get; set; }
+
+    private Dictionary<TablesColumn, string> ItemDataVisible{ get; set; }
+
+    /// <summary>
+    /// Метод для первоначальной инициализации компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+    /// <summary>
+    /// Метод срабатывает каждый раз, когда родительский компонент обновляется и заново предоставляет каскадные параметры
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        this.InitDataValuees();
+        this.IsRender = true;
+    }
+
+    private void InitDataValuees() 
+    {
+        this.FK_Values = this.TablePreviewCascadingParameter.FK_Values ?? new();
+        this.ItemDataVisible = this.ItemData?
+                                            .Where(_ => _.Key?.IsVisible ?? false)?
+                                            .ToDictionary(_ => _.Key, _ => _.Value)?
+                                            .OrderBy(_ => _.Key.SortOrder)?
+                                            .ToDictionary(_ => _.Key, _ => _.Value)
+                                            ?? 
+                                            new()
+                                            ;
+    }
+
+}

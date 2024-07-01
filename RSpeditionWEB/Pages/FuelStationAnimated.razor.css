@@ -1,0 +1,195 @@
+﻿/*******************************************************************************************************************************************************************/
+container {
+    height: 100%;
+    width: 100%;
+    position: fixed;
+    top: 70%;
+    left: 0%;
+}
+.img_arrow {
+    position: relative;
+    width: 60px;
+    margin-right: 10px;
+    animation: pulse_active 1.5s ease-in infinite;
+}
+
+@keyframes pulse_active {
+    0% {
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 0.66;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+.img_truck {
+    position: relative;
+    width: 250px;
+    margin-left: 200px;
+    -webkit-animation: truck 1s infinite; /* Chrome, Safari, Opera */
+    animation: truck 1s;
+}
+    /* Chrome, Safari, Opera */
+    @-webkit-keyframes truck {
+        0% {
+            margin-left: 800px;
+            -webkit-transform: rotate(0deg)
+        }
+
+        10% {
+            margin-left: 700px;
+            -webkit-transform: rotate(0deg)
+        }
+
+        25% {
+            margin-left: 600px;
+            -webkit-transform: rotate(0deg)
+        }
+
+        50% {
+            margin-left: 500px;
+            -webkit-transform: rotate(0deg)
+        }
+
+        75% {
+            margin-left: 400px;
+            -webkit-transform: rotate(0deg)
+        }
+
+        85% {
+            margin-left: 300px;
+            -webkit-transform: rotate(0deg)
+        }
+
+        100% {
+            margin-left: 200px;
+            -webkit-transform: rotate(0deg)
+        }
+}
+
+/* Standard syntax */
+@keyframes truck {
+    0% {
+        margin-left: 800px;
+        transform: rotate(0deg)
+    }
+
+    10% {
+        margin-left: 700px;
+        transform: rotate(0deg)
+    }
+
+    25% {
+        margin-left: 600px;
+        transform: rotate(0deg)
+    }
+
+    50% {
+        margin-left: 500px;
+        transform: rotate(0deg)
+    }
+
+    75% {
+        margin-left: 400px;
+        transform: rotate(0deg)
+    }
+
+    85% {
+        margin-left: 300px;
+        transform: rotate(0deg)
+    }
+
+    100% {
+        margin-left: 200px;
+        transform: rotate(0deg)
+    }
+}
+
+.img_gun {
+    position: relative;
+    margin-right: 200px;
+    -webkit-animation: gun 1s infinite; /* Chrome, Safari, Opera */
+    animation: gun 1s;
+}
+
+/* Chrome, Safari, Opera */
+@-webkit-keyframes gun {
+    0% {
+        margin-right: 800px;
+        -webkit-transform: rotate(0deg)
+    }
+
+    10% {
+        margin-right: 700px;
+        -webkit-transform: rotate(0deg)
+    }
+
+    25% {
+        margin-right: 600px;
+        -webkit-transform: rotate(0deg)
+    }
+
+    50% {
+        margin-right: 500px;
+        -webkit-transform: rotate(0deg)
+    }
+
+    75% {
+        margin-right: 400px;
+        -webkit-transform: rotate(0deg)
+    }
+
+    85% {
+        margin-right: 300px;
+        -webkit-transform: rotate(0deg)
+    }
+
+    100% {
+        margin-right: 200px;
+        -webkit-transform: rotate(0deg)
+    }
+}
+
+/* Standard syntax */
+@keyframes gun {
+    0% {
+        margin-right: 800px;
+        transform: rotate(0deg)
+    }
+
+    10% {
+        margin-right: 700px;
+        transform: rotate(0deg)
+    }
+
+    25% {
+        margin-right: 600px;
+        transform: rotate(0deg)
+    }
+
+    50% {
+        margin-right: 500px;
+        transform: rotate(0deg)
+    }
+
+    75% {
+        margin-right: 400px;
+        transform: rotate(0deg)
+    }
+
+    85% {
+        margin-right: 300px;
+        transform: rotate(0deg)
+    }
+
+    100% {
+        margin-right: 200px;
+        transform: rotate(0deg)
+    }
+}
+

@@ -1,0 +1,97 @@
+﻿@page "/MobileCom"
+@page "/MobileCom/{ActiveTabNum}"
+@inject IApies api
+@inherits ScaffoldJCMainBase
+
+<AuthorizeView>
+    <Authorized>
+        @if (!context?.User?.IsInRole(Enum.GetName(RolesNames.MobCom)) ?? false)
+        {
+            <ForbiddenAccess />
+        }
+        else
+        {
+            <CascadingValue Value="@this">
+                <button class="tablink" id="defaultOpen" @ref="@this.TabsRef0" @onclick="@(async() => {await this.TabClickHandler(0, nameof(MobileComOperationsContainer), DotNetObjectReference.Create(ChildElemRef0), this.TabsRef0);})">@this.LabelsForTabs?.ElementAt(0)</button>
+                <button class="tablink" @ref="@this.TabsRef1" @onclick="@(async() => {await this.TabClickHandler(1, nameof(MobileComJournalContainer), DotNetObjectReference.Create(ChildElemRef1), this.TabsRef1);})">@this.LabelsForTabs?.ElementAt(1)</button>
+                <button class="tablink" @ref="@this.TabsRef2" @onclick="@(async() => {await this.TabClickHandler(2, nameof(MobileComChart), DotNetObjectReference.Create(ChildElemRef2), this.TabsRef2);})">@this.LabelsForTabs?.ElementAt(2)</button>
+                <div id="@(nameof(MobileComOperationsContainer))" class="tabcontent">
+                    <MobileComOperationsContainer @ref="@this.ChildElemRef0" />
+                </div>
+                <div id="@(nameof(MobileComJournalContainer))" class="tabcontent">
+                    <MobileComJournalContainer @ref="@this.ChildElemRef1" />
+                </div>
+                <div id="@(nameof(MobileComChart))" class="tabcontent">
+                    <MobileComChart @ref="@this.ChildElemRef2" />
+                </div>
+            </CascadingValue>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private MobileComOperationsContainer ChildElemRef0 { get; set; }
+    private MobileComJournalContainer ChildElemRef1 { get; set; }
+    private MobileComChart ChildElemRef2 { get; set; }
+
+    public int MonthSelected { get; set; }
+
+    public int YearSelected { get; set; }
+
+    public List<MobileComCost_ByDriver_View> Communications_ByDriver { get; set; } = new();
+
+    public List<MobComCost_ByPhone_View> Communications_ByPhone { get; set; } = new();
+
+    public List<DivisionResponse> Divisions { get; set; } = new();
+
+    protected override async Task TabClickHandler(int tabNum, string tabType, object dotNetObjRef, ElementReference refTab)
+    {
+        await this.js.InvokeVoidAsync("openPage", tabNum, tabType, refTab, "#565656");
+        if (dotNetObjRef is DotNetObjectReference<MobileComOperationsContainer> itab0)
+            await itab0.Value.TabClickHandler();
+        else if (dotNetObjRef is DotNetObjectReference<MobileComJournalContainer> itab1)
+            await itab1.Value.TabClickHandler();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        this.ReturnUrl = "/MobileCom";
+        this.MonthSelected = DateTime.Now.Month == 1 ? 12 : DateTime.Now.Month - 1; // last month
+        this.YearSelected = DateTime.Now.Month == 1 ? DateTime.Now.Year - 1 : DateTime.Now.Year;
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await this.js.InvokeVoidAsync("defaultOpenPage");
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    protected override async Task InitializeTabs() 
+    => await Task.FromResult(this.LabelsForTabs = new List<string> { "Загрузка отчета", "Коммуникации", "Статистика" });
+
+    public async Task Init_MobileCommunications()
+    {
+        var res = (await this.api?.MobileApi?.GetMobComSummary(this.Token, this.MonthSelected, this.YearSelected)) ?? new();
+        this.Communications_ByDriver = res?.MobileComCost_ByDriver ?? new();
+        this.Communications_ByPhone = res?.MobComCost_ByPhone ?? new();
+    }
+
+    private async Task InitDivisions() 
+        => this.Divisions = (await this.api?.DivisionApi?.GetDivisions(this.Token)) ?? new();
+
+    public override async Task UpdateMainCollections()
+    {
+        ConcurrentBag<Task> tasks = new();
+        tasks.Add(Task.Run(async () => await this.Init_MobileCommunications()));
+        tasks.Add(Task.Run(async () => await this.InitDivisions()));
+
+        await Task.WhenAll(tasks);
+    }
+
+
+    public override async Task UpdateSecondCollections()
+    {  }
+}

@@ -1,0 +1,95 @@
+﻿@typeparam T
+
+@{
+    var allColors = typeof(ColorsFill).GetEnumNames()?.ToList() ?? new();
+    var level = (Node?.Level ?? 0);
+    var currentColor = allColors.Count >= level ? $"{allColors.ElementAt(level)}" : "#536953";
+    var colspanRowValue = (ParentTableBase?.ParentComponent?.ParentComponent?.PropertiesRendered?.Count ?? 0) + 1;
+    var styleForFirstColumn = $"text-align: left !important; padding-left: {((level + 1) * 10)}px; background-color: {currentColor};";
+    var styleForSecondColumn = $"text-align: center !important; background-color: {currentColor};";
+    var keyValEmpty = "Пустое значение";
+    var numberItemsInNode = Node?.Value.itemsInGroup?.Count ?? 0;
+    var imgGroup = IsRowVisible ? "css/open-iconic/icon/minus.png" : "css/open-iconic/icon/plus.png";
+    var toolTipGroup = IsRowVisible ? "Свернуть" : "Развернуть";
+    var valueForGroup = Node?.Value.propValue?.ToString() ?? keyValEmpty;
+    valueForGroup = valueForGroup == "False" ? "нет": valueForGroup;
+    valueForGroup = valueForGroup == "True" ? "да" : valueForGroup;
+}
+<tr class="tdGrouped" style="cursor: text;">
+    <td style="@styleForFirstColumn">
+        <button type="button"
+                class="btnTR"
+                @onclick="(() => { IsRowVisible = IsRowVisible ? false: true; })">
+            <img src="@imgGroup"
+                 title="@toolTipGroup" />
+        </button>
+    </td>
+    <td colspan="@colspanRowValue" style="@styleForSecondColumn">
+        <span>@(Node?.Value.propName ?? keyValEmpty): &nbsp;&nbsp;&nbsp;</span>
+        @valueForGroup
+        (@numberItemsInNode)
+    </td>
+</tr>
+
+@if (IsRowVisible)
+{
+    @if (Node?.IsLeaf ?? false)
+    {
+        if ((ItemsInGroup?.Count ?? 0) > 0)
+        {
+            <Virtualize Items="@ItemsInGroup" ItemSize="25">
+                <ItemContent>
+                    <ScaffoldJCTableInner T=T
+                                          Item=context
+                                          NumbersFormat="@ParentTableBase.NumbersFormat"
+                                          NumRow="@(ItemsInGroup?.IndexOf(context) ?? 0)"
+                                          IsChecked="@(ParentTableBase?.ParentComponent?.ParentComponent?.ItemsFilteredChecked?.Contains(context) ?? false)"
+                                          SendToParentSelectedItemRightClick="@(async(CoordinateClass<T> item) =>
+                                                                    { if(ParentTableBase?.SendToParentSelectedItemRightClick.HasDelegate ?? false)
+                                                                          await ParentTableBase.SendToParentSelectedItemRightClick.InvokeAsync(item);})"
+                                          SendToParentCheckedItem="@(async (T itemChecked) => { if(ParentTableBase?.ParentComponent?.ParentComponent?.ItemsFilteredChecked?.Contains(itemChecked) ?? false)
+                                                                                        ParentTableBase?.ParentComponent?.ParentComponent?.ItemsFilteredChecked?.Remove(itemChecked);
+                                                                                    else
+                                                                                        ParentTableBase?.ParentComponent?.ParentComponent?.ItemsFilteredChecked?.Add(itemChecked);
+                                                                                    ParentTableBase?.CheckedCollectionChangedEventInvoke(ParentTableBase?.ParentComponent?.ParentComponent?.ItemsFilteredChecked ?? new()); })"
+                                          SendToParentSelectedItem="@(async() =>  {if(ParentTableBase?.SendToParentSelectedItem.HasDelegate ?? false)
+                                                                           await ParentTableBase.SendToParentSelectedItem.InvokeAsync(context); })" />
+                </ItemContent>
+            </Virtualize>
+        }
+        else
+        {
+            <tr>
+                <td colspan="@colspanRowValue">
+                    Нет информации для отображения
+                </td>
+            </tr>
+        }
+    }
+    else
+    {
+        <Virtualize Items="@(Node.Children)" ItemSize="25">
+            <ItemContent>
+                <ScaffoldTableNode T=T
+                                   Node=context />
+            </ItemContent>
+        </Virtualize>
+    }
+}
+
+@code {
+    [CascadingParameter]
+    public ScaffoldJCTableBase<T> ParentTableBase { get; set; }
+
+    [Parameter]
+    public TreeNode<(object propName, object propValue, List<T> itemsInGroup)> Node { get; set; }
+
+    private List<T> ItemsInGroup => Node?.Value.itemsInGroup ?? new();
+
+    private bool IsRowVisible { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+}

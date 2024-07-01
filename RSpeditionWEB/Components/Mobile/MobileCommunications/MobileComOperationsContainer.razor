@@ -1,0 +1,246 @@
+﻿@inject IApies api
+@inject IMapper mapper
+@inject NavigationManager navMan
+@inherits TabContainer
+
+<CascadingValue Value="@this">
+    <p class="my-h1 inner-light-shadow">Загрузка отчета по мобильной связи</p>
+    <br />
+    <div class="pressed">
+        @*Загрузка файла*@
+        <MobileComReportsUpload @ref="@this.MobileComReportsUpload_ref"
+                                InvokeParentHendlerResponseBaseAfterAction="@(async(ResponseBase operRes) =>
+                {
+                    if (operRes is MobileReportsUploadsResult resp)
+                        this.MappingResult(resp);
+                    else
+                    {
+                        this.Title = "Предупреждение";
+                        this.Message = $"Операция была завершена с ошибкой ! " +
+                                       $"{operRes?.Result ?? string.Empty} ";
+                    }
+                    await this.MobileComCascadingParameter.RaiseEvent_FinishUpdatingMainCollectionsEvent();
+                    await this.js.InvokeVoidAsync("SetFocusById", CommunicationKind.Звонки.ToString());
+                })" />
+        <br />
+        @*Табличная часть*@
+        <div class="multi-button">
+            @foreach (int kind in Enum.GetValues(typeof(CommunicationKind)))
+            {
+                var kindName = Enum.GetName(typeof(CommunicationKind), kind);
+                if ((int)this.CommunicationKindSelected == kind)
+                {
+                    <button id="@kindName"
+                    style="color: white;"
+                    @onclick="@(() => {this.CommunicationKindSelected = (CommunicationKind)Enum.Parse(typeof(CommunicationKind), kindName);})">
+                        @kindName
+                    </button>
+                }
+                else
+                {
+                    <button id="@kindName"
+                    style="color: inherit;"
+                    @onclick="@(() => {
+                        this.CommunicationKindSelected = (CommunicationKind)Enum.Parse(typeof(CommunicationKind), kindName);})">
+                        @kindName
+                    </button>
+                }
+            }
+        </div>
+        <div class="shadow_block">
+            <span>Результат обработки файла</span>
+            @{
+                var btnLabel = $"Сохранить операции ({this.SuccessItems?.Count ?? new()} шт.)";
+                var call_style = $"display: {this.GetTabStyle(this.TabsVisibility[CommunicationKind.Звонки])}";
+                var sms_style = $"display: {this.GetTabStyle(this.TabsVisibility[CommunicationKind.СМС])}";
+                var gprs_style = $"display: {this.GetTabStyle(this.TabsVisibility[CommunicationKind.GPRS])}";
+            }
+            <div style="@call_style">
+                <MobileComOperations @ref="@this.ChildElemRef_call"
+                                     T="@Communication_call">
+                    @if (this.SuccessItems != null && this.SuccessItems.Count > 0)
+                    {
+                        <div class="multi-button">
+                            <button id="SaveCommunic"
+                                @onclick="@(async() => {await this.StartOperation();})">
+                                @btnLabel
+                            </button>
+                        </div>
+                    }
+                </MobileComOperations>
+            </div>
+            <div style="@sms_style">
+                <MobileComOperations @ref="@this.ChildElemRef_sms"
+                                     T="@Communication_sms">
+                    @if (this.SuccessItems != null && this.SuccessItems.Count > 0)
+                    {
+                        <div class="multi-button">
+                            <button id="SaveCommunic"
+                                @onclick="@(async() => {await this.StartOperation();})">
+                                @btnLabel
+                            </button>
+                        </div>
+                    }
+                </MobileComOperations>
+            </div>
+            <div style="@gprs_style">
+                <MobileComOperations @ref="@this.ChildElemRef_gprs" 
+                                     T="@Communication_gprs">
+                    @if (this.SuccessItems != null && this.SuccessItems.Count > 0)
+                    {
+                        <div class="multi-button">
+                            <button id="SaveCommunic"
+                                @onclick="@(async() => {await this.StartOperation();})">
+                                @btnLabel
+                            </button>
+                        </div>
+                    }
+                </MobileComOperations>
+            </div>
+        </div>
+        </div>
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                      InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false; 
+                                                                                        if(this.ShouldUpdateParent)
+                                                                                            this.navMan?.NavigateTo(this.MobileComCascadingParameter?.ReturnUrl ?? "/", true);
+                                                                                      })">
+            <ResultOperation Devider="'!'"
+                             ResList="null"
+                             ResMessage="@this.Message" />
+        </ModalWindowWithEventCallback>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    enum CommunicationKind : int {Звонки, СМС, GPRS}
+    public MobileComOperations<Communication_call> ChildElemRef_call { get; set; }
+    private MobileComOperations<Communication_sms> ChildElemRef_sms { get; set; }
+    private MobileComOperations<Communication_gprs> ChildElemRef_gprs { get; set; }
+
+    private Dictionary<CommunicationKind, bool> TabsVisibility { get; set; }
+
+    private string GetTabStyle(bool isTabVisibile) => isTabVisibile ? "block" : "none";
+
+    private Func<Task> f;
+    private CommunicationKind communicationKindSelected = CommunicationKind.Звонки;
+    private CommunicationKind CommunicationKindSelected
+    {
+        get => this.communicationKindSelected;
+        set
+        {
+            if (Enum.TryParse<CommunicationKind>(value.ToString(), out var val))
+            {
+                this.communicationKindSelected = val;
+                this.TabsVisibility[this.communicationKindSelected] = true;
+                foreach (var tab in this.TabsVisibility)
+                {
+                    if (tab.Key != val)
+                        this.TabsVisibility[tab.Key] = false;
+                }
+                f = val switch
+                {
+                    CommunicationKind.Звонки => async () => await this.TabClickHandler(DotNetObjectReference.Create(this.ChildElemRef_call)),
+                    CommunicationKind.СМС => async () => await this.TabClickHandler(DotNetObjectReference.Create(this.ChildElemRef_sms)),
+                    CommunicationKind.GPRS => async () => await this.TabClickHandler(DotNetObjectReference.Create(this.ChildElemRef_gprs)),
+                    _ => default
+                };
+                f();
+            }
+        }
+    }
+
+    public override async Task TabClickHandler()
+        => await this.js.InvokeVoidAsync("GLOBAL.SetDotnetReference", DotNetObjectReference.Create(this.ChildElemRef_call));
+
+    private async Task TabClickHandler(object dotNetObjRef)
+        => await this.js.InvokeVoidAsync("GLOBAL.SetDotnetReference", dotNetObjRef);
+
+    [CascadingParameter]
+    public MobileCom MobileComCascadingParameter { get; set; }
+
+    private MobileComReportsUpload MobileComReportsUpload_ref { get; set; }
+
+    public List<Communication> SuccessItems { get; set; } = new();
+
+    public List<NotSuccessResponseItemDetailed<Communication>> NotSuccessItems { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ReturnUrl = this.MobileComCascadingParameter?.ReturnUrl ?? "/";
+        this.TabsVisibility = new Dictionary<CommunicationKind, bool> { { CommunicationKind.Звонки, true},
+                                                                        { CommunicationKind.СМС, false },
+                                                                        { CommunicationKind.GPRS, false } };
+        this.IsRender = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender)
+            this.MobileComCascadingParameter.FinishUpdatingMainCollectionsEvent += this.ReactOnFinishUpdatingMainCollectionsFromDBEvent;
+    }
+
+    private async Task ReactOnFinishUpdatingMainCollectionsFromDBEvent()
+        => await this.js.InvokeVoidAsync("SetFocusById", CommunicationKind.Звонки.ToString());
+
+    private void MappingResult(MobileReportsUploadsResult resp)
+    {
+        this.SuccessItems = new();
+        this.NotSuccessItems = new();
+        //
+        this.SuccessItems?.AddRange(resp?.Communication_calls?.SuccessItems ?? new());
+        this.SuccessItems?.AddRange(resp?.Communication_smses?.SuccessItems ?? new());
+        this.SuccessItems?.AddRange(resp?.Communication_gprses?.SuccessItems ?? new());
+        //
+        resp?.Communication_calls?.NotSuccessItems?.ForEach(_ => this.NotSuccessItems?.Add(new NotSuccessResponseItemDetailed<Communication>(_.NotSuccessItem, _.Reason)));
+        resp?.Communication_smses?.NotSuccessItems?.ForEach(_ => this.NotSuccessItems?.Add(new NotSuccessResponseItemDetailed<Communication>(_.NotSuccessItem, _.Reason)));
+        resp?.Communication_gprses?.NotSuccessItems?.ForEach(_ => this.NotSuccessItems?.Add(new NotSuccessResponseItemDetailed<Communication>(_.NotSuccessItem, _.Reason)));
+    }
+
+    private async Task StartOperation()
+    {
+        var start = DateTime.Now;
+        await this.ProgressBarOpenAsync();
+        await this.SaveCommunic();
+        await this.ProgressBarCloseAsync();
+        var end = DateTime.Now;
+        var diff = end - start;
+        this.Message += $"Процесс длился {diff.Minutes} мин. {diff.Seconds} сек.";
+    }
+
+    private async Task SaveCommunic()
+    {
+        var resp = await this.api?.MobileApi?.PostCommunications(this.SuccessItems ?? new(), this.Token);
+        await this.ProccessingResponse(resp);
+    }
+
+    public async Task ProccessingResponse(ResponseBase resp)
+    {
+        if (resp == null)
+        {
+            this.Message = $"{resp?.Result ?? "Операция закончилась с ошибкой ! Ошибка на уровне сервера !"}";
+            this.ShouldUpdateParent = false;
+        }
+        else
+        {
+            this.Message = $"{resp?.Result ?? "Операция успешно завершена ! Изменения были зафиксированы !"}";
+            this.ResetToStartValues();
+            this.ShouldUpdateParent = true;
+        }
+
+        this.Title = "Результат сохранения коллекции коммуникаций";
+        this.RenderMessage();
+    }
+
+    private void ResetToStartValues()
+    {
+        this.SuccessItems = new();
+        this.NotSuccessItems = new();
+    }
+}

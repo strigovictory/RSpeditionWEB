@@ -1,0 +1,464 @@
+﻿@inherits FuelCardBase
+
+<CascadingValue Value="this">
+    @if (this.IsRender)
+{
+    var typeFuelCard = this.Model?.GetType();
+    var labelFuelCard_ReceiveDate = typeFuelCard?.GetCustomDisplayValues(nameof(this.Model.ReceiveDate)).Item1 ?? string.Empty;
+    var labelFuelCard_Number = typeFuelCard?.GetCustomDisplayValues(nameof(this.Model.Number)).Item1 ?? string.Empty;
+    var labelFuelCard_FuelProvider = typeFuelCard?.GetCustomDisplayValues(nameof(this.Model.ProviderId)).Item1 ?? string.Empty;
+    var labelFuelCard_ExpirationDate = typeFuelCard?.GetCustomDisplayValues(nameof(this.Model.ExpirationDate)).Item1 ?? string.Empty;
+    var labelFuelCard_IsReserve = typeFuelCard?.GetCustomDisplayValues(nameof(this.Model.IsReserved)).Item1 ?? string.Empty;
+    var labelFuelCard_Note = typeFuelCard?.GetCustomDisplayValues(nameof(this.Model.Note)).Item1 ?? string.Empty;
+    var labelFuelCard_Car = typeFuelCard?.GetCustomDisplayValues(nameof(this.Model.CarId)).Item1 ?? string.Empty;
+    var labelFuelCard_Empl = typeFuelCard?.GetCustomDisplayValues(nameof(this.Model.EmployeeID)).Item1 ?? string.Empty;
+    //
+    DivisionResponse division = new();
+    var typeDivision = division.GetType();
+    var propsDivision = new List<PropertyInfo> { typeDivision.GetProperty(nameof(division.Name)) };
+    var textPropDivision = typeDivision.GetProperty(nameof(division.Name));
+    var tempAttrDivision = typeDivision.GetCustomDisplayValues(nameof(division.Name));
+    var labelForDivision = tempAttrDivision.Item1 ?? string.Empty;
+    var placeholderDivision = tempAttrDivision.Item2 ?? string.Empty;
+    var divisions = this.CarFuelCardsGroupAddingFormParentCascadingVal?.FuelCardsJournalCascadingVal?.FuelCardsCascadingParameter?.Divisions?
+    .Where(_ => _.IsMainDivision)?.ToList() ?? new();
+    var divisionsIId = divisions?.Cast<IId>()?.ToList() ?? new();
+    var divisionSelected = divisions?.FirstOrDefault(_ => _.Id == this.Model.DivisionID);
+    var divisionNameSelected = divisionSelected?.Name ?? string.Empty;
+    //
+    FuelProviderResponse fuelProvider = new();    
+    var typeFuelProvider = fuelProvider.GetType();
+        List<PropertyInfo> propsFuelProvider = new List<PropertyInfo> { typeFuelProvider.GetProperty(nameof(fuelProvider.Name)) };
+        var textPropFuelProvider = typeFuelProvider.GetProperty(nameof(fuelProvider.Name));
+    var tempAttrFuelProvider = typeFuelProvider.GetCustomDisplayValues(nameof(fuelProvider.Name));
+    var labelForSearchFuelProvider = tempAttrFuelProvider.Item1 ?? string.Empty;
+    var placeholderFuelProvider = tempAttrFuelProvider.Item2 ?? string.Empty;
+    var fuelProviderSelected = this.CarFuelCardsGroupAddingFormParentCascadingVal?.FuelCardsJournalCascadingVal?.FuelCardsCascadingParameter?.FuelProviders?.FirstOrDefault(_ => _.Id == this.Model.ProviderId) ?? null;
+    //
+
+    <tr>
+        <td data-label="@labelFuelCard_Number">
+            @this.NumRow
+        </td>
+        <td data-label="@labelFuelCard_ReceiveDate">
+            <InputDate TValue="DateTime?"
+                        class="form-control"
+                        ParsingErrorMessage="@this.ValidationMessageReceiveDate"
+                        @bind-Value="@this.Model.ReceiveDate"
+                        @oninput="@(async (ChangeEventArgs val) => { await ReactOnReceiveDateChanged(val); })" />
+        </td>
+            <td data-label="@labelFuelCard_FuelProvider">
+                <SearchSingleTItem IIdItems="@(this.CarFuelCardsGroupAddingFormParentCascadingVal?.FuelCardsJournalCascadingVal?.FuelCardsCascadingParameter?.FuelProviders?.OrderBy(provider => provider.Name)?.Cast<IId>()?.ToList() ?? new())"
+                                   PropertiesInfoForSearch="@propsFuelProvider"
+                                   ShowLabel="false"
+                                   TextProperty="@textPropFuelProvider"
+                                   LabelForSearch="@labelForSearchFuelProvider"
+                                   Placeholder="@placeholderFuelProvider"
+                                   MinSizeSelect="2"
+                                   MaxSizeSelect="7"
+                                   IIdOuterInitParameter="@fuelProviderSelected"
+                                   SendToParentSelectedIIdItem="@(async (IId item) => {
+                                                               if(item != null && item is FuelProviderResponse)
+                                                                   this.Model.ProviderId = ((FuelProviderResponse)item)?.Id ?? 0;
+                                                               else
+                                                                   this.Model.ProviderId = 0;
+                                                               await SendModelToParent(); })" />
+            </td>
+
+            <td data-label="@labelFuelCard_Number">
+                <InputText class="form-control"
+                           style="min-width: 200px; padding: 5px;"
+                           @bind-Value="@this.Model.Number"
+                           @oninput="@(async (ChangeEventArgs val) => {if (val == null ||
+                                                                       val?.Value == null ||
+                                                                       string.IsNullOrEmpty(val?.Value?.ToString()) ||                                                                        string.IsNullOrWhiteSpace(val?.Value?.ToString()))
+                                                                        { this.Model.Number = string.Empty; }
+                                                                        else { this.Model.Number = val.Value.ToString(); }
+
+                                                                         await SendModelToParent(); })" />
+            </td>
+            <td data-label="@labelFuelCard_ExpirationDate">
+                <InputDate TValue="DateTime?"
+                           class="form-control"
+                           ParsingErrorMessage="@this.ValidationMessageExpirationDate"
+                           @bind-Value="@this.Model.ExpirationDate"
+                           @oninput="@(async (ChangeEventArgs val) => {if (!DateTime.TryParse(val?.Value?.ToString(), out DateTime resExp))
+                                                                       this.Model.ExpirationDate = null;
+                                                                   else
+                                                                       this.Model.ExpirationDate = resExp.Date;
+
+                                                                   if (string.IsNullOrEmpty(this.ValidationMessageExpirationDate))
+                                                                       this.CheckDatesProp();
+
+                                                                    await SendModelToParent();})" />
+            </td>
+            <td data-label="@labelFuelCard_IsReserve">
+                <div class="squaredOne">
+                    @if (this.Model.IsReserved)
+                    {
+                        <input type="checkbox"
+                               id="@this.uniqueId"
+                               checked
+                               @bind-value="@this.Model.IsReserved" />
+                        <label for="@this.uniqueId"></label>
+                    }
+                    else
+                    {
+                        <input type="checkbox"
+                               id="@this.uniqueId"
+                               @bind-value="@this.Model.IsReserved" />
+                        <label for="@this.uniqueId"></label>
+                    }
+                </div>
+            </td>
+            <td data-label="@labelFuelCard_Note">
+                <InputTextArea @bind-Value="@this.Model.Note"
+                               style="height: 30px !important;"
+                               @oninput="@(async (ChangeEventArgs val) => {
+                                                                            if (val != null &&
+                                                                                val?.Value != null &&
+                                                                                !string.IsNullOrEmpty(val?.Value.ToString()) &&
+                                                                                !string.IsNullOrWhiteSpace(val?.Value.ToString()))
+                                                                            {
+                                                                                this.Model.Note = val.Value.ToString();
+                                                                            }
+                                                                            else
+                                                                           {
+                                                                                this.Model.Note = string.Empty;
+                                                                           }
+
+                                                                            await SendModelToParent();
+                                   })" />
+            </td>
+
+        <td data-label="Обьект">
+                @{var objValues = ObjectTypeModelValues?.Where(_ => _.Id != 4)?.ToList() ?? new();}
+                <SelectSingleTitem TItem="@ObjectTypeModel"
+                                   PropInfo="@(typeof(ObjectTypeModel).GetProperty(nameof(ObjectTypeModel.TypeName)))"
+                                   EventCallbackSelectedItemId="@(async(int itemId) => {this.ObjectTypeModelSelected = ObjectTypeModelValues.FirstOrDefault(_ => _.Id == itemId);
+                                                                                         await UpdateAvailableObjects();
+                                                                                         Model.EmployeeID = default;
+                                                                                         Model.CarId = default;
+                                                                                         Model.DivisionID = 0; })"
+                                   List_TItems_All="@objValues"
+                                   IIdOuterInitParameter="@(ObjectTypeModelSelected as IId)" />
+        </td>
+        @if (ObjectTypeModelSelected.TypeName == EventType.Склад.ToString())
+        {
+            <td data-label="Значение"></td>
+            <td data-label="@labelForDivision">
+                <SearchSingleTItem IIdItems="@divisionsIId"
+                                   PropertiesInfoForSearch="@propsDivision"
+                                   ShowLabel="false"
+                                   TextProperty="@textPropDivision"
+                                   LabelForSearch="@labelForDivision"
+                                   Placeholder="@placeholderDivision"
+                                   MinSizeSelect="2"
+                                   MaxSizeSelect="7"
+                                   IIdOuterInitParameter="@divisionSelected"
+                                   SendToParentSelectedIIdItem="@(async (IId item) => {this.Model.DivisionID = item?.Id ?? 0;
+                                                                                        await SendModelToParent(); })" />
+            </td>
+        }
+        else if (ObjectTypeModelSelected.Id == -1)
+        {
+                <td data-label="Значение"></td>
+                <td data-label="@labelForDivision"></td>
+        }
+        else if (ObjectTypeModelSelected.TypeName == EventType.Тягач.ToString())
+        {
+            <td data-label="@labelFuelCard_Car">
+                @if(Model.ReceiveDate.HasValue)
+                {
+                    TrucksLicensePlate trucksLicensePlate = new();
+                    var typeTrucksLicensePlate = trucksLicensePlate.GetType();
+                    var propsTrucksLicensePlate = new List<PropertyInfo> { typeTrucksLicensePlate.GetProperty(nameof(trucksLicensePlate.LicensePlate)) };
+                    var textPropTrucksLicensePlate = typeTrucksLicensePlate.GetProperty(nameof(trucksLicensePlate.LicensePlate));
+                    var tempAttrTrucksLicensePlate = typeTrucksLicensePlate.GetCustomDisplayValues(nameof(trucksLicensePlate.LicensePlate));
+                    var labelForSearchTrucksLicensePlate = tempAttrTrucksLicensePlate.Item1 ?? string.Empty;
+                    var placeholderTrucksLicensePlate = tempAttrTrucksLicensePlate.Item2 ?? string.Empty;
+                    <SearchSelectTItems Items="@(CarFuelCardsGroupAddingFormParentCascadingVal?.AvailableTrucksLicensePlates?.OrderBy(_ => _.LicensePlate)?.ToList() ?? new())"
+                                        T="@TrucksLicensePlate"
+                                        GetObjItems="@(() => CarFuelCardsGroupAddingFormParentCascadingVal?.AvailableTrucksLicensePlates?.Cast<object>()?.ToList() ?? new())"
+                                        KeyPropInfo="@(typeTrucksLicensePlate.GetProperty(nameof(trucksLicensePlate.TruckId)))"
+                                        MaxSizeSelect="5"
+                                        InitParameters="@(new())"
+                                        LabelForSearch="@labelForSearchTrucksLicensePlate"
+                                        Placeholder="@placeholderTrucksLicensePlate"
+                                        IsMultiple="@false"
+                                        PropertiesInfoForSearch="@propsTrucksLicensePlate"
+                                        TextProperty="@textPropTrucksLicensePlate"
+                                        SendToParentFoundAndSelectedItems="@(async(List<TrucksLicensePlate> selectedItems)
+                                                                                             => { var truckLicensePlateVal = selectedItems?.FirstOrDefault();
+                                                                                                  this.Model.CarId = truckLicensePlateVal?.TruckId;
+                                                                                                  this.Model.DivisionID = truckLicensePlateVal?.DivisionId ?? 0;
+                                                                                                   await SendModelToParent(); })" />
+                }
+                else
+                {
+                    <span>Для выбора тягача, необходимо установить дату поступления</span>
+                }
+            </td>
+            <td data-label="@labelForDivision">
+                <input type="text"
+                       class="form-control"
+                       readonly
+                       disabled
+                       title="Значение определяется автоматически"
+                       style="min-width: 200px; padding: 5px;"
+                       value="@divisionNameSelected" />
+                </td>
+            }
+        else if (ObjectTypeModelSelected.TypeName == EventType.Водитель.ToString())
+        {
+            <td data-label="@labelFuelCard_Empl">
+                    @if (Model.ReceiveDate.HasValue)
+                    {
+                        EmployeesAssignmentsResponse empl = new();
+                        var typeEmpl = empl.GetType();
+                        var propsEmpl = new List<PropertyInfo> { typeEmpl.GetProperty(nameof(empl.EmployeeName)) };
+                        var textPropEmpl = typeEmpl.GetProperty(nameof(empl.EmployeeName));
+                        var tempAttrEmpl = typeEmpl.GetCustomDisplayValues(nameof(empl.EmployeeName));
+                        var labelForSearchEmpl = tempAttrEmpl.Item1 ?? string.Empty;
+                        var placeholderEmpl = tempAttrEmpl.Item2 ?? string.Empty;
+                        <SearchSelectTItems Items="@(CarFuelCardsGroupAddingFormParentCascadingVal?.AvailableEmployeesAssignments?.OrderBy(_ => _.EmployeeName)?.ToList() ?? new())"
+                                            T="@EmployeesAssignmentsResponse"
+                                            GetObjItems="@(() => CarFuelCardsGroupAddingFormParentCascadingVal?.AvailableEmployeesAssignments?.Cast<object>()?.ToList() ?? new())"
+                                            KeyPropInfo="@(typeEmpl.GetProperty(nameof(empl.EmployeeId)))"
+                                            MaxSizeSelect="5"
+                                            InitParameters="@(new())"
+                                            LabelForSearch="@labelForSearchEmpl"
+                                            Placeholder="@placeholderEmpl"
+                                            IsMultiple="@false"
+                                            PropertiesInfoForSearch="@propsEmpl"
+                                            TextProperty="@textPropEmpl"
+                                            SendToParentFoundAndSelectedItems="@(async(List<EmployeesAssignmentsResponse> selectedItems)
+                                                                                             => { EmployeesAssignmentsSelected = selectedItems?.FirstOrDefault();
+                                                                                                  this.Model.EmployeeID = EmployeesAssignmentsSelected?.EmployeeId ?? default;
+                                                                                                  this.Model.DivisionID = (EmployeesAssignmentsSelected?.Assignments?.Count ?? 0) > 1 ? 0 : EmployeesAssignmentsSelected?.Assignments?.FirstOrDefault()?.DivisionId ?? 0;
+                                                                                                  await SendModelToParent(); })" />
+                    }
+                    else
+                    {
+                        <span>Для выбора водителя, необходимо установить дату поступления</span>
+                    }
+            </td>
+                <td data-label="@labelForDivision">
+                    @if ((EmployeesAssignmentsSelected?.Assignments?.Count ?? 0) > 1)
+                    {
+                        @foreach (var emplAssigmentsDivision in EmployeesAssignmentsSelected?.Assignments ?? new())
+                        {
+                            var divisionRender = divisions?.FirstOrDefault(_ => _.Id == emplAssigmentsDivision.DivisionId);
+                            var divisionName = divisionRender.Name;
+                            var divisionId = divisionRender.Id;
+                            var idRadio = $"division_{divisionId}";
+                            <div class="middle">
+                                @if (Model.DivisionID == divisionId)
+                                {
+                                    <input type="radio"
+                                           id="@idRadio"
+                                           checked
+                                           name="divisionChoice"
+                                           value="@divisionId"
+                                           @oninput="@(async(ChangeEventArgs arg) => { Model.DivisionID = int.TryParse(arg?.Value?.ToString() ?? "0", out var val) ? val: 0; 
+                                                                                       await SendModelToParent();})">
+                                    <span class="top">@divisionName</span>
+                                }
+                                else
+                                {
+                                    <input type="radio"
+                                           id="@idRadio"
+                                           name="divisionChoice"
+                                           value="@divisionId"
+                                           @oninput="@(async(ChangeEventArgs arg) => { Model.DivisionID = int.TryParse(arg?.Value?.ToString() ?? "0", out var val) ? val: 0;
+                                                                                  await SendModelToParent();})">
+                                        <span class="top">@divisionName</span>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <input type="text"
+                               class="form-control"
+                               readonly
+                               disabled
+                               title="Значение определяется автоматически"
+                               style="min-width: 200px; padding: 5px;"
+                               value="@divisionNameSelected" />
+                    }
+                </td>
+        }
+        <td data-label="Удалить"
+            @onclick="@(async () => {  if(this.InvokeParentHandlerSendChangesRemoveRow.HasDelegate)
+            await this.InvokeParentHandlerSendChangesRemoveRow.InvokeAsync((this.GuideId)); })"
+            style="cursor: pointer; font-size: xx-large !important;"
+            title="Кликните для удаления карты из партии">
+            -
+        </td>
+    </tr>
+        @if (!IsModelValid)
+        {
+            <td colspan="12" style="text-align: left;">
+                <ul class="validation-message">
+                    @foreach (var error in ValidErrors.ConvertStringToList('!') ?? new())
+                    {
+                        <li>
+                            @error
+                        </li>
+                    }
+                    @if (IsCardNotUnique)
+                    {
+                        <li>
+                            Карта не уникальная внутри партии
+                        </li>
+                    }
+                    @if (ObjectTypeModelSelected.Id == -1)
+                    {
+                        <li>
+                            Выберите объект
+                        </li>
+                    }
+                    @if (!string.IsNullOrEmpty(ValidationMessageExpirationDate))
+                    {
+                        <li>
+                            @(ValidationMessageExpirationDate ?? string.Empty)
+                        </li>
+                    }
+                </ul>
+            </td>
+        }
+        <tr>
+    </tr>
+}
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка ..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    // Свойства компонента
+    #region
+    [CascadingParameter]
+    public CarFuelCardsGroupAddingFormParent CarFuelCardsGroupAddingFormParentCascadingVal { get; set; }
+
+    [Parameter]
+    public string GuideId { get; set; }
+
+    private string uniqueId => $"carFCardsEdFChild{this.GuideId}";
+
+    [Parameter]
+    public int NumRow { get; set; }
+
+    [Parameter]
+    public EventCallback<(string, FuelCardModel)> InvokeParentHandlerDataChanges { get; set; }
+
+    [Parameter]
+    public EventCallback<string> InvokeParentHandlerSendChangesRemoveRow { get; set; }
+
+    protected override async Task<List<TrucksLicensePlatesStatusesModel>> GetTrucksLicensePlatesStatuses()
+        => await Task.FromResult(CarFuelCardsGroupAddingFormParentCascadingVal?.TrucksLicensePlatesStatuses ?? new());
+
+    protected override async Task<List<EmployeesAssignmentsResponse>> GetEmployeesAssignmentsDrivers()
+        => await Task.FromResult(CarFuelCardsGroupAddingFormParentCascadingVal?.EmployeesAssignmentsDrivers ?? new());
+
+    protected override List<TruckResponse> Trucks
+        => CarFuelCardsGroupAddingFormParentCascadingVal?.FuelCardsJournalCascadingVal?.FuelCardsCascadingParameter?.Trucks ?? new();
+    #endregion
+
+    // Методы компонента
+    #region
+    protected override async Task OnInitializedAsync()
+    {
+        await PrimaryInitCard();
+        TItemFromParent = Model;
+        ObjectTypeModelSelected = CarFuelCardsGroupAddingFormParentCascadingVal.ObjectTypeModelSelected;
+        await base.OnInitializedAsync();
+        this.IsRender = true;
+    }
+
+    protected override bool IsModelValid
+        => ValidateModel().isValid
+        && string.IsNullOrEmpty(ValidationMessageReceiveDate)
+        && string.IsNullOrEmpty(ValidationMessageExpirationDate)
+        && string.IsNullOrEmpty(ValidationMessageFuelProvider)
+        && string.IsNullOrEmpty(ValidationMessageDivision)
+        && string.IsNullOrEmpty(ValidationMessageCar)
+        && string.IsNullOrEmpty(ValidationMessageDriver)
+        && string.IsNullOrEmpty(ValidationMessageNumber)
+        && string.IsNullOrEmpty(ValidationMessageNote)
+        && !IsCardNotUnique;
+
+    // В рамках одной партии номера карт д.б. уникальны
+    private bool IsCardNotUnique => CheckIsCardNotUnique();
+
+    // Внутри одного провайдера номер карты уникальный
+    protected bool CheckIsCardNotUnique()
+    => CarFuelCardsGroupAddingFormParentCascadingVal?.GroupModelComponent?.CardsChild?.Any(
+            card => card.Key != GuideId 
+            && card.Value.ProviderId == Model.ProviderId
+            && card.Value.Number.Trim().ToLower() == Model.Number.Trim().ToLower()) ?? false;
+
+    /// <summary>
+    /// Метод для первоначальной инициализации топливной карты на основании общих для всей партии поступивших от поставщика топливных карт данных
+    /// </summary>
+    private async Task PrimaryInitCard()
+    {
+        Model = CarFuelCardsGroupAddingFormParentCascadingVal?.CreateFuelCardModel();
+        await SendModelToParent();
+    }
+
+    private async Task SendModelToParent()
+    {
+        if(this.InvokeParentHandlerDataChanges.HasDelegate)
+            await this.InvokeParentHandlerDataChanges.InvokeAsync((this.GuideId, this.Model));
+    }
+
+    private async Task ReactOnReceiveDateChanged(ChangeEventArgs val)
+    {
+        Model.DivisionID = 0;
+        EmployeesAssignmentsSelected = null;
+
+        if (!DateTime.TryParse(val?.Value?.ToString(), out DateTime resIssue))
+            this.Model.ReceiveDate = null;
+        else
+            this.Model.ReceiveDate = resIssue.Date;
+
+        await UpdateAvailableObjects();
+    }
+
+    private async Task UpdateAvailableObjects()
+    {
+        if (this.Model.ReceiveDate.HasValue)
+        {
+            if (ObjectTypeModelSelected.TypeName == EventType.Тягач.ToString())
+            {
+                Model.CarId = null;
+                CarFuelCardsGroupAddingFormParentCascadingVal.ActualizeAvailableTrucksLicensePlates(Model.ReceiveDate); // !важно вызывать метод родительского класса
+            }
+            else if (ObjectTypeModelSelected.TypeName == EventType.Водитель.ToString())
+            {
+                Model.EmployeeID = null;
+                CarFuelCardsGroupAddingFormParentCascadingVal.ActualizeAvailableEmployeesAssignments(Model.ReceiveDate);// !важно вызывать метод родительского класса
+            }
+        }
+        else
+        {
+            AvailableEmployeesAssignments = new();
+            Model.EmployeeID = null;
+            AvailableTrucksLicensePlates = new();
+            Model.CarId = null;
+        }
+
+        this.StartObjItemsChangedEvent();
+
+        this.CheckDatesProp();
+
+        await SendModelToParent();
+    }
+    #endregion
+}

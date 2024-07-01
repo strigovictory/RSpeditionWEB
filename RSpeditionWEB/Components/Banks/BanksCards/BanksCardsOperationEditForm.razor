@@ -1,0 +1,208 @@
+﻿@inject IMapper mapper
+@inject IApies api
+@inherits EditFormBase<BanksCardsOperation_iew>
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        <div class="form_flex">
+            <EditForm EditContext=@this.EditContext>
+                <DataAnnotationsValidator />
+                <input type="hidden" @bind-value="@this.Model.Id" />
+                <input type="hidden" @bind-value="@this.Model.ReportDate" />
+                <input type="hidden" @bind-value="@this.Model.EmployeeId" />
+                <input type="hidden" @bind-value="@this.Model.EmployeeName" />
+                <input type="hidden" @bind-value="@this.Model.EmployeeCreditCardId" />
+                <input type="hidden" @bind-value="@this.Model.Rbsnumber" />
+                <input type="hidden" @bind-value="@this.Model.OperationDate" />
+                <input type="hidden" @bind-value="@this.Model.Details" />
+                <input type="hidden" @bind-value="@this.Model.AmountOperationOriginal" />
+                <input type="hidden" @bind-value="@this.Model.KindOperationId" />
+                <input type="hidden" @bind-value="@this.Model.KindOperationName" />
+                <input type="hidden" @bind-value="@this.Model.CurrencyOperationId" />
+                <input type="hidden" @bind-value="@this.Model.CurrencyOperationName" />
+                <input type="hidden" @bind-value="@this.Model.AmountTotal" />
+                <input type="hidden" @bind-value="@this.Model.AmountCommission" />
+                <input type="hidden" @bind-value="@this.Model.CurrencyReportId" />
+                <input type="hidden" @bind-value="@this.Model.CurrencyReportName" />
+                <input type="hidden" @bind-value="@this.Model.CurrencyRateId" />
+                <input type="hidden" @bind-value="@this.Model.CurrencyRate" />
+                <input type="hidden" @bind-value="@this.Model.RideDriverReportId" />
+                <input type="hidden" @bind-value="@this.Model.RideDriverReportName" />
+                <div class="flexRow">
+                    <div class="flexColumnStretch">
+                        @{
+                            RideDriverReportShortView drRep = new();
+                            var type_drRep = drRep.GetType();
+                            var props_drRep = new List<PropertyInfo> { type_drRep.GetProperty(nameof(drRep.RideDriverReportName)),
+                            type_drRep.GetProperty(nameof(drRep.ReportDate)),
+                            type_drRep.GetProperty(nameof(drRep.RideName))};
+                            var textProp_drRep = type_drRep.GetProperty(nameof(drRep.RideDriverReportName));
+                            var label_drRep = type_drRep.GetModelsDisplayNameValue() ?? string.Empty;
+                            RideDriverReportShortView drRepCurrent = this.RideDriverReports?.FirstOrDefault(_ => _.Id == (this.Model?.RideDriverReportId ?? 0)) ?? null;
+                            var initPar_drRep = drRepCurrent == null ? null : new List<RideDriverReportShortView> { drRepCurrent };
+                            var placeholder_drRep = this.IsCreate ? label_drRep ?? string.Empty : drRepCurrent?.RideDriverReportName ?? label_drRep;
+                        }
+                        <div>
+                            <label_small_black>@label_drRep</label_small_black>
+                        </div>
+                        <div>
+                            <SearchSelectTItems Items="@(this.RideDriverReports?.OrderBy(_ => _.ReportDate).ToList() ?? new())"
+                                            T="@RideDriverReportShortView"
+                                            KeyPropInfo="@(type_drRep.GetProperty(nameof(drRep.Id)))"
+                                            MaxSizeSelect="10"
+                                            InitParameters="@initPar_drRep"
+                                            LabelForSearch="@label_drRep"
+                                            Placeholder="@placeholder_drRep"
+                                            IsMultiple="@false"
+                                            PropertiesInfoForSearch="@props_drRep"
+                                            TextProperty="@textProp_drRep"
+                                            SendToParentFoundAndSelectedItems="@((List<RideDriverReportShortView> selectedItems)
+                                                                                             => {
+                                                                                                    if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                        this.Model.RideDriverReportId = this.RideDriverReports?.FirstOrDefault(_ => _.Id == (selectedItems.FirstOrDefault()?.Id ?? 0))?.Id ?? null;
+                                                                                                    else
+                                                                                                        this.Model.RideDriverReportId = null;
+                                                                                                })" />
+                        </div>
+                    </div>
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.RideDriverReportId))
+                </div>
+                <br />
+                <div>
+                    <ButtonDouble EventCallbackToParent="@(async () => {await this.ProgressBarOpenAsync();
+                                                                        await this.StartOperation();
+                                                                        await this.ProgressBarCloseAsync(); })"
+                              EventCallbackToParentReset="@(async () => { await this.MedelsInitialization();})"
+                              LabelForButton="Сохранить"
+                              LabelForButtonReset="Отмена"
+                              IsActive="@this.IsModelValid"
+                              TitleIfIsNonActive="@($"Сохранение изменений возможно, если они валидны.")"
+                              TitleIfIsActive="Кликните, чтобы сохранить изменения"
+                              TitleReset="Кликните, чтобы отменить внесенные изменения">
+                    </ButtonDouble>
+                </div>
+            </EditForm>
+        </div>
+        @if (this.ShowMessage)
+        {
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => {
+                                                                                        if(this.IsCreate)
+                                                                                        {
+                                                                                            if (this.ShouldUpdateParent)
+                                                                                                await this.InvokeParentHendlerAfterCreating.InvokeAsync(this.Model);
+                                                                                            else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                                await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                                        }
+                                                                                        else
+                                                                                        {
+                                                                                            if (this.ShouldUpdateParent)
+                                                                                                await this.InvokeParentHendlerAfterUpd.InvokeAsync(this.Model);
+                                                                                            else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                                await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                                        }
+                                                                                  })">
+                <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@this.Message">
+                </ResultOperation>
+            </ModalWindowWithEventCallback>
+        }
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка формы..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    [CascadingParameter]
+    public BanksCardsOperationsFilters BanksCardsOperationsFilters_CascadingVal { get; set; }
+
+    private List<RideDriverReportShortView> RideDriverReports { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ReturnUrl = this.BanksCardsOperationsFilters_CascadingVal?.ReturnUrl ?? "/";
+        this.IdForProgressBar = "banksCardsOperEditF_id";
+        await this.InitCollections();
+        this.IsRender = true;
+    }
+
+    private async Task InitCollections()
+    {
+        this.RideDriverReports = (await this.api?.RideDriverReportApi?.GetRideDriverReports(this.Model.EmployeeId, this.Model.OperationDate, this.Token)) ?? new();
+    }
+
+    public override async Task StartOperation()
+    {
+        this.Message = string.Empty;
+
+        if (this.IsModelValid)
+        {
+            if (Model == null)
+            {
+                this.Title = "Предупреждение";
+                this.Message = "Ошибка, обратитесь в службу поддержки !";
+            }
+            else
+            {
+                //if (this.IsNew)
+                    //this.OperationsResult = await this.api?.FinanceApi?.(new List<BanksCardsOperation_View> { putPostModel }, this.Token);
+                //else
+                this.OperationsResult = await this.api?.FinanceApi?.PutBanksCardsOperation(Model, this.Token);
+
+                await this.ProccessingResponse();
+            }
+        }
+        else
+        {
+            this.Title = "Предупреждение";
+            this.Message = string.Concat("Сохранить изменения невозможно, пока введенные данные не будут валидны !", this.ValidErrors);
+        }
+
+        this.RenderMessage();
+    }
+
+    public override async Task ProccessingResponse()
+    {
+        if (this.IsCreate)
+        {
+            if (this.OperationsResult == null)
+            {
+                this.Message = $"{this.OperationsResult?.Result ?? "Операция закончилась с ошибкой ! Ошибка на уровне сервера !"}";
+            }
+            else
+            {
+                this.Message = $"{this.OperationsResult?.Result ?? "Операция успешно завершена ! Изменения были зафиксированы !"}";
+                this.ShouldUpdateParent = true;
+            }
+
+            this.Title = "Результат добавления операции по банковской карте";
+        }
+        else
+        {
+            var resUpd = (this.OperationsResult as ResponseSingleAction<BanksCardsOperation_iew>)?.Item ?? null;
+
+            if (resUpd == null || resUpd.Id <= 0)
+                this.Message = "Операция закончилась с ошибкой ! Ошибка на уровне сервера !" + (this.OperationsResult.Result ?? string.Empty);
+            else
+            {
+                this.Message = string.IsNullOrEmpty(this.OperationsResult.Result ?? string.Empty)
+                               ? "Операция успешно завершена ! Изменения были зафиксированы !"
+                               : this.OperationsResult.Result ?? string.Empty
+                               ;
+                this.ShouldUpdateParent = true;
+            }
+
+            this.Title = "Результат редактирования операции по банковской карте";
+        }
+    }
+}

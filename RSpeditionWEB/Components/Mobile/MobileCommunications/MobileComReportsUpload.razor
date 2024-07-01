@@ -1,0 +1,189 @@
+﻿@inject IApies api
+@inject NavigationManager navMan
+@inherits UploadFilesBaseParent<MobileReport, Communication, Communication>
+@implements ICSSClassFromParent
+
+@{
+    var labelFuelCard_Operator = this.ModelsType?.GetCustomDisplayValues(nameof(this.Model.Operator)).Item1;
+    var labelFuelCard_Division = this.ModelsType?.GetCustomDisplayValues(nameof(this.Model.DivisionId)).Item1;
+    var labelFuelCard_Year = this.ModelsType?.GetCustomDisplayValues(nameof(this.Model.Year)).Item1;
+    var labelFuelCard_Month = this.ModelsType?.GetCustomDisplayValues(nameof(this.Model.Month)).Item1;
+}
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        <EditForm EditContext=@this.EditContext>
+            <div class="flexRowCenter">
+                <DataAnnotationsValidator />
+                <div class="flexColumn">
+                    <div>
+                        <label_small_black>
+                            @labelFuelCard_Operator
+                        </label_small_black>
+                    </div>
+                    <div>
+                        <InputSelect TValue="string"
+                                     @bind-Value="@this.Model.Operator"
+                                     @oninput="@((ChangeEventArgs arg) => { if(!string.IsNullOrEmpty(arg?.Value?.ToString() ?? string.Empty))
+                                                                                this.Model.Operator = this.Model?.Operators?.FirstOrDefault(_ => _ == (arg?.Value?.ToString() ?? string.Empty)) ?? string.Empty;
+                                                                            else this.Model.Operator = default; })">
+                            @foreach (var oper in this.Model?.Operators)
+                            {
+                                <option value="@oper">@oper</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="validation-message">
+                        @this.GetPropsValidMessage(nameof(this.Model.DivisionId))
+                    </div>
+                </div>
+                <div class="flexColumn">
+                    <div>
+                        <label_small_black>
+                            @labelFuelCard_Division
+                        </label_small_black>
+                    </div>
+                    <div>
+                        <InputSelect TValue="int"
+                                     @bind-Value="@this.Model.DivisionId"
+                                     @oninput="@((ChangeEventArgs arg) => { if(int.TryParse(arg?.Value?.ToString() ?? "0", out var val))
+                                                                                this.Model.DivisionId = this.MobileComOperationsContainerCascadingParameter?.MobileComCascadingParameter?.Divisions?.FirstOrDefault(_ => _.Id == val)?.Id ?? default;
+                                                                            else this.Model.DivisionId = default; })">
+                            @foreach (var div in this.MobileComOperationsContainerCascadingParameter?.MobileComCascadingParameter?.Divisions)
+                            {
+                                <option value="@div.Id">@div.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="validation-message">
+                        @this.GetPropsValidMessage(nameof(this.Model.DivisionId))
+                    </div>
+                </div>
+                <div class="flexColumn">
+                    <div>
+                        <label_small_black>
+                            @labelFuelCard_Month
+                        </label_small_black>
+                    </div>
+                    <div>
+                        <InputSelect TValue="int"
+                                 @bind-Value="@this.Model.Month"
+                                 @oninput="@((ChangeEventArgs arg) => {if(int.TryParse(arg?.Value?.ToString() ?? "1", out var val))
+                                                                                 this.Model.Month = val;
+                                                                               else this.Model.Month = 1; })">
+                            @foreach (var month in this.Model?.PeriodMonth)
+                            {
+                                <option value="@month">@month.GetStringMonth()</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="validation-message">
+                        @this.GetPropsValidMessage(nameof(this.Model.Month))
+                    </div>
+                </div>
+                <div class="flexColumn">
+                    <div>
+                        <label_small_black>
+                            @labelFuelCard_Year
+                        </label_small_black>
+                    </div>
+                    <div>
+                        <InputSelect TValue="int"
+                                 @bind-Value="@this.Model.Year"
+                                 @oninput="@((ChangeEventArgs arg) => { if(int.TryParse(arg?.Value?.ToString() ?? DateTime.Now.Year.ToString(), out var val))
+                                                                                    this.Model.Year = val;
+                                                                                else this.Model.Year = DateTime.Now.Year; })">
+                            @foreach (var year in this.Model?.PeriodYear)
+                            {
+                                <option value="@year">@year</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="validation-message">
+                        @this.GetPropsValidMessage(nameof(this.Model.Year))
+                    </div>
+                </div>
+            </div>
+            <div class="flexRowCenter">
+                <UploadFiles CallParentToStartOperation="@(async() => {await this.ReactClickOnUploadFiles(); })"
+                             SendToParentSelectedFile="@(async(string filepath) => { this.Model.FilePath = filepath ?? string.Empty;
+                                                                                     this.Model?.InitContent(); })"
+                             SendWarningMessageToParent="@((string error) => {this.Message = error ?? string.Empty;
+                                                                              this.Title = "Предупреждение";
+                                                                              this.ShowError = true;})" />
+            </div>
+        </EditForm>
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка ..." />
+    }
+
+    @if (this.ShowError)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                      InvokeParentHandlerwithUpdParent="@(async () => { this.ShowError = false; })">
+            <ResultOperation ResMessage="@this.Message"
+                             Devider="'!'"
+                             ResList="null" />
+        </ModalWindowWithEventCallback>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    [CascadingParameter]
+    protected MobileComOperationsContainer MobileComOperationsContainerCascadingParameter { get; set; }
+
+    public override string ClassForUploadForm => this.IsModelValid
+                                                    ?
+                                                    ""
+                                                    :
+                                                    "non-active"
+                                                    ;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IdForProgressBar = "MobCommunicUplRep_id";
+    }
+
+    protected override async Task InitializeCollections() => this.ResetToStartValues();
+
+    private void ResetToStartValues()
+    {
+        this.Model = new();
+        this.Model.Month = DateTime.Now.Month == 1 ? 12 : DateTime.Now.Month  - 1;
+        this.Model.Year = DateTime.Now.Month == 1 ? DateTime.Now.Year - 1 : DateTime.Now.Year;
+        this.Model.DivisionId = this.MobileComOperationsContainerCascadingParameter?.MobileComCascadingParameter?.Divisions?.FirstOrDefault()?.Id ?? default;
+        this.Model.Operator = this.Model.Operators?.FirstOrDefault() ?? string.Empty;
+    }
+
+    public override async Task StartOperation()
+    => this.OperationsResult = await this.api?
+                                             .MobileApi?
+                                             .UploadMobileReport(this.Model, token: this.Token);
+
+    public override async Task ProccessingResponse()
+    {
+        if (this.InvokeParentHendlerResponseBaseAfterAction.HasDelegate)
+            await InvokeParentHendlerResponseBaseAfterAction.InvokeAsync(this.OperationsResult);
+    }
+
+    protected override (bool, string) ValidateModel()
+    {
+        var check1 = this.Model?.CheckModelIsValid();
+        var check3 = !string.IsNullOrEmpty(this.Model?.FilePath ?? string.Empty);
+        var errors = string.Empty;
+
+        if (!check3)
+            errors = $"Файл отчета не загружен ! ";
+
+        return (
+                   check1.HasValue && check1.Value.isValid && check3,
+                   (check1.HasValue ? check1.Value.errors?.ConvertListToString('!') : string.Empty) +  errors
+               );
+    }
+}

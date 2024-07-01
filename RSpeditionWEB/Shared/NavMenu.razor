@@ -1,0 +1,92 @@
+﻿@inject IConfiguration config
+@inject NavigationManager navManager
+@inject ProtectedSessionStorage sessionStore
+@inherits ComponentBaseClass
+
+<CascadingAuthenticationState>
+    <div id="nav" class="nav">
+        <AuthorizeView>
+            <Authorized>
+                <div class="icon">
+                    <ul>
+                        <li>
+                            <a title="Главная" @onclick="@(() => { this.navManager.NavigateTo(this.navManager?.BaseUri ?? "/", true); })">
+                                <img src="/css/open-iconic/icon/house.png" class="img_logo" />
+                            </a>
+                        </li>
+                        <li>
+                            <a title="Топливо" @onclick="@(() => { this.navManager.NavigateTo("/FuelCardsCont", true); })">
+                                <img src="/css/open-iconic/icon/gas-station.png" class="img_logo" />
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="text">
+                    <ul>
+                        <li>
+                            <a title="Главная" @onclick="@(() => { this.navManager.NavigateTo(this.navManager?.BaseUri ?? "/", true); })">
+                                Главная
+                            </a>
+                        </li>
+                        <li>
+                            <a title="Топливо" @onclick="@(() => { this.navManager.NavigateTo("/FuelCardsCont", true); })">
+                                Топливо
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="info">
+                    <div class="logo">
+                        <img src="/css/open-iconic/icon/r_logo.png"
+                             class="img_logo" />
+                    </div>
+                    <div class="name">R-Group</div>
+                    <div class="quote">
+                        @if (!string.IsNullOrEmpty(this.User) && !string.IsNullOrWhiteSpace(this.User))
+                        {
+                            @this.User
+                        }
+                    </div>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="icon">
+                    <ul>
+                        <li>
+                            <a title="Главная" @onclick="@(() => { this.navManager.NavigateTo(this.navManager?.BaseUri ?? "/", true); })">
+                                <img src="/css/open-iconic/icon/house.png" class="img_logo" />
+                            </a>
+                        </li>
+                        <li>
+                            <a title="Топливо" @onclick="@(() => { this.navManager.NavigateTo(this.navManager?.BaseUri ?? "/", true); })">
+                                <img src="/css/open-iconic/icon/gas-station.png" class="img_logo" />
+                            </a>
+                        </li>
+                        <li>
+                            <a title="Вход" @onclick="@(() => { this.navManager.NavigateTo(this.navManager?.BaseUri ?? "/", true); })">
+                                <img src="/css/open-iconic/icon/door.png" class="img_logo" />
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="text">
+                    <ul>
+                        <li><a title="Главная" @onclick="@(() => { this.navManager.NavigateTo(this.navManager?.BaseUri ?? "/", true); })">Главная</a></li>
+                        <li><a title="Топливо" @onclick="@(() => { this.navManager.NavigateTo(this.navManager?.BaseUri ?? "/", true); })">Топливо</a></li>
+                        <li><a title="Вход" @onclick="@(() => { this.navManager.NavigateTo(this.navManager?.BaseUri ?? "/", true); })">Вход</a></li>
+                    </ul>
+                </div>
+                <div class="info">
+                    <div class="logo">
+                        <img src="/css/open-iconic/icon/r_logo.png"
+                             class="img_logo" />
+                    </div>
+                    <div class="name">R-Group</div>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</CascadingAuthenticationState>
+
+@code {
+}

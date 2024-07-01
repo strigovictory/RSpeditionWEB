@@ -1,0 +1,82 @@
+﻿@inherits ComponentBaseClass
+
+    @if(this.IsRender)
+    {
+        <div class="@this.TextAlign">
+            @if(this.IsNumberedList)
+            {
+                <ol>
+                    @foreach (var res in this.ResListConverted ?? new())
+                    {
+                        <li>
+                            @res
+                        </li>
+                    }
+                </ol>
+            }
+            else
+            {
+                <ul style="@ListStyleTypeName">
+                    @foreach (var res in this.ResListConverted ?? new())
+                    {
+                        <li>
+                            @res
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка ..." />
+    }
+
+@code {
+    // Разновидность списка - маркированный или нумерованный
+    [Parameter]
+    public bool IsNumberedList { get; set; }
+
+    [Parameter]
+    // Статусное сообщение (сигнализирует об исходе операции)
+    public string ResMessage { get; set; }
+
+    [Parameter]
+    // Разделитель
+    public char Devider { get; set; }
+
+    [Parameter]
+    // Статусное сообщение (сигнализирует об исходе операции)
+    public List<string> ResList { get; set; }
+
+    [Parameter]
+    public string TextAlign { get; set; } = "result_operation_left";
+
+    [Parameter]
+    public string ListStyleType { get; set; }
+
+    private string ListStyleTypeName => string.IsNullOrEmpty(this.ListStyleType) ? string.Empty : $"list-style-type: {this.ListStyleType ?? "none"};";
+
+    // Коллекция строк, которую нужно отобразить с новой строки
+    private List<string> ResListConverted { get; set; } = new List<string>();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        this.InitValues();
+        this.IsRender = true;
+    }
+
+    private void InitValues()
+    {
+        if (!string.IsNullOrEmpty(this.ResMessage))
+        {
+            this.ResListConverted = this.ResMessage.ConvertStringToList(this.Devider);
+        }
+
+        else if (this.ResList != null && this.ResList.Count > 0)
+        {
+            this.ResListConverted = this.ResList;
+        }
+    }
+}

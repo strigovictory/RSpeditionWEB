@@ -1,0 +1,88 @@
+﻿@typeparam T
+@inherits ScaffoldJCParentBase<T>
+@implements IDisposable
+
+<CascadingValue Value="@this">
+        @*Таблица*@
+        @if (this.IsRender)
+        {
+        <div class="flexRowSpaceBetween">
+            <div class="flexRowSpaceBetweenInnerLeft">
+                <div>
+                    <button type="button"
+                            class="restart_btn"
+                            title="Обновить данные"
+                            @onclick="@(async() => { await ParentComponent.UpdateAfterAction(); })" />
+                </div>
+                <div>
+                    <button type="button"
+                            class="filters_reset_btn"
+                            title="Снять все фильтры"
+                            @onclick="@(async() => { await ClearTableSearchFilters(); })" />
+                </div>
+                <div>
+                    <button type="button"
+                            class="search_btn"
+                            title="@LabelOnButtonSearch"
+                            @onclick="@(() => { IsRenderSearch = IsRenderSearch ? false : true;
+                                                if(!IsRenderSearch)
+                                                    ParentComponent.ReactOnSearch(ParentComponent.GetFilteredTItems()); })" />
+                </div>
+                @*Поиск*@
+                @if (IsRenderSearch)
+                {
+                    var labelForSearchTransaction = "Поиск по всем полям";
+                    <div>
+                        <SearchTItemsAcrossAllProps @ref="@SearchTItemsAcrossAllPropsRef"
+                                                     LabelForSearch="@labelForSearchTransaction"
+                                                     Placeholder="@labelForSearchTransaction"
+                                                     GetObjItems="@(() => ParentComponent.GetFilteredTItems()?.Cast<object>()?.ToList() ?? new())"
+                                                     SendToParentFoundAndSelectedItems="@((List<T> searchedItems) => ParentComponent.ReactOnSearch(searchedItems))" />
+                    </div>
+                }
+            </div>
+            <div class="flexRowSpaceBetweenInnerRight">
+                <button type="button"
+                        class="btn_tree"
+                        @onclick="(() => { if(ScaffoldJCTableRef != null) ScaffoldJCTableRef.IsGroupByZoneRender = ScaffoldJCTableRef.IsGroupByZoneRender ? false : true; })"
+                        title="@((ScaffoldJCTableRef?.IsGroupByZoneRender ?? true) ? "Отменить группировку" :  "Отобразить зону для группировки")" />
+            </div>
+        </div>
+
+        <div class="pressed">
+            @*Табличная часть*@
+            <ScaffoldJCTable T=T
+                             @ref="@ScaffoldJCTableRef"
+                             NumbersFormat="@this.NumbersFormat"
+                             SendToParentSelectedItem="@(async(T item) => {if(this.SendToParentSelectedItem.HasDelegate)
+                                                                                      await this.SendToParentSelectedItem.InvokeAsync(item);})"
+                             SendToParentSelectedItemRightClick="@(async(CoordinateClass<T> item) => {if(this.SendToParentSelectedItemRightClick.HasDelegate)
+                                                                                                                   await this.SendToParentSelectedItemRightClick.InvokeAsync(item);})" />
+            @if (this.ParentComponent.IsRenderSortWindow)
+            {
+                <ModalWindowWithEventCallback Title="Групповая сортировка"
+                                              InvokeParentHandlerwithUpdParent="@(async () => { this.ParentComponent.IsRenderSortWindow = false; })">
+                    <SortingBaseInner T="T"
+                                      LinkedListToSort="@this.ParentComponent.PropToSorting"
+                                      EventCallbackSendParentLinkedListAfterSorting="@(async (LinkedList<(Func<T, object> keySelector, string prop, SortOrder sort, bool isToSort)> props)
+                                          => { this.ParentComponent.IsRenderSortWindow = false;
+                                               this.ParentComponent.PropToSorting = new(props);
+                                               this.ParentComponent.StartOrdering(); })" />
+                </ModalWindowWithEventCallback>
+            }
+        </div>
+        }
+        else
+        {
+            <div id="@this.IdForProgressBar" style="display: none;"> 
+                <ProgressBar />
+            </div>
+        }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+        
+@code {
+}

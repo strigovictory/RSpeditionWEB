@@ -1,0 +1,444 @@
+﻿@using RSpeditionWEB.Models.RequestModels;
+@using RSpeditionWEB.Validation;
+@inject IFuelApies api
+@inherits ObjItemsEventBase
+@inject NavigationManager navMan
+@inject IMapper mapper
+
+<CascadingValue Value="@this">
+@if (this.IsRender)
+{
+    FuelTransactionFullResponse tranz = new();
+    var typeTranz = tranz.GetType();
+    var labelTranz_TransactionID = typeTranz.GetCustomDisplayValues(nameof(tranz.TransactionID)).Item2 ?? string.Empty;
+    var labelTranz_OperationDate = typeTranz.GetCustomDisplayValues(nameof(tranz.OperationDate)).Item2 ?? string.Empty;
+    var labelTranz_Quantity = typeTranz.GetCustomDisplayValues(nameof(tranz.Quantity)).Item2 ?? string.Empty;
+    var labelTranz_Cost = typeTranz.GetCustomDisplayValues(nameof(tranz.Cost)).Item2 ?? string.Empty;
+    var labelTranz_TotalCost = typeTranz.GetCustomDisplayValues(nameof(tranz.TotalCost)).Item2 ?? string.Empty;
+    var labelTranz_IsCheck = typeTranz.GetCustomDisplayValues(nameof(tranz.IsCheck)).Item2 ?? string.Empty;
+    var labelTranz_CardType = typeTranz.GetCustomDisplayValues(nameof(tranz.ProviderName)).Item2 ?? string.Empty;
+    var labelTranz_FuelType = typeTranz.GetCustomDisplayValues(nameof(tranz.FuelTypeName)).Item2 ?? string.Empty;
+    var labelTranz_Currency = typeTranz.GetCustomDisplayValues(nameof(tranz.CurrencyName)).Item2 ?? string.Empty;
+    var labelTranz_Card = typeTranz.GetCustomDisplayValues(nameof(tranz.CardName)).Item2 ?? string.Empty;
+    var labelTranz_Country = typeTranz.GetCustomDisplayValues(nameof(tranz.CountryName)).Item2 ?? string.Empty;
+    <div class="form">
+        <EditForm EditContext=@this.TranzactionEditContext>
+            <DataAnnotationsValidator />
+                <input type="hidden" @bind-value="@this.Model.Id" />
+                <div>
+                    <div class="form_label">@labelTranz_OperationDate</div>
+                    <div>
+                        <InputDateTime DateTimeFromParent="@this.Model.OperationDate" 
+                                       SendToParent_SelectedDateTime="@((DateTime? date) => 
+                                                                                            {
+                                                                                                DateTime res = default;
+
+                                                                                                if (!date.HasValue)
+                                                                                                {
+                                                                                                    this.ManualValidationMessageOperationDate = "Неверный формат даты";
+                                                                                                }
+                                                                                                else
+                                                                                                {
+                                                                                                    this.ManualValidationMessageOperationDate = string.Empty;
+                                                                                                    res = date.Value;
+                                                                                                }
+                                                                                                this.Model.OperationDate = res;
+                                                                                                this.ValidateModel();
+                                                                                            })" />
+                    </div>
+                    <div class="validation-message">@this.ManualValidationMessageOperationDate</div>
+                    <div class="validation-message">@(this.GetValidationMessageForProp(nameof(this.Model.OperationDate)))</div>
+                </div>
+                <div>
+                    <div class="form_label">@labelTranz_TransactionID</div>
+                    <div>
+                        <InputTextArea class="form-control" @bind-Value="this.Model.TransactionID" @oninput="@(() => this.ValidateModel())"/>
+                    </div>
+                    <ValidationMessage For="@(() => this.Model.TransactionID)" class="validation-message" />
+                </div>
+                <div>
+                    <div class="form_label">@labelTranz_Quantity</div>
+                    <div>
+                        <InputNumber class="form-control"
+                                     TValue="decimal?"
+                                     Value="@Model.Quantity" 
+                                     ValueExpression="@(() => Model.Quantity)"
+                                     ValueChanged="@((decimal? val) => { this.Model.Quantity = val.HasValue ? val.Value.RoundingDecimal(2) : 0M;
+                                                                         this.ValidateModel(); })" />
+                    </div>
+                    <ValidationMessage For="@(() => this.Model.Quantity)" class="validation-message" />
+                    <div class="validation-message">@(this.GetValidationMessageForProp(nameof(this.Model.Quantity)))</div>
+                </div>
+                <div>
+                    <div class="form_label">@labelTranz_Cost</div>
+                    <div>
+                        <InputNumber TValue="@(decimal?)"
+                                     class="form-control"
+                                     Value="@this.Model.Cost"
+                                     ValueExpression="@(() => Model.Cost)"
+                                     ValueChanged="@((decimal? val) => { this.Model.Cost = val.HasValue ? val.Value.RoundingDecimal(3) : null;
+                                                                         this.ValidateModel(); })" />
+                    </div>
+                    <ValidationMessage For="@(() => this.Model.Cost)" class="validation-message" />
+                </div>
+                <div>
+                    <div class="form_label">@labelTranz_TotalCost:</div>
+                    <div>
+                        <InputNumber TValue="@(decimal?)"
+                                     class="form-control"
+                                     Value="@this.Model.TotalCost"
+                                     ValueExpression="@(() => Model.TotalCost)"
+                                     ValueChanged="@((decimal? val) => { this.Model.TotalCost = val.HasValue ? val.Value.RoundingDecimal(3) : null;
+                                                                         this.ValidateModel(); })" />
+                    </div>
+                    <ValidationMessage For="@(() => this.Model.TotalCost)" class="validation-message" />
+                </div>
+                <div>
+                    <div class="form_label">@labelTranz_IsCheck</div>
+                        @if(this.Model.IsCheck)
+                        {
+                            <div class="squaredOne">
+                                <input type="checkbox"
+                                       checked
+                                       id="tranz_CreateSingleForm_id_1"
+                                       @bind-value="@this.Model.IsCheck" 
+                                       @oninput="@(() => this.ValidateModel())"/>
+                                <label for="tranz_CreateSingleForm_id_1"></label>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="squaredOne">
+                                <input type="checkbox"
+                                       id="tranz_CreateSingleForm_id_2"
+                                       @bind-value="@this.Model.IsCheck" 
+                                       @oninput="@(() => this.ValidateModel())"/>
+                                <label for="tranz_CreateSingleForm_id_2"></label>
+                            </div>
+                        }
+                    <ValidationMessage For="@(() => this.Model.IsCheck)" class="validation-message" />
+                </div>
+                <div>
+                    <div class="form_label">@labelTranz_CardType</div>
+                    <div>
+                        <InputSelect @bind-Value="this.Model.ProviderId"
+                                     @oninput="@((ChangeEventArgs arg) => { this.Model.ProviderId = Int32.Parse(arg.Value.ToString());
+                                                                            this.ValidateModel();
+                                                                            this.StartObjItemsChangedEvent();})">
+                            @if (this.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.FuelProviders?.Count == 0)
+                            {
+                                <option disabled selected>В системе не зарегистрированно ни одного провайдера топлива</option>
+                            }
+                            else
+                            {
+                                <option value=0>@labelTranz_CardType</option>
+                                @foreach (var provider in this.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.FuelProviders?.OrderBy(_ => _.Name)?.ToList() ?? new())
+                                {
+                                    <option value="@provider.Id">@(provider?.Name ?? string.Empty)</option>
+                                }
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="validation-message">@(this.GetValidationMessageForProp(nameof(this.Model.ProviderId)))</div>
+                </div>
+                <div>
+                    <div class="form_label">@labelTranz_Currency</div>
+                    <div>
+                        <InputSelect @bind-Value="this.Model.CurrencyId" @oninput="@(() => this.ValidateModel())">
+                            @if (this.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.Currencies?.Count == 0)
+                            {
+                                <option disabled selected>В системе не зарегистрированно ни одной валюты</option>
+                            }
+                            else
+                            {
+                                <option value=0>@labelTranz_Currency</option>
+                                @foreach (var currency in this.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.Currencies?.OrderBy(_ => _.Name)?.ToList() ?? new())
+                                {
+                                    <option value="@currency.Id">@(currency?.Name ?? string.Empty)</option>
+                                }
+                            }
+                        </InputSelect>
+                    </div>
+                    <ValidationMessage For="@(() => this.Model.CurrencyId)" class="validation-message" />
+                </div>
+                <div>
+                    <div class="form_label">@labelTranz_FuelType</div>
+                    <div>
+                        <InputSelect @bind-Value="this.Model.FuelTypeId" @oninput="@(() => this.ValidateModel())">
+                            @if (this.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.FuelCategories?.Count == 0)
+                            {
+                                <option disabled selected>В системе не зарегистрированно ни одной разновидности услуг</option>
+                            }
+                            else
+                            {
+                                <option value=0>@labelTranz_FuelType</option>
+                                @foreach (var category in this.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.FuelCategories?.OrderBy(_ => _.Name)?.ToList() ?? new())
+                                {
+                                    <option value="@category.Id">@(category?.Name ?? string.Empty)</option>
+                                }
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="validation-message">@(this.GetValidationMessageForProp(nameof(this.Model.FuelTypeId)))</div>
+                </div>
+                <div>
+                    <div class="form_label">@labelTranz_Card</div>
+                    <div class ="flexColumnCenter">
+                        @{
+                            FuelCardFullModel fuelCard = new();
+                            var typeFuelCard = fuelCard.GetType();
+                            var propsFuelCard = new List<PropertyInfo> { typeFuelCard.GetProperty(nameof(fuelCard.Number)) };
+                            var textPropFuelCard = typeFuelCard.GetProperty(nameof(fuelCard.Number));
+                            var tempAttrFuelCard = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.Number));
+                            var labelForSearchFuelCard = tempAttrFuelCard.Item1 ?? string.Empty;
+                            var card = this.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.Cards?.FirstOrDefault(_ => _.Id == (this.Model?.CardId ?? 0)) ?? null;
+                            var initPar = card == null ? null : new List<FuelCardFullModel> { card };
+                            var placeholderFuelCard = this.IsNew ? tempAttrFuelCard.Item2 ?? string.Empty : card?.Number ?? tempAttrFuelCard.Item2;
+                            var getCardsBySelectedFuelProvider = () => this.Model.ProviderId > 0 
+                            ?
+                            this.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.Cards?.Where(_ => _.ProviderId == this.Model.ProviderId)?.OrderBy(_ => _.Number)?.ToList() ?? new()
+                            :
+                            this.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.Cards?.OrderBy(_ => _.Number)?.ToList() ?? new();
+                        }
+                        <SearchSelectTItems Items="@(getCardsBySelectedFuelProvider())"
+                                                         T="@FuelCardFullModel"
+                                                         KeyPropInfo="@(typeFuelCard.GetProperty(nameof(fuelCard.Id)))"
+                                                         MaxSizeSelect="4"
+                                                         InitParameters="@initPar"
+                                                         LabelForSearch="@labelForSearchFuelCard"
+                                                         Placeholder="@placeholderFuelCard"
+                                                         IsMultiple="@false"
+                                                         PropertiesInfoForSearch="@propsFuelCard"
+                                                         TextProperty="@textPropFuelCard"
+                                                         GetObjItems="@(() => getCardsBySelectedFuelProvider()?.Cast<object>()?.ToList())"
+                                                         SendToParentFoundAndSelectedItems="@((List<FuelCardFullModel> selectedItems) => {
+                                                                                                    if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                        this.Model.CardId = selectedItems?.FirstOrDefault()?.Id ?? 0;
+                                                                                                    else
+                                                                                                        this.Model.CardId = 0;
+                                                                                                })"/>
+
+                    </div>
+                    <div class="validation-message">@(this.GetValidationMessageForProp(nameof(this.Model.CardId)))</div>
+                </div>
+                <div>
+                    <div class="form_label">@labelTranz_Country</div>
+                    <div>
+                        <InputSelect @bind-Value="this.Model.CountryId" @oninput="@(() => this.ValidateModel())">
+                            @if (this.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.Countries?.Count == 0)
+                            {
+                                <option disabled selected>В системе не зарегистрированно ни одной страны</option>
+                            }
+                            else
+                            {
+                                <option value=0>@labelTranz_Country</option>
+                                @foreach (var country in this.FuelTranzJournalCascadingVal?.FuelCardsCascadingParameter?.Countries?.OrderBy(_ => _.Name)?.ToList() ?? new())
+                                {
+                                    <option value="@country.Id">@(country.Name ?? string.Empty)</option>
+                                }
+                            }
+                        </InputSelect>
+                    </div>
+                    <ValidationMessage For="@(() => this.Model.CountryId)" class="validation-message" />
+                </div>
+                <div>
+                    <ButtonDouble EventCallbackToParent="@(async () => { await this.CreateUpdateItem(); })"
+                                  EventCallbackToParentReset="@(async () => { this.MembersInitialization(); })"
+                                  LabelForButton="Сохранить"
+                                  LabelForButtonReset="Отмена"
+                                  IsActive="@(this.Model.CheckModelIsValid().Item1 && string.IsNullOrEmpty(this.ManualValidationMessageOperationDate))"
+                                  TitleIfIsNonActive="Сохранение возможно, если данные валидны"
+                                  TitleIfIsActive="Кликните, чтобы сохранить изменения"
+                                  TitleReset="Кликните, чтобы отменить внесенные изменения"
+                                  IsRenderActionButton="@(IsUserHasFuelRoleInHierarchy(FuelRoles.Fuel_Provisioner))">
+                    </ButtonDouble>
+                </div>
+        </EditForm>
+    </div>
+}
+else
+{
+    <ProgressBarInner TitleProcess="Идет загрузка ..." />
+}
+
+@if (this.ShowMessage)
+{
+    <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { 
+                                                                                        if(this.IsNew)
+                                                                                        {
+                                                                                            if (this.ShouldUpdateParent)
+                                                                                                await this.InvokeParentHendlerAfterCreating.InvokeAsync(this.Model);
+                                                                                            else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                                await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                                        }
+                                                                                        else
+                                                                                        {
+                                                                                            if (this.ShouldUpdateParent)
+                                                                                                await this.InvokeParentHendlerAfterUpd.InvokeAsync(this.Model);
+                                                                                            else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                                await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                                        }
+                                                                                  })">
+        <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@this.Message">
+        </ResultOperation>
+    </ModalWindowWithEventCallback>
+}
+     <div id="@this.IdForProgressBar" style="display: none;">
+         <ProgressBar />
+     </div>
+</CascadingValue>
+
+
+@code {
+    [CascadingParameter]
+    public FuelTranzJournal FuelTranzJournalCascadingVal { get; set; }
+
+    [Parameter]
+    public FuelTransactionFullResponse Tranzaction{ get; set; }
+
+    private FuelTransactionFullResponse tranzactionModel;
+    private FuelTransactionFullResponse Model
+    {
+        get => this.tranzactionModel;
+        set
+        {
+            this.tranzactionModel = value;
+            this.TranzactionEditContext = new(this.Model);
+        }
+    }
+    private bool IsNew => this.Tranzaction == null || this.Tranzaction?.Id == 0;
+
+    // Контекст формы
+    private EditContext TranzactionEditContext;
+
+    private bool IsModelValid { get; set; }
+
+    private string ManualValidationMessageOperationDate{ get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        this.ReturnUrl = this.FuelTranzJournalCascadingVal?.ReturnUrl ?? "/";
+        await base.OnInitializedAsync();
+        this.MembersInitialization();
+        this.IsRender = true;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        this.ValidateModel();
+    }
+
+    private void ValidateModel() => this.IsModelValid = this.Model.CheckModelIsValid().Item1;
+
+    /// <summary>
+    /// Инициализация членов компонента первоначальными значениями
+    /// </summary>
+    private void MembersInitialization()
+    {
+        if(this.IsNew)
+        {
+            this.Model = new();
+            this.Model.OperationDate = DateTime.Today;
+        }
+        else
+            this.Model = this.Tranzaction?.Clone_FuelCardsTranz() ?? null;
+
+        this.ManualValidationMessageOperationDate = string.Empty;
+    }
+
+    private string GetValidationMessageForProp(string prop)
+    {
+        var res = this.TranzactionEditContext
+                                             .GetValidationMessages(this.TranzactionEditContext.Field(nameof(prop)))?
+                                             .ToList()?
+                                             .ConvertListToString()
+                                             ??
+                                             string.Empty
+                                             ;
+
+        if (string.IsNullOrEmpty(res))
+        {
+            res = this.Model.CheckPropertyModelIsValid(prop).Item2?.ConvertListToString() ?? string.Empty;
+        }
+
+        return res;
+    }
+
+    private async Task CreateUpdateItem()
+    {
+        if(this.Model.CurrencyId == 0)
+            this.Model.CurrencyId = null;  
+
+        if(this.Model.CountryId == 0)
+            this.Model.CountryId = null;
+
+        var isValid = this.Model.CheckModelIsValid();
+
+        if (isValid.Item1)
+        {
+            ResponseBase res = null;
+            if(this.IsNew)
+            {
+                res = await this.api?.FuelTransactionApi?.PostTransactions(
+                    new RequestGroupAction<FuelTransactionResponse>(
+                        User, new List<FuelTransactionResponse> { Mapper.Map<FuelTransactionResponse>(this.Model) }), this.Token);
+                this.Title = "Результат добавления транзакции";
+
+                if (res != null
+                    && res != default)
+                {
+                    if (res is ResponseGroupActionDetailed<FuelTransactionShortResponse, FuelTransactionShortResponse> response
+                        && (response.SuccessItems?.Any() ?? false))
+                    {
+                        this.ShouldUpdateParent = true;
+                        Message = res.Result ?? $"Операция успешно завершена ! ";
+                    }
+                    else if (res is ResponseGroupActionDetailed<FuelTransactionShortResponse, FuelTransactionShortResponse> resp
+                        && !(resp.NotSuccessItems?.Any() ?? false))
+                    {
+                        Message = res.Result ?? $"Операция закончилась с ошибкой ! Попробуйте снова ! ";
+                    }
+                }
+                else
+                {
+                    this.Message = $"Операция закончилась с ошибкой ! Попробуйте снова !";
+                }
+            }
+            else
+            {
+                res = await this.api?.FuelTransactionApi?.PutTransaction(
+                    new RequestSingleAction<FuelTransactionResponse>(User, Mapper.Map<FuelTransactionResponse>(this.Model)), this.Token);
+                this.Title = "Результат редактирования транзакции";
+
+                if (res != null 
+                    && res != default)
+                {
+                    if (res is ResponseSingleAction<FuelTransactionShortResponse> response
+                        && (response.Item?.Id ?? 0) > 0)
+                    {
+                        this.ShouldUpdateParent = true; 
+                        Message = res.Result ?? $"Операция успешно завершена ! ";
+                    }
+                    else
+                    {
+                        Message = res.Result ?? $"Операция закончилась с ошибкой ! Попробуйте снова ! ";
+                    }
+                }
+                else
+                {
+                    this.Message = $"Операция закончилась с ошибкой ! Попробуйте снова ! ";
+                }
+            }
+        }
+        else
+        {
+            this.Message = string.Concat("Сохранить изменения невозможно, пока введенные данные не будут валидны !", isValid.Item2?.ConvertListToString());
+        }
+
+        this.RenderMessage();
+    }
+}

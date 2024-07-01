@@ -1,0 +1,103 @@
+﻿@page "/MobileComChart"
+@inject IApies api
+@inherits ScaffoldChartBase<decimal>
+
+
+<CascadingValue Value="@this">
+    <div style="text-align: center;">
+        <p class="my-h1 inner-light-shadow">@this.Title</p>
+    </div>
+    <br />
+    @if (this.IsRender)
+    {
+        <ScaffoldChart T="decimal"
+                       @ref="@this.ScaffoldChartRef" />
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка ..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync(); 
+        this.Title = "Статистика по мобильным коммуникациям";
+    }
+
+    protected override List<string> Init_ObjectsNames()
+    => new List<string> { "Стоимость коммуникаций" };
+
+    protected override List<string> Init_CategoriesNames()
+        => this.ChartsParameters.ObjectName switch
+        {
+            "Стоимость коммуникаций" => new List<string> { "Разновидность коммуникаций",
+                                                           "Период коммуникаций, год",
+                                                           "Период коммуникаций, месяц"},
+            _ => new()
+        };
+
+    protected override List<string> Init_SubCategoriesNames()
+         => this.ChartsParameters.ObjectName switch
+         {
+             _ => new()
+         };
+
+    protected override async Task InitChartModel()
+    => this.ChartModel = this.ChartKind switch
+    {
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line 
+        when this.ChartsParameters.CategoryName == "Разновидность коммуникаций"
+        => await this.InitPlotlyChartSimple_TotalSumByComKind(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line 
+        when this.ChartsParameters.CategoryName == "Период коммуникаций, год"
+        => await this.InitPlotlyChartSimple_TotalSumByPeriodYear(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line
+        when this.ChartsParameters.CategoryName == "Период коммуникаций, месяц"
+        => await this.InitPlotlyChartSimple_TotalSumByPeriodMonth(),
+        _ => null
+    };
+
+    private async Task<PlotlyChartBase<decimal>> InitPlotlyChartSimple_TotalSumByComKind()
+    {
+        var source = await this.GetDataValues_TotalSum_TotalSumByComKind();
+        return new PlotlyChartSimple<decimal>
+            {
+                ChartName =  this.ChartsParameters.ObjectName,
+                DataValues = source?.Values ?? new(),
+                DataNames = source?.Names ?? new()
+            };
+    }
+
+    private async Task<ResponseForChart<decimal>> GetDataValues_TotalSum_TotalSumByComKind()
+        => await this.api?.MobileApi?.GetMobComByKind(this.Token);
+
+    private async Task<PlotlyChartBase<decimal>> InitPlotlyChartSimple_TotalSumByPeriodYear()
+    {
+        var source = await this.GetDataValues_TotalSum_TotalSumByPeriod(true);
+        return new PlotlyChartSimple<decimal>
+            {
+                ChartName = this.ChartsParameters.ObjectName,
+                DataValues = source?.Values ?? new(),
+                DataNames = source?.Names ?? new()
+            };
+    }
+
+    private async Task<PlotlyChartBase<decimal>> InitPlotlyChartSimple_TotalSumByPeriodMonth()
+    {
+        var source = await this.GetDataValues_TotalSum_TotalSumByPeriod();
+        return new PlotlyChartSimple<decimal>
+            {
+                ChartName = this.ChartsParameters.ObjectName,
+                DataValues = source?.Values ?? new(),
+                DataNames = source?.Names ?? new()
+            };
+    }
+
+    private async Task<ResponseForChart<decimal>> GetDataValues_TotalSum_TotalSumByPeriod(bool isYear = false)
+        => await this.api?.MobileApi?.GetMobComByPeriod(this.Token, isYear);
+}

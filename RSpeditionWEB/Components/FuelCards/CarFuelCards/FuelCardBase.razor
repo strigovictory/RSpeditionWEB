@@ -1,0 +1,92 @@
+﻿@inject IApies api
+@inherits TrucksEmployeesChoiseBase<FuelCardModel>
+
+@code {
+    public class ObjectTypeModel : IId
+    {
+        public int Id { get; set; }
+
+        public string TypeName { get; set; }
+    }
+
+    public List<ObjectTypeModel> ObjectTypeModelValues
+    => new List<ObjectTypeModel>
+    {
+            new ObjectTypeModel
+            {
+                Id = -1,
+                TypeName = "Ничего не выбрано",
+            },
+            new ObjectTypeModel
+            {
+                Id = 1,
+                TypeName = "Склад",
+            },
+            new ObjectTypeModel
+            {
+                Id = 2,
+                TypeName = "Тягач",
+            },
+            new ObjectTypeModel
+            {
+                Id = 4,
+                TypeName = "Архив",
+            },
+            new ObjectTypeModel
+            {
+                Id = 5,
+                TypeName = "Водитель",
+            },
+    };
+
+
+    protected ObjectTypeModel GetObjectTypeValueByName(string name)
+    => ObjectTypeModelValues.FirstOrDefault(val => val.TypeName == name);
+
+    public ObjectTypeModel ObjectTypeModelSelected { get; set; }
+
+    protected void SetInitObjectTypeSelected() => ObjectTypeModelSelected = ObjectTypeModelValues.ElementAt(0);
+
+    // Утверждения
+    private Func<DateTime?, DateTime?, bool> ExpirationDateLaterReceiveDate
+        = delegate (DateTime? expir, DateTime? receive) { if (expir != null && receive != null) return expir?.Date >= receive?.Date; else return true; };
+
+    private Func<DateTime?, DateTime?, bool> IssueDateLaterReceiveDate
+        = delegate (DateTime? issue, DateTime? receive) { if (issue != null && receive != null) return issue?.Date >= receive?.Date; else return true; };
+
+    private Func<DateTime?, DateTime?, bool> ExpirationDateLaterIssueDate
+        = delegate (DateTime? expir, DateTime? issue) { if (issue != null && expir != null) return expir?.Date >= issue?.Date; else return true; };
+
+    protected override bool IsModelValid 
+    => string.IsNullOrEmpty(ValidationMessageReceiveDate)
+    && string.IsNullOrEmpty(ValidationMessageFuelProvider);
+
+    // Сообщения валидации дат
+    protected string ValidationMessageReceiveDate { get; set; } = string.Empty;
+    protected string ValidationMessageExpirationDate { get; set; } = string.Empty;
+    //
+    protected string ValidationMessageNumber => this.GetValidationMessageForProp(this.Model, nameof(this.Model.Number));
+    protected string ValidationMessageFullNumber => this.GetValidationMessageForProp(this.Model, nameof(this.Model.FullNumber));
+    protected string ValidationMessageCar => this.GetValidationMessageForProp(this.Model, nameof(this.Model.CarId));
+    protected string ValidationMessageDriver => this.GetValidationMessageForProp(this.Model, nameof(this.Model.EmployeeID));
+    protected string ValidationMessageNote => this.GetValidationMessageForProp(this.Model, nameof(this.Model.Note));
+    protected string ValidationMessageFuelProvider => this.GetValidationMessageForProp(this.Model, nameof(this.Model.ProviderId));
+    protected string ValidationMessageDivision => this.GetValidationMessageForProp(this.Model, nameof(this.Model.DivisionID));
+
+    /// <summary>
+    /// Метод для преверки валидности дат по отношению друг к другу
+    /// </summary>
+    protected void CheckDatesProp()
+    {
+        this.ValidationMessageExpirationDate = this.GetValidationMessageForProp(this.Model, nameof(this.Model.ExpirationDate));
+        this.ValidationMessageReceiveDate = this.GetValidationMessageForProp(this.Model, nameof(this.Model.ReceiveDate));
+
+        if (!this.ExpirationDateLaterReceiveDate(Model.ExpirationDate, Model.ReceiveDate))
+        {
+            this.ValidationMessageExpirationDate += string.Concat(this.ValidationMessageExpirationDate,
+                " Дата окончания срока действия карты не может быть раньше даты ее прихода от поставщика");
+            this.ValidationMessageReceiveDate += string.Concat(this.ValidationMessageReceiveDate,
+                " Дата прихода карты от поставщика не может быть позже даты окончания ее срока действия");
+        }
+    }
+}

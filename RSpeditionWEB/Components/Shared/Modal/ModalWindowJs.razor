@@ -1,0 +1,61 @@
+﻿@inject IJSRuntime JSRuntime
+
+<dialog @ref="_element">@ChildContent</dialog>
+
+
+@code {
+    private DotNetObjectReference<ModalWindowJs> _this;
+    private ElementReference _element;
+
+    // Content of the dialog
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    [Parameter]
+    public bool Open { get; set; }
+
+    // This parameter allows to use @bind-Open=
+    [Parameter]
+    public EventCallback<bool> OpenChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<string> Close { get; set; }
+
+    /// <summary>
+    /// Метод срабатывает после первой отрисовки компонента
+    /// </summary>
+    /// <param name="firstRender">Свойство, указывающее на то это первая отрисовка компонента или нет</param>
+    /// <returns></returns>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Initialize the dialog events the first time the component is rendered
+        if (firstRender)
+        {
+            _this = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("blazorInitializeModal", _element, _this);
+        }
+
+        if (Open)
+        {
+            await JSRuntime.InvokeVoidAsync("blazorOpenModal", _element);
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("blazorCloseModal", _element);
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    [JSInvokable]
+    public async Task OnClose(string returnValue)
+    {
+        if (Open == true)
+        {
+            Open = false;
+            await OpenChanged.InvokeAsync(Open);
+        }
+
+        await Close.InvokeAsync(returnValue);
+    }
+}

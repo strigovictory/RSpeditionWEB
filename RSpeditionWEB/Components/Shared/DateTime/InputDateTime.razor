@@ -1,0 +1,96 @@
+﻿
+<div>
+    <EditForm Model=@this.DateTimeModelItem>
+        <label_small_black>День</label_small_black>
+        <InputDate TValue="DateTime?"
+                   @bind-Value="@this.DateTimeModelItem.Date_DayMonthYear"
+                   @oninput="@(async(ChangeEventArgs arg) => { if(this.SendToParent_SelectedDateTime.HasDelegate)
+                                                           {
+                                                               this.DateTimeModelItem.Date_DayMonthYear = DateTime.TryParse(arg?.Value?.ToString(), out var val) ? val : null;
+                                                               if(!this.DateTimeModelItem?.Date_DayMonthYear.HasValue ?? false)
+                                                               {
+                                                                    this.DateTimeModelItem.Date_Hour = 0;
+                                                                    this.DateTimeModelItem.Date_Min = 0;
+                                                               }
+                                                               await this.SendToParent_SelectedDateTime.InvokeAsync(this.DateTimeModelItem.DateTimeVal);
+                                                           }})" />
+        <label_small_black>Час</label_small_black>
+        <InputSelect @bind-Value="this.DateTimeModelItem.Date_Hour"
+                     @oninput="@(async(ChangeEventArgs arg) => {this.DateTimeModelItem.Date_Hour = int.TryParse(arg?.Value?.ToString(), out var hour) ? hour : 0;
+                                                                await this.SendToParent_SelectedDateTime.InvokeAsync(this.DateTimeModelItem.DateTimeVal);})">
+            @if (!this.DateTimeModelItem?.DateTimeVal.HasValue ?? false)
+            {
+                <option disabled selected>Недоступно, сперва укажите дату</option>
+            }
+            else
+            {
+                @foreach (var hour in this.Hours)
+                {
+                    <option value="@hour">@hour</option>
+                }
+            }
+        </InputSelect>
+        <label_small_black>Минута</label_small_black>
+        <InputSelect @bind-Value="this.DateTimeModelItem.Date_Min"
+                     @oninput="@(async(ChangeEventArgs arg) => {this.DateTimeModelItem.Date_Min = int.TryParse(arg?.Value?.ToString(), out var min) ? min : 0;
+                                                                await this.SendToParent_SelectedDateTime.InvokeAsync(this.DateTimeModelItem.DateTimeVal);})">
+            @if (!this.DateTimeModelItem?.DateTimeVal.HasValue ?? false)
+            {
+                <option disabled selected>Недоступно, сперва укажите дату</option>
+            }
+            else
+            {
+                @foreach (var min in this.Minutes)
+                {
+                    <option value="@min">@min</option>
+                }
+            }
+        </InputSelect>
+    </EditForm>
+</div>
+
+
+@code {
+    [Parameter]
+    public EventCallback<DateTime?> SendToParent_SelectedDateTime{ get; set; }
+
+    [Parameter]
+    public DateTime? DateTimeFromParent { get; set; }
+
+    private DateTimeModel DateTimeModelItem { get; set; }
+
+    private IReadOnlyList<int> Hours { get; set; } = System.Linq.Enumerable.Range(0, 24)?.ToList() ?? new();
+
+    private IReadOnlyList<int> Minutes { get; set; } = System.Linq.Enumerable.Range(0, 60)?.ToList() ?? new();
+
+    class DateTimeModel
+    {
+        public DateTimeModel(DateTime? date)
+        {
+            this.Date_DayMonthYear = date.HasValue ? date.Value.Date: null;
+            this.Date_Hour = date.HasValue ? date.Value.Hour : 0;
+            this.Date_Min = date.HasValue ? date.Value.Minute : 0;
+        }
+
+        public DateTime? Date_DayMonthYear { get; set; }
+        public int Date_Hour { get; set; }
+        public int Date_Min { get; set; }
+        public DateTime? DateTimeVal => Date_DayMonthYear.HasValue
+                                                                 ?
+                                                                 new DateTime(day: this.Date_DayMonthYear.Value.Date.Day,
+                                                                              month: this.Date_DayMonthYear.Value.Date.Month,
+                                                                              year: this.Date_DayMonthYear.Value.Date.Year,
+                                                                              hour: this.Date_Hour,
+                                                                              minute: this.Date_Min,
+                                                                              second: 0) 
+                                                                 :
+                                                                 null
+                                                                 ;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.DateTimeModelItem = new(this.DateTimeFromParent);
+    }
+}

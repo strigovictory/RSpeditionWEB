@@ -1,0 +1,92 @@
+﻿@using RSpeditionWEB.Configs
+@inject IApies api
+@inherits ScaffoldJCFiltersBase<FuelTransactionUploadLogResponse>
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        <ScaffoldJCParent T="@FuelTransactionUploadLogResponse"
+                          @ref="@ScaffoldJCParentRef"
+                          SendToParentSelectedItem="@(async(FuelTransactionUploadLogResponse item) => { this.ItemSelected = item;
+                                                                                                            this.ShowMessage = true;
+                                                                                                            this.Message = this.ItemSelected.ToString();
+                                                                                                            this.Title = "Строковое представление результата загрузки транзакции"; })" />
+        @if (this.ShowMessage)
+        {
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { if (this.ShouldUpdateParent)
+                                                                                                await this.UpdateAfterAction();
+                                                                                            this.ShowMessage = false;
+                                                                                            this.IsRenderMenuActions = false; })">
+                <ResultOperation Devider="'!'"
+                                 ResList="null"
+                                 ResMessage="@this.Message" />
+            </ModalWindowWithEventCallback>
+        }
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+        [CascadingParameter]
+        public FuelTransactionUploadLogsCont FuelTransactionUploadLogsContCascadingParameter { get; set; }
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+    => new List<PropertyInfo>
+    {
+            this.ModelsType.GetProperty(nameof(this.Model.UploadOn)),
+            this.ModelsType.GetProperty(nameof(this.Model.UploadBy)),
+            this.ModelsType.GetProperty(nameof(this.Model.UploadResultCode)),
+            this.ModelsType.GetProperty(nameof(this.Model.UploadResultMessage)),
+            this.ModelsType.GetProperty(nameof(this.Model.ProviderName)),
+            this.ModelsType.GetProperty(nameof(this.Model.CardName)),
+            this.ModelsType.GetProperty(nameof(this.Model.TransactionId)),
+            this.ModelsType.GetProperty(nameof(this.Model.OperationDate)),
+            this.ModelsType.GetProperty(nameof(this.Model.OperationDateTime)),
+            this.ModelsType.GetProperty(nameof(this.Model.Quantity)),
+            this.ModelsType.GetProperty(nameof(this.Model.Cost)),
+            this.ModelsType.GetProperty(nameof(this.Model.TotalCost)),
+            this.ModelsType.GetProperty(nameof(this.Model.FuelTypeName)),
+            this.ModelsType.GetProperty(nameof(this.Model.ProviderFuelType)),
+            this.ModelsType.GetProperty(nameof(this.Model.ProviderFuelTypeName)),
+            this.ModelsType.GetProperty(nameof(this.Model.CurrencyName)),
+            this.ModelsType.GetProperty(nameof(this.Model.CountryName)),
+            this.ModelsType.GetProperty(nameof(this.Model.RegionId)),
+            this.ModelsType.GetProperty(nameof(this.Model.RegionName)),
+            this.ModelsType.GetProperty(nameof(this.Model.IsDaily)),
+            this.ModelsType.GetProperty(nameof(this.Model.IsMonthly)),
+        };
+
+    protected override Dictionary<PropertyInfo, Func<object, string>> InitPropertiesStylesFormat()
+    => new Dictionary<PropertyInfo, Func<object, string>>
+    {
+            {this.ModelsType.GetProperty(nameof(this.Model.OperationDate)), (object val) => DateTime.TryParse(val?.ToString() ?? string.Empty, out var dateVal) ? dateVal.FormatingDate() : string.Empty},
+            {this.ModelsType.GetProperty(nameof(this.Model.OperationDateTime)), (object val) => DateTime.TryParse(val?.ToString() ?? string.Empty, out var dateVal) ? dateVal.FormatingDate() : string.Empty},
+            {this.ModelsType.GetProperty(nameof(this.Model.Quantity)), (object val) => String.Format("{0:N2}", Convert.ToDecimal(val))},
+            {this.ModelsType.GetProperty(nameof(this.Model.Cost)), (object val) => String.Format("{0:N3}", Convert.ToDecimal(val))},
+            {this.ModelsType.GetProperty(nameof(this.Model.TotalCost)), (object val) => String.Format("{0:N3}", Convert.ToDecimal(val))}
+    };
+
+    protected override async Task<List<FuelTransactionUploadLogResponse>> GetCollectionTItemsFromParent()
+        => this.FuelTransactionUploadLogsContCascadingParameter?.TranzactionUploadLogs ?? new();
+
+    public override Dictionary<PropertyInfo, int> MaxWidthCell =>
+    new Dictionary<PropertyInfo, int>
+    {
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.UploadResultMessage)),
+            450
+        },
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+}

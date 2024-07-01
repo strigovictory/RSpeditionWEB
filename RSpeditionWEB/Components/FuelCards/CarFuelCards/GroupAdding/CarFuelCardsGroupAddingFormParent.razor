@@ -1,0 +1,586 @@
+﻿@inject IApies api
+@using RSpeditionWEB.Models.RequestModels
+@inherits FuelCardBase
+
+    <CascadingValue Value="this">
+    @{
+        FuelCardModel fuelCard = new();
+        var typeFuelCard = fuelCard.GetType(); 
+        var labelFuelCard_Division = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.DivisionID)).Item1 ?? string.Empty;
+        var labelFuelCard_ReceiveDate = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.ReceiveDate)).Item1 ?? string.Empty;
+        var labelFuelCard_FuelProvider = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.ProviderId)).Item1 ?? string.Empty;
+        var labelFuelCard_Number = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.Number)).Item1 ?? string.Empty;
+        var labelFuelCard_ExpirationDate = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.ExpirationDate)).Item1 ?? string.Empty;
+        var labelFuelCard_IsReserve = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.IsReserved)).Item1 ?? string.Empty;
+        var labelFuelCard_Note = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.Note)).Item1 ?? string.Empty;
+        var labelFuelCard_Car = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.CarId)).Item1 ?? string.Empty;
+    }
+    @if (this.IsRender)
+    {
+        <div class="form_flex">
+            <EditForm Model="@Model" OnValidSubmit="@(async () => { await CreateItemsList(); })">
+                        <DataAnnotationsValidator />
+                        @*1-я строка*@
+                <div class="flexRowStart">
+                    <div class="flexColumnStart">
+                                <div>
+                                    <label_small_black>@labelFuelCard_ReceiveDate</label_small_black>
+                                </div>
+                                <div>
+                            <InputDate TValue="DateTime?"
+                                       class="form-control"
+                                       ParsingErrorMessage="@this.ValidationMessageReceiveDate"
+                                       @bind-Value="@Model.ReceiveDate"
+                                       @oninput="@(async (ChangeEventArgs arg) => { ReceiveDateWereChanged(arg); })" />
+                                </div>
+                            </div>
+                    <div class="flexColumnStart">
+                                <div>
+                                    <label_small_black>@labelFuelCard_FuelProvider</label_small_black>
+                                </div>
+                                <div>
+                            @{
+                                FuelProviderResponse fuelProvider = new();
+                                var typeFuelProvider = fuelProvider.GetType();
+                                List<PropertyInfo> propsFuelProvider = new List<PropertyInfo> { typeFuelProvider.GetProperty(nameof(fuelProvider.Name)) };
+                                var textPropFuelProvider = typeFuelProvider.GetProperty(nameof(fuelProvider.Name));
+                                var tempAttrFuelProvider = typeFuelProvider.GetCustomDisplayValues(nameof(fuelProvider.Name));
+                                var labelForSearchFuelProvider = tempAttrFuelProvider.Item1 ?? string.Empty;
+                                var placeholderFuelProvider = tempAttrFuelProvider.Item2 ?? string.Empty;
+                            }
+                                <SearchSingleTItem IIdItems="@(this.FuelCardsJournalCascadingVal?.FuelCardsCascadingParameter?.FuelProviders?.OrderBy(provider => provider.Name)?.Cast<IId>()?.ToList() ?? new())"
+                                                   PropertiesInfoForSearch="@propsFuelProvider"
+                                                   ShowLabel="false"
+                                                   TextProperty="@textPropFuelProvider"
+                                                   LabelForSearch="@labelForSearchFuelProvider"
+                                                   Placeholder="@placeholderFuelProvider"
+                                                   MinSizeSelect="2"
+                                                   MaxSizeSelect="7"
+                                                   IIdOuterInitParameter="null"
+                                               SendToParentSelectedIIdItem="@((IId item) => { Model.ProviderId = item?.Id ?? 0; })">
+                                    </SearchSingleTItem>
+                                </div>
+                            </div>
+                    <div class="flexColumnStart">
+                                <div>
+                                    <label_small_black>@labelFuelCard_ExpirationDate</label_small_black>
+                                </div>
+                                <div>
+                                    <InputDate TValue="DateTime?"
+                                               class="form-control"
+                                               ParsingErrorMessage="@(ValidationMessageExpirationDate)"
+                                       @bind-Value="@Model.ExpirationDate"
+                                               @oninput="@((ChangeEventArgs arg) => this.ExpirationDateWereChanged(arg))" />
+                                </div>
+                            </div>
+                    <div class="flexColumnStart">
+                        <div>
+                            <label_small_black>Объект</label_small_black>
+                        </div>
+                        <div>
+                            @{
+                                var objValues = ObjectTypeModelValues?.Where(_ => _.Id != 4)?.ToList() ?? new();
+                            }
+                            <SelectSingleTitem TItem="@ObjectTypeModel"
+                                               PropInfo="@(typeof(ObjectTypeModel).GetProperty(nameof(ObjectTypeModel.TypeName)))"
+                                               EventCallbackSelectedItemId="@(async(int itemId) => { ObjectTypeModelSelected = ObjectTypeModelValues.FirstOrDefault(_ => _.Id == itemId); })"
+                                               List_TItems_All="@objValues"
+                                               IIdOuterInitParameter="@(ObjectTypeModelSelected as IId)" />
+                        </div>
+                    </div>
+                    <div class="flexColumnStart">
+                                <div>
+                                    <label_small_black>@labelFuelCard_IsReserve</label_small_black>
+                                </div>
+                                <div>
+                                    <div class="squaredOne">
+                                        <input type="checkbox"
+                                               id="carFuelCardsEditFormPar1"
+                                               @bind-value="@Model.IsReserved" />
+                                        <label for="carFuelCardsEditFormPar1"></label>
+                                    </div>
+                                </div>
+                                <div class="validation-message">
+                            <ValidationMessage For="@(() => Model.IsReserved)" />
+                                </div>
+                            </div>
+                        </div>
+                <div class="flexRow_Center_Center validation-message">
+                    <div>
+                        @(ValidationMessageReceiveDate?.Replace("!", "") ?? string.Empty)
+                    </div>
+                    <div>
+                        @(ValidationMessageFuelProvider?.Replace("!", "") ?? string.Empty)
+                    </div>
+                    <div>
+                        @(ValidationMessageExpirationDate?.Replace("!", "") ?? string.Empty)
+                    </div>
+                    @if ((ObjectTypeModelSelected?.Id ?? -1) == -1)
+                    {
+                        <div>
+                            Заполните поле «Объект»
+                        </div>
+                    }
+                </div>
+                @*Табличная часть*@
+                @if (IsModelValid)
+                {
+                    <div>
+                        @*Вложенный компонент с перечнем добавляемых топливных карт*@
+                                <div class="adapt_table scroll font-journal">
+                                    <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+                                        <thead class="adapt_table_inner_thead">
+                                    <tr style="border-top: 2px solid white;">
+                                        <th data-label="№" rowspan="2">
+                                            №
+                                        </th>
+                                        <th data-label="Карта" colspan="6">
+                                            Карта
+                                        </th>
+                                        <th data-label="Событие" colspan="3">
+                                            Событие
+                                        </th>
+                                        <th data-label="Удалить" rowspan="2">
+                                            Удалить
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th data-label="@labelFuelCard_ReceiveDate">
+                                            @labelFuelCard_ReceiveDate
+                                        </th>
+                                        <th data-label="@labelFuelCard_FuelProvider">
+                                            @labelFuelCard_FuelProvider
+                                        </th>
+                                        <th data-label="@labelFuelCard_Number">
+                                            @labelFuelCard_Number
+                                        </th>
+                                        <th data-label="@labelFuelCard_ExpirationDate">
+                                            @labelFuelCard_ExpirationDate
+                                        </th>
+                                        <th data-label="@labelFuelCard_IsReserve">
+                                            @labelFuelCard_IsReserve
+                                        </th>
+                                        <th data-label="@labelFuelCard_Note">
+                                            @labelFuelCard_Note
+                                        </th>
+                                        <th data-label="Обьект">
+                                            Обьект
+                                        </th>
+                                        <th data-label="Значение">
+                                            Значение
+                                        </th>
+                                        <th data-label="@labelFuelCard_Division">
+                                            @labelFuelCard_Division
+                                        </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody style="width: 100%;">
+                                    @if (this.GroupModelComponent != null &&
+                                        this.GroupModelComponent?.CardsChild != null &&
+                                        this.GroupModelComponent?.CardsChild?.Count > 0)
+                                    {
+                                        for (int i = 0; i < (GroupModelComponent?.CardsChild?.Count ?? 0); i++)
+                                        {
+                                            var card = GroupModelComponent?.CardsChild?.ElementAt(i);
+                                            var keyId = card?.Key ?? string.Empty;
+                                            var numrow = i;
+                                            numrow++;
+                                            <CarFuelCardsGroupAddingFormChild NumRow="@numrow"
+                                                                              @key="keyId"
+                                                                              GuideId="@keyId"
+                                                                              InvokeParentHandlerDataChanges="@(((string ident, FuelCardModel card) tuple) => { GroupModelComponent.CardsChild[tuple.ident] = tuple.card; })"
+                                                                              InvokeParentHandlerSendChangesRemoveRow="@((string ident) => { GroupModelComponent.CardsChild.Remove(ident); // удалить строку
+                                                                                                                                            var tempDict = new Dictionary<string, FuelCardModel>(); // временный словарь
+                                                                                                                                            foreach (string key in GroupModelComponent.CardsChild.Keys) // копирование словаря с картами во временный
+                                                                                                                                            {
+                                                                                                                                                tempDict.Add(key, GroupModelComponent.CardsChild[key]);
+                                                                                                                                            }
+                                                                                                                                            GroupModelComponent.CardsChild.Clear(); // очистка словаря с картами
+                                                                                                                                            foreach (string key in tempDict.Keys) // копирование временного словаря в словарь с картами
+                                                                                                                                            {
+                                                                                                                                                GroupModelComponent.CardsChild.Add(key, tempDict[key]);
+                                                                                                                                            }})" />
+                                        }
+                                    }
+                                            <tr style="vertical-align: central;">
+                                                <td colspan="12">
+                                                    <button type="button"
+                                                    @onclick="@(() => { InitCard(); })"
+                                                    class="button_tr_100">
+                                                        <span><b>+</b> Добавить</span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                    var errorCards = string.Empty;
+                    if (this.GroupModelComponent == null ||
+                        this.GroupModelComponent?.CardsChild == null ||
+                        this.GroupModelComponent?.CardsChild?.Count == 0 ||
+                        this.GroupModelComponent?.CardsChild?.Values == null ||
+                        this.GroupModelComponent?.CardsChild?.Values?.Count == 0)
+                        errorCards = $"Для сохранения партии д.б. внесена хотя бы одна карта";
+                    else
+                        errorCards = string.Empty;
+                    <div class="validation-message">
+                        @errorCards
+                    </div>
+                            <div>
+                                <ButtonDouble EventCallbackToParent="@(async () => {await this.ProgressBarOpenAsync();
+                                                                            await this.CreateItemsList();
+                                                                            await this.ProgressBarCloseAsync();})"
+                                              EventCallbackToParentReset="@(async () => {await this.InvokeParentHendlerCancel.InvokeAsync();})"
+                                      LabelForButton="Сохранить"
+                                              LabelForButtonReset="Отмена"
+                                              IsActive="@(IsModelValid && CardsIsValid)"
+                                              TitleIfIsNonActive="Сохранение топливных карт возможно, если они валидны"
+                                              TitleIfIsActive="Кликните, чтобы сохранить топливные карты"
+                                              TitleReset="Кликните, чтобы закрыть форму и отменить внесенные изменения"
+                                              IsRenderActionButton="@IsUserHasMinimumFuelRole" />
+                    </div>
+                }
+                else
+                {
+                    <div>
+                        <Button LabelForButton="Отмена"
+                                TitleIfIsActive="Отмена"
+                                TitleIfIsNonActive=""
+                                IsActive="@true"
+                                Width="20%"
+                                EventCallbackToParent="@(async () => {await this.InvokeParentHendlerCancel.InvokeAsync();})" />
+                    </div>
+                }
+            </EditForm>
+                </div>
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка ..." />
+    }
+
+    @if (ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="Результат добавления топливных карт"
+                                          InvokeParentHandlerwithUpdParent="@(async () => {
+                                                                                              if (this.ShouldUpdateParent &&
+                                                                                              this.InvokeParentHendlerAfterGroupCreating.HasDelegate &&
+                                                                                              this.AddedCards?.Count > 0)
+                                                                                              {
+                                                                                                  await this.InvokeParentHendlerAfterGroupCreating.InvokeAsync(this.AddedCards?.Cast<object>()?.ToList() ?? new());
+                                                                                              }
+                                                                                              else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                              {
+                                                                                                  await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                                              }
+
+                                                                                              this.ShowMessage = false;
+                                                                                          })">
+                    <ResultOperation Devider="'!'"
+                                 ResList="null"
+                                 ResMessage="@this.Message" />
+
+
+            @if (this.ButtonBaseClassList?.Count > 0)
+            {
+                <div class="stickyBottomContainer" style="top: 0vh !important;">
+                    <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList"
+                                     WidthForButtonWrapper="60%" />
+                </div>
+            }
+
+@*             @if (this.IsRenderSuccessItems)
+            {
+                <ItemsWithReasonList Items="@(this.GetTuple_Success())"
+                                     NameItem="Топливные карты, сохраненные в БД"
+                                     IsDetailsHide="true" />
+            }
+ *@            @if (this.IsRenderNotSuccessItems)
+            {
+                <ItemsWithReasonList Items="@(GetTuple_NotSuccess())"
+                                     NameItem="Карта" />
+            }
+
+                </ModalWindowWithEventCallback>
+    }
+
+    <div id="@IdForProgressBar" style="display: none;">
+        <ProgressBar />
+     </div>
+    </CascadingValue>
+
+@code {
+    #region
+    [CascadingParameter]
+    public FuelCardsJournal FuelCardsJournalCascadingVal { get; set; }
+
+    protected override async Task<List<TrucksLicensePlatesStatusesModel>> GetTrucksLicensePlatesStatuses() 
+        => await FuelCardsJournalCascadingVal.FuelCardsCascadingParameter.GetTrucksLicensePlatesStatuses();
+
+    protected override async Task<List<EmployeesAssignmentsResponse>> GetEmployeesAssignmentsDrivers() 
+        => await FuelCardsJournalCascadingVal.FuelCardsCascadingParameter.GetEmployeesAssignmentsDrivers();
+
+    // Статус автомобилей (продан, в работе и т.п.)
+    public List<TrucksStatusView> TrucksStatuses { get; set; } = new();
+
+    private List<FuelCardShortModel> AddedCards { get; set; } = new();
+
+    private List<NotSuccessResponseItemDetailed<FuelCardModel>> NotAddedCards { get; set; } = new();
+
+    protected bool IsRenderSuccessItems { get; set; }
+
+    protected bool IsRenderNotSuccessItems { get; set; }
+
+    protected override bool IsModelValid
+    {
+        get
+        {
+            var isValid = base.IsModelValid && ((ObjectTypeModelSelected?.Id ?? -1) >= 0);
+            if (isValid && !GroupModelComponent.CardsChild.Any()) InitCard();
+            return isValid;
+        }
+    }
+
+    // Класс групповой модели добавления коллекции топливных карт
+    public class ModelComponent : ICloneable
+    {
+        public Dictionary<string, FuelCardModel> CardsChild { get; set; } = new();
+
+        public FuelCardModel SharedParametersCard { get; set; }
+
+        public object Clone()
+            => new ModelComponent
+            {
+                SharedParametersCard = SharedParametersCard,
+                CardsChild = CardsChild,
+            };
+    }
+
+    public ModelComponent GroupModelComponent { get; set; }
+
+    private bool CardsIsValid => ValidateCards();
+
+    private bool ValidateCards()
+    {
+        bool res = true;
+        if (GroupModelComponent != null &&
+            GroupModelComponent?.CardsChild != null &&
+            GroupModelComponent?.CardsChild?.Count > 0 &&
+            GroupModelComponent?.CardsChild?.Values != null &&
+            GroupModelComponent?.CardsChild?.Values?.Count > 0)
+        {
+            foreach (var card in GroupModelComponent.CardsChild)
+            {
+                if (!card.Value.CheckModelIsValid().Item1)
+                {
+                    res = false;
+                    break;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+        }
+        else
+        {
+            res = false;
+        }
+
+        return res;
+    }
+    #endregion
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ActualizeEmployeesAssignmentsFromDb();
+        await ActualizeTrucksEmployeesFromDb();
+        IdForProgressBar = "fuelCards_grAdd_id";
+        PrimaryInitModel();
+        SetInitObjectTypeSelected();
+        ActualizeAvailableTrucksDrivers();
+        TItemFromParent = GroupModelComponent.SharedParametersCard;
+        await base.OnInitializedAsync();
+        IsRender = true;
+    }
+
+    private void ActualizeAvailableTrucksDrivers()
+    {
+        ActualizeAvailableTrucksLicensePlates(Model.ReceiveDate);
+        ActualizeAvailableEmployeesAssignments(Model.ReceiveDate);
+    }
+
+    private void PrimaryInitModel()
+    {
+        Model = new FuelCardModel
+        {
+            ReceiveDate = DateTime.Today,
+            ExpirationDate = DateTime.Now.AddYears(1).Date,
+            ProviderId = 0,
+            IsReserved = false
+        };
+
+        GroupModelComponent = new ModelComponent
+        {
+            SharedParametersCard = Model,
+            CardsChild = new(),
+        };
+    }
+
+    public void InitCard() => GroupModelComponent.CardsChild.Add(Guid.NewGuid().ToString(), new());
+
+    public FuelCardModel CreateFuelCardModel()
+    {
+        FuelCardModel model = new();
+        model.ExpirationDate = Model?.ExpirationDate;
+        model.ReceiveDate = Model?.ReceiveDate;
+        model.ProviderId = Model?.ProviderId ?? 0;
+        model.DivisionID = 0;
+        model.CarId = null;
+        model.EmployeeID = null;
+        model.IsReserved = Model?.IsReserved ?? false;
+        model.Note = string.Empty;
+        return model;
+    }
+
+    /// <summary>
+    /// Метод для валидации даты
+    /// </summary>
+    /// <param name="val">Дата операции</param>
+    private void ReceiveDateWereChanged(ChangeEventArgs val)
+    {
+        if (DateTime.TryParse(val?.Value?.ToString(), out DateTime res))
+            this.Model.ReceiveDate = res.Date;
+        else
+            this.Model.ReceiveDate = null;
+
+        ActualizeAvailableTrucksDrivers();
+        this.CheckDatesProp();
+    }
+
+    /// <summary>
+    /// Метод для валидации даты
+    /// </summary>
+    /// <param name="val">Дата операции</param>
+    private void ExpirationDateWereChanged(ChangeEventArgs val)
+    {
+        if (DateTime.TryParse(val?.Value?.ToString(), out DateTime res))
+            this.Model.ExpirationDate = res.Date;
+        else
+            this.Model.ExpirationDate = null;
+
+        this.CheckDatesProp();
+    }
+
+    /// <summary>
+    /// Метод для добавления коллекции новых топливных карт
+    /// </summary>
+    /// <returns></returns>
+    private async Task CreateItemsList()
+    {
+        this.Message = string.Empty;
+        var modelIsValid = true;
+
+        if (this.GroupModelComponent?.CardsChild != null &&
+            this.GroupModelComponent?.CardsChild?.Count > 0)
+        {
+            for (var i = 0; i < this.GroupModelComponent?.CardsChild?.Count; i++)
+            {
+                var card = this.GroupModelComponent?.CardsChild?.ElementAt(i).Value;
+                var numRow = i + 1;
+
+                var isValid = card.CheckModelIsValid();
+
+                if (!isValid.Item1)
+                {
+                    this.Message = string.Concat($"В строке № {numRow} ошибка валидации: ", isValid.Item2.ConvertListToString());
+                    modelIsValid = false;
+                    break;
+                }
+            }
+
+            if (modelIsValid)
+            {
+                var cards = this.GroupModelComponent?.CardsChild?.Values?.ToList() ?? new();
+                var cardsRequest = new RequestGroupAction<FuelCardModel>(User, cards);
+                var res = await this.api?.FuelCardAPI?.PostCards(cardsRequest, this.Token);
+                AddedCards = res?.SuccessItems;
+                NotAddedCards = res?.NotSuccessItems;
+                var addedCount = this.AddedCards?.Count ?? 0;
+                var notAddedCount = res.NotSuccessItems?.Count ?? 0;
+                if (addedCount > 0)
+                {
+                    this.ShouldUpdateParent = true;
+                }
+
+                this.Message = res.Result;
+            }
+        }
+        else
+        {
+            this.Message = "Список карт пуст !";
+        }
+
+        InitButtons();
+        this.ShowMessage = true;
+        this.StateHasChanged();
+    }
+
+    protected override void InitButtons()
+    {
+        this.ButtonBaseClassList = new();
+        //
+        // ButtonBaseClass addedCards = new();
+        // addedCards.CallbackToParent = (() =>
+        // {
+        //     IsRenderSuccessItems = IsRenderSuccessItems ? false: true;
+        //     this.StateHasChanged();
+        // });
+        // addedCards.LabelForButton = "Топливные карты, сохраненные в БД";
+        // addedCards.IsActive = this.AddedCards?.Count > 0;
+        // addedCards.TitleIfIsActive = "Кликните для отображения перечня сохраненных топливных карт";
+        // addedCards.TitleIfIsNonActive = "Коллекция сохраненных транзакций пустая";
+        //
+        ButtonBaseClass notAddedCards = new();
+        notAddedCards.CallbackToParent = (() =>
+        {
+            IsRenderNotSuccessItems = IsRenderNotSuccessItems ? false : true;
+            this.StateHasChanged();
+        });
+        notAddedCards.LabelForButton = "Не сохраненные топливные карты";
+        notAddedCards.IsActive = this.NotAddedCards?.Count > 0;
+        notAddedCards.TitleIfIsActive = "Кликните для отображения перечня не сохраненных топливных карт";
+        notAddedCards.TitleIfIsNonActive = "Коллекция не сохраненных топливных карт пустая";
+        //
+        // if (this.AddedCards?.Count > 0)
+        //     this.ButtonBaseClassList.Add(addedCards);
+        if (this.NotAddedCards?.Count > 0)
+            this.ButtonBaseClassList.Add(notAddedCards);
+    }
+
+    protected virtual List<(int, string, string)> GetTuple_NotSuccess()
+    {
+        List<(int, string, string)> res = new();
+        for (var i = 0; i < NotAddedCards.Count; i++)
+        {
+            var item = NotAddedCards[i];
+            var name = item.NotSuccessItem.ToStringShort();
+            var reason = $"Такая карта {item.Reason}";
+            res.Add((i+1, name, reason));
+        }
+        return res;
+    }
+
+    protected virtual List<(int, string, string)> GetTuple_Success()
+    {
+        List<(int, string, string)> res = new();
+        for (var i = 0; i < AddedCards.Count; i++)
+        {
+            var item = AddedCards[i];
+            var name = item.ToStringShort();
+            res.Add((i+1, name, string.Empty));
+        }
+        return res;
+    }
+}

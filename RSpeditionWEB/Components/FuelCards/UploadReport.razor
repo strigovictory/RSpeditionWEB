@@ -1,0 +1,370 @@
+﻿@using RSpeditionWEB.Models.ResponseModels;
+@inject IFuelApies api
+@inject NavigationManager navMan
+@inherits UploadFilesBaseParent<FuelReport, FuelTransactionShortResponse, NotParsedTransaction>
+@implements ICSSClassFromParent
+@implements IDisposable
+
+<CascadingValue Value="@this">
+@*     <div style="text-align: center;">
+        <p class="my-h1 inner-light-shadow">Форма для загрузки транзакций</p>
+    </div>
+ *@
+    <div class="flexRowCenter" style="padding-top: 50px;">
+        <EditForm EditContext=@this.EditContext>
+            <DataAnnotationsValidator />
+            @if (this.IsRender)
+            {
+                var selectedReportType =  Model.IsMonthly.HasValue
+                ? Model.IsMonthly.Value ? ReportsKindsValues.FirstOrDefault(_ => _.Id == 2) as IId : ReportsKindsValues.FirstOrDefault(_ => _.Id == 1) as IId
+                : null;
+                <div>
+                    <SelectSingleTitem TItem="@FuelProviderResponse"
+                                       PropInfo="@(new FuelProviderResponse().GetType().GetProperty(nameof(FuelProviderResponse.Name)))"
+                                       Title="Выберите поставщика топлива"
+                                       EventCallbackSelectedItemId="@((int itemId) => { this.Model.ProviderId = this.FuelCardsContainerCascadingParameter?.FuelProviders?.SingleOrDefault(_ => _.Id == itemId)?.Id ?? 0; })"
+                                       List_TItems_All="@(this.FuelCardsContainerCascadingParameter?.FuelProviders?.OrderBy(_ => _.Name)?.ToList() ?? new())"
+                                       List_TItems_NonActive="@(this.FuelProviders_NonActive?.OrderBy(_ => _.Name)?.ToList() ?? new())"
+                                       DefaultValue="Поставщик топлива не выбран"
+                                       IIdOuterInitParameter="@(this.FuelCardsContainerCascadingParameter?.FuelProviders?.SingleOrDefault(_ => _.Id == Model.ProviderId))" />
+                </div>
+                <div>
+                    <SelectSingleTitem TItem="@ReportsKind"
+                                       PropInfo="@(typeof(ReportsKind).GetProperty(nameof(ReportsKind.Name)))"
+                                       Title="Выберите тип отчета"
+                                       EventCallbackSelectedItemId="@((int id) => { this.Model.IsMonthly = id == 2 ? true : false; })"
+                                       List_TItems_All="@ReportsKindsValues"
+                                       List_TItems_NonActive="@new()"
+                                       DefaultValue="Тип отчета не выбран"
+                                       IIdOuterInitParameter="@selectedReportType" />
+                </div>
+                <div>
+                    <UploadFiles CallParentToStartOperation="@(async() => { await this.ReactClickOnUploadFiles(); })"
+                                 SendToParentSelectedFile="@(async(string filepath) => { this.Model.FilePath = filepath ?? string.Empty;
+                                                                                         this.Model.InitContent(); }
+            )" 
+                                 SendWarningMessageToParent="@((string error) => {this.Message = error ?? string.Empty;
+                                                                                  this.Title = "Предупреждение";
+                                                                                  this.ShowError = true;})" />
+                </div>
+            }
+            else
+            {
+                <ProgressBarInner TitleProcess="Идет загрузка ..." />
+            }
+        </EditForm>
+    </div>
+    @if (this.ShowError)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                      InvokeParentHandlerwithUpdParent="@(async () => { this.ShowError = false; })">
+            <ResultOperation ResMessage="@this.Message"
+                             Devider="'!'"
+                             ResList="null" />  
+        </ModalWindowWithEventCallback>
+    }
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                      InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false;
+                                                                                        if (this.ShouldUpdateParent)
+                                                                                            this.navMan.NavigateTo(this.ReturnUrl ?? "/", true);
+                                                                                        else
+                                                                                            this.ResetToStartValues(); })">
+            <ResultOperation ResMessage="@this.Message"
+                             Devider="'!'"
+                             ResList="null" />
+            @if (this.NotFoundCardsNums?.Count > 0)
+            {
+                <div class="center">
+                    <label_large>
+                        Номера топливных карт, которые не найдены в системе
+                    </label_large>
+                </div>
+                <div class="center">
+                    <label_large>
+                        и транзакции по которым не были сохранены:
+                    </label_large>
+                </div>
+                <ResultOperation ResMessage=""
+                                 Devider="' '"
+                                 ResList="@(this.NotFoundCardsNums?.Distinct()?.OrderBy(_ => _)?.ToList() ?? new())" />
+            }
+
+            @if (this.NotFoundCarsNums?.Count > 0)
+            {
+                <div class="center">
+                    <label_large>
+                        Список номеров тягачей, которые не найдены в системе
+                    </label_large>
+                </div>
+                <div class="center">
+                    <label_large>
+                        и транзакции по которым не были сохранены:
+                    </label_large>
+                </div>
+                <ResultOperation ResMessage=""
+                                 Devider="' '"
+                                 ResList="@(this.NotFoundCarsNums?.Distinct()?.OrderBy(_ => _)?.ToList() ?? new())" />
+            }
+
+            @if (this.ButtonBaseClassList?.Count > 0)
+            {
+                <div class="stickyBottomContainer" style="top: 0vh !important;">
+                    <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList"
+                                     WidthForButtonWrapper="100%" />
+                </div>
+            }
+
+            @if (this.IsRenderSuccessItems)
+            {
+                <ItemsWithReasonList Items="@(this.GetTupleSuccess())"
+                                     NameItem="Транзакции, успешно сохраненные в БД" 
+                                     IsDetailsHide="true"/>
+            }
+            @if (this.IsRenderSecondSuccessItems)
+            {
+                <ItemsWithReasonList Items="@(this.GetTupleSecondarySuccess())"
+                                     NameItem="Транзакции, успешно обновленные в БД"
+                                     IsDetailsHide="true" />
+            }
+            @if(this.IsRenderNotSuccessItems)
+            {
+                <ItemsWithReasonList Items="@(this.GetTupleNotSuccess())"
+                                     NameItem="Транзакции, НЕ сохраненные в БД"/>
+            }
+        </ModalWindowWithEventCallback>
+    }
+@*    @if (this.ShowChoice_NotFound_Cards_or_Cars)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { this.ShowChoice_NotFound_Cards_or_Cars = false; })">
+            <ChoiceFuelCardOrCar CouldNotParsedTranzactions="@this.CouldNotParsedTranzactions"
+                                 FuelProviderId="@(this.Model?.ProviderId ?? 0)"
+                                 InvokeParentHendler_Cancel="@(() => { this.ShowChoice_NotFound_Cards_or_Cars = false; })"
+                                 InvokeParentHendler_Success="@(() => { this.navMan.NavigateTo(this.ReturnUrl ?? "/", true); })"/>
+        </ModalWindowWithEventCallback>
+    }*@    
+<div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    #region     Свойства и поля компонента
+    [CascadingParameter]
+    public FuelCardsCont FuelCardsContainerCascadingParameter { get; set; }
+
+    public class ReportsKind : IId
+    {
+        public ReportsKind(string name, int id)
+        {
+            Name = name;
+            Id = id;
+        }
+        public int Id { get; set; }
+
+        public string Name { get; set; }
+    }
+
+    private List<ReportsKind> ReportsKindsValues
+        => new List<ReportsKind>
+        {
+            new ReportsKind("Ежедневный отчет", 1),
+            new ReportsKind("Ежемесячный отчет", 2),
+        };
+
+    public override string ClassForUploadForm 
+        => this.IsModelValid && !string.IsNullOrEmpty(this.Model?.FilePath ?? string.Empty) 
+        ? ""
+        : "non-active";
+
+    private List<FuelProviderResponse> FuelProviders_NonActive { get; set; } = new();
+
+    private List<NotParsedTransaction> CouldNotParsedTranzactions { get; set; } = new();
+
+    // Номера топливных карт, не зарегистрированных в системе
+    private List<string> NotFoundCardsNums { get; set; } = new();
+
+    // Номера тягачей, не найденных в системе
+    private List<string> NotFoundCarsNums { get; set; } = new();
+
+    // Транзакции ПРОЧИЕ, к-рые не подлежат сохранению в БД(кроме топлива и adblue)
+    private List<NotParsedTransaction> NotFuelTypeTranzactions { get; set; } = new();
+
+    //private bool ShowChoice_NotFound_Cards_or_Cars { get; set; }
+    #endregion
+
+    #region  Methods
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+    protected override void InitButtons()
+    {
+        this.ButtonBaseClassList = new();
+        bool isChoiceCar = (this.NotFoundCarsNums?.Count ?? 0) > 0;
+        //
+        //ButtonBaseClass b0 = new();
+        //b0.CallbackToParent = (() =>
+        //{
+        //    this.Title = isChoiceCar ? "Определение номеров тягачей вручную" : "Определение номеров карт вручную";
+        //    this.ShowChoice_NotFound_Cards_or_Cars = true;
+        //    this.StateHasChanged();
+        //});
+        //b0.LabelForButton = isChoiceCar ? "Определить номера тягачей вручную" : "Определить номера карт вручную";
+        //b0.IsActive = this.NotFoundCardsNums?.Count > 0 || this.NotFoundCarsNums?.Count > 0;
+        //b0.TitleIfIsActive = isChoiceCar ? "Кликните для перехода к форме определения номеров тягачей" : "Кликните для перехода к форме определения номеров карт";
+        //b0.TitleIfIsNonActive = isChoiceCar ? "Нет ни одного номера тягача, который не найден в системе" : "Нет ни одного номера карты, который не найден в системе";
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (() =>
+        {
+            this.IsRenderSuccessItems = this.IsRenderSuccessItems ? false : true;
+            this.StateHasChanged();
+        });
+        b1.LabelForButton = "Транзакции, успешно сохраненные в БД";
+        b1.IsActive = this.SuccessItems?.Count > 0;
+        b1.TitleIfIsActive = "Кликните для отображения перечня сохраненных транзакций";
+        b1.TitleIfIsNonActive = "Коллекция сохраненных транзакций пустая";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (() =>
+        {
+            this.IsRenderNotSuccessItems = this.IsRenderNotSuccessItems ? false : true;
+            this.StateHasChanged();
+        });
+        b2.LabelForButton = "Транзакции, НЕ сохраненные в БД";
+        b2.IsActive = this.NotSuccessItems?.Count > 0;
+        b2.TitleIfIsActive = "Кликните для отображения перечня не сохраненных транзакций";
+        b2.TitleIfIsNonActive = "Коллекция не сохраненных транзакций пустая";
+        //
+        ButtonBaseClass b3 = new();
+        b3.CallbackToParent = (() =>
+        {
+            this.IsRenderSecondSuccessItems = this.IsRenderSecondSuccessItems ? false : true;
+            this.StateHasChanged();
+        });
+        b3.LabelForButton = "Транзакции, успешно обновленные в БД";
+        b3.IsActive = this.SecondarySuccessItems?.Count > 0;
+        b3.TitleIfIsActive = "Кликните для отображения перечня обновленных транзакций";
+        b3.TitleIfIsNonActive = "Коллекция обновленных транзакций пустая";
+        //
+        //if (this.NotFoundCardsNums?.Count > 0 || this.NotFoundCarsNums?.Count > 0)
+        //    this.ButtonBaseClassList.Add(b0);
+        if (this.SuccessItems?.Count > 0)
+            this.ButtonBaseClassList.Add(b1);
+        if (this.NotSuccessItems?.Count > 0)
+            this.ButtonBaseClassList.Add(b2);
+        if (this.SecondarySuccessItems?.Count > 0)
+            this.ButtonBaseClassList.Add(b3);
+    }
+
+    protected override async Task InitializeCollections()
+    {
+        this.ResetToStartValues();
+
+        if (this.FuelProviders_NonActive == null ||
+            this.FuelProviders_NonActive?.Count == 0)
+            await this.InitializeCollectionsByRequestToServer();
+    }
+
+    private void ResetToStartValues()
+    {
+        this.NotFoundCardsNums = new();
+        this.NotFoundCarsNums = new();
+        this.NotFuelTypeTranzactions = new();
+        this.IsRenderNotSuccessItems = false;
+        this.ShowMessage = false;
+        this.Model = new();
+    }
+
+    private async Task InitializeCollectionsByRequestToServer()
+    {
+        var activeProviderIds = new List<int>
+        {
+            7, 9, 11, 15, 17, 18, 19, 21, 22, 23, 24
+        };
+
+        await FuelCardsContainerCascadingParameter?.InitFuelProviders();
+        this.FuelProviders_NonActive = FuelCardsContainerCascadingParameter?.FuelProviders?.Where(_ => !activeProviderIds.Any(o => o == _.Id))?.ToList() ?? new();
+    }
+
+    public override async Task StartOperation()
+    {
+        this.Model.UserName = this.User;
+        if(this.IsModelValid)
+        {
+            this.OperationsResult = await this.api?
+                                                 .FuelParserApi?
+                                                 .UploadReport(this.Model, token: this.Token)
+                                                 ??
+                                                 default
+                                                 ;
+        }
+        else
+        {
+            this.Title = "Предупреждение";
+            this.Message = $"Модель не валидна ! {this.ValidErrors ?? string.Empty}";
+        }
+    }
+
+    public override async Task ProccessingResponse()
+    {
+        this.SuccessItems = new();
+        this.NotSuccessItems = new();
+        this.NotFoundCardsNums = new();
+        this.NotFoundCarsNums = new(); 
+        this.NotFuelTypeTranzactions = new();
+        this.CouldNotParsedTranzactions = new();
+        this.Message = string.Empty;
+
+        if (this.OperationsResult is ResponseDoubleGroupActionDetailed<FuelTransactionShortResponse, NotParsedTransaction> resPars)
+        {
+            this.SuccessItems = resPars?.SuccessItems?.OrderBy(_ => _.OperationDate)?.ToList() ?? new();
+            this.SecondarySuccessItems = resPars?.SecondarySuccessItems?.OrderBy(_ => _.OperationDate)?.ToList() ?? new();
+            this.NotSuccessItems = resPars?.NotSuccessItems ?? new();
+            this.CouldNotParsedTranzactions = resPars?.NotSuccessItems?.Select(_ => _.NotSuccessItem)?.OrderBy(_ => _.OperationDate)?.ToList()?? new();
+            this.NotFoundCardsNums = this.CouldNotParsedTranzactions?.Where(_ => !string.IsNullOrEmpty(_.CardNumber))?.Select(_ => _.CardNumber)?.ToList() ?? new();
+            this.NotFoundCarsNums = this.CouldNotParsedTranzactions?.Where(_ => !string.IsNullOrEmpty(_.CarNumber))?.Select(_ => _.CarNumber)?.ToList() ?? new();
+            this.NotFuelTypeTranzactions = this.CouldNotParsedTranzactions?.Where(_ => !string.IsNullOrEmpty(_.NotFuelType))?.ToList() ?? new();
+
+            this.Title = "Результат загрузки отчета";
+
+            if (SuccessItems.Any() || SecondarySuccessItems.Any())
+            {
+                this.Message = "Операция успешно завершена! Подробности : ";
+
+                if (SuccessItems.Any())
+                {
+                    Message += $"добавлены транзакции в количестве {SuccessItems.Count} шт. !";
+                }
+
+                if (NotSuccessItems.Any())
+                {
+                    Message += $"не добавлены транзакции в количестве {NotSuccessItems.Count} шт. !";
+                }
+
+                if (SecondarySuccessItems.Any())
+                {
+                    Message += $"обновлены транзакции в количестве {SecondarySuccessItems.Count} шт. !";
+                }
+            }
+            else
+            {
+                var emptyMessage = "Ни одна из транзакций не была сохранена в БД";
+                Message += resPars.Result.Contains(emptyMessage) ? resPars.Result : emptyMessage + "!" + resPars.Result;
+            }
+        }
+        else
+        {
+            this.Title = "Предупреждение";
+            this.Message = $"Операция была завершена с ошибкой ! Ответ сервера имеет неожиданный тип ! " +
+                           $"{this.OperationsResult?.Result ?? string.Empty} ";
+        }
+
+        this.InitButtons();
+    }
+    #endregion
+}

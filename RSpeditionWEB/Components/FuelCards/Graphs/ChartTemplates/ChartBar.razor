@@ -1,0 +1,101 @@
+﻿@typeparam T
+@inherits ChoiceChart<T>
+
+    <div style="text-align: center; font-weight: bold; font-size: medium;">
+        @this.TitleChart
+    </div>
+@if (this.IsRender)
+{
+    <RadzenChart Style="width: 100%; height: 100%; margin: 0; padding: 0;">
+        @if (this.Data != null && this.Data?.Keys?.Count() > 0)
+        {
+            int ind = -1;
+            foreach (var t in this.Data)
+            {
+                ind++;
+                var titleSeries = new string(t.Key ?? string.Empty);
+                var seriesVal = t.Value;
+                var fillColor = this.ColorsToFill.ElementAt(ind);
+
+                <RadzenBarSeries Data="@seriesVal"
+                     CategoryProperty="@this.CategoryProperty"
+                     ValueProperty="@this.ValueProperty"
+                     LineType="@this.Line"
+                     Fill="@fillColor"
+                     Stroke="black"
+                     StrokeWidth="1"
+                     TItem="T"
+                     Title="@titleSeries">
+                    <TooltipTemplate Context="data">
+                        @(this.GetToolTip(data, titleSeries, this.CategoryFormatter) ?? string.Empty)
+                    </TooltipTemplate>
+                </RadzenBarSeries>
+            }
+            <RadzenChartTooltipOptions Style="border: 1px solid black; background: white; color: black;" />
+            <RadzenColumnOptions Radius="2"
+                         Margin="1" />
+            <RadzenValueAxis FormatString="@this.ValueFormatString"
+                     Min="0"
+                     Max="@this.ValueMax"
+                     Step="@this.ValueStep">
+                <RadzenAxisTitle Text="@this.ValueLabel" />
+                <RadzenGridLines Visible="true"
+                         Stroke="black"
+                         LineType="LineType.Solid"
+                         StrokeWidth="2" />
+                <RadzenTicks Stroke="black"
+                     StrokeWidth="2"
+                     LineType="LineType.Dashed" />
+            </RadzenValueAxis>
+            @if (this.CategoryMax != null)
+            {
+                <RadzenCategoryAxis Visible="true"
+                        Padding="30"
+                        Min="@this.CategoryMin"
+                        Max="@this.CategoryMax"
+                        Step="@this.CategoryStep"
+                        Formatter="@this.CategoryFormatter">
+                    <RadzenAxisTitle Text="@this.CategoryLabel" />
+                    <RadzenGridLines Visible="true"
+                         Stroke="black"
+                         LineType="LineType.Solid"
+                         StrokeWidth="2" />
+                    <RadzenTicks Stroke="black"
+                     StrokeWidth="2"
+                     LineType="LineType.Dashed" />
+                </RadzenCategoryAxis>
+            }
+            else
+            {
+                <RadzenCategoryAxis Visible="true"
+                        Padding="30"
+                        Formatter="@this.CategoryFormatter">
+                    <RadzenAxisTitle Text="@this.CategoryLabel" />
+                    <RadzenGridLines Visible="true"
+                         Stroke="black"
+                         LineType="LineType.Solid"
+                         StrokeWidth="2" />
+                    <RadzenTicks Stroke="black"
+                     StrokeWidth="2"
+                     LineType="LineType.Dashed" />
+                </RadzenCategoryAxis>
+            }
+            @if (this.Data?.Keys?.Count > 1)
+            {
+                <RadzenLegend Visible="true"
+                  Position="LegendPosition.Right" />
+            }
+            else
+            {
+                <RadzenLegend Visible="false" />
+            }
+        }
+    </RadzenChart>
+}
+else
+{
+    <ProgressBarInner TitleProcess="Идет загрузка..." />
+}
+
+@code {
+}

@@ -1,0 +1,245 @@
+﻿@page "/FuelCardsCont"
+@page "/FuelCardsCont/{ActiveTabNum}"
+@attribute [Authorize]
+@inject IApies api
+@inject IMapper mapper
+@inherits ScaffoldJCMainBase
+
+<AuthorizeView>
+    <Authorized>
+        @if (!IsUserHasMinimumFuelRole)
+        {
+            <ForbiddenAccess />
+        }
+        else
+        {
+            <CascadingValue Value="@this">
+                <button class="tablink" id="defaultOpen" @ref="@TabsRef0" @onclick="@(async() => {await TabClickHandler(0, nameof(UploadReport), DotNetObjectReference.Create(ChildElemRef0), TabsRef0);})">@LabelsForTabs?.ElementAt(0)</button>
+                <button class="tablink" @ref="@TabsRef1" @onclick="@(async() => {await TabClickHandler(1, nameof(FuelTranzJournal), DotNetObjectReference.Create(ChildElemRef1), TabsRef1);})">@LabelsForTabs?.ElementAt(1)</button>
+                <button class="tablink" @ref="@TabsRef2" @onclick="@(async() => {await TabClickHandler(2, nameof(FuelCardsJournal), DotNetObjectReference.Create(ChildElemRef2), TabsRef2);})">@LabelsForTabs?.ElementAt(2)</button>
+                <button class="tablink" @ref="@TabsRef3" @onclick="@(async() => {await TabClickHandler(3, nameof(ObjectFuelCardHistoryJournal), DotNetObjectReference.Create(ChildElemRef3), TabsRef3);})">@LabelsForTabs?.ElementAt(3)</button>
+                <button class="tablink" @ref="@TabsRef4" @onclick="@(async() => {await TabClickHandler(4, nameof(FuelTransactionsDashBoard), DotNetObjectReference.Create(ChildElemRef4), TabsRef4);})">@LabelsForTabs?.ElementAt(4)</button>
+                <button class="tablink" @ref="@TabsRef5" @onclick="@(async() => {await TabClickHandler(5, nameof(ChartsFuelParent), DotNetObjectReference.Create(ChildElemRef5), TabsRef5);})">@LabelsForTabs?.ElementAt(5)</button>
+
+                <div id="@(nameof(UploadReport))" class="tabcontent">
+                    <UploadReport @ref="@ChildElemRef0" />
+                </div>
+
+                <div id="@(nameof(FuelTranzJournal))" class="tabcontent">
+                    <FuelTranzJournal @ref="@ChildElemRef1" />
+                </div>
+
+                <div id="@(nameof(FuelCardsJournal))" class="tabcontent">
+                    <FuelCardsJournal @ref="@ChildElemRef2" />
+                </div>
+
+                <div id="@(nameof(ObjectFuelCardHistoryJournal))" class="tabcontent">
+                    <ObjectFuelCardHistoryJournal @ref="@ChildElemRef3" />
+                </div>
+
+                <div id="@(nameof(FuelTransactionsDashBoard))" class="tabcontent">
+                    <FuelTransactionsDashBoard @ref="@ChildElemRef4" />
+                </div>
+
+                <div id="@(nameof(ChartsFuelParent))" class="tabcontent">
+                    <ChartsFuelParent @ref="@ChildElemRef5" />
+                </div>
+            </CascadingValue>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    #region
+    private UploadReport ChildElemRef0 { get; set; }
+    private FuelTranzJournal ChildElemRef1 { get; set; }
+    private FuelCardsJournal ChildElemRef2 { get; set; }
+    private ObjectFuelCardHistoryJournal ChildElemRef3 { get; set; }
+    private FuelTransactionsDashBoard ChildElemRef4 { get; set; }
+    private ChartsFuelParent ChildElemRef5 { get; set; }
+
+    public List<FuelTransactionFullResponse> Tranzactions { get; set; }
+
+    public List<FuelCardFullModel> Cards { get; set; }
+
+    public List<DivisionResponse> Divisions { get; set; }
+
+    public List<FuelProviderResponse> FuelProviders { get; set; }
+
+    public List<TruckResponse> Trucks { get; set; }
+
+    public List<FuelTypeResponse> FuelCategories { get; set; }
+
+    public List<CurrencyResponse> Currencies { get; set; }
+
+    public List<CountryResponse> Countries { get; set; }
+
+    public List<EmployeeView> Employees { get; set; }
+
+    public List<KitEventTypeView> KitEventTypes { get; set; }
+
+    private List<int> FuelKitEventTypesId { get; set; } = new List<int> {1, 2, 4, 5};
+
+    public virtual List<KitEventTypeView> FuelKitEventTypes => KitEventTypes?.Where(eventType => FuelKitEventTypesId.Any(id => id == eventType.Id))?.ToList() ?? new();
+
+    public List<FuelCardsEventFullModel> FuelCardsEvents { get; set; }
+
+    public List<TrucksLicensePlatesStatusesModel> TrucksLicensePlatesStatuses { get; set; }
+
+    public List<EmployeesAssignmentsResponse> EmployeesAssignmentsDrivers { get; set; }
+
+    #endregion
+
+    #region
+    protected override async Task OnInitializedAsync()
+    {
+        MinimumFuelRole = FuelRoles.Spedition_User;
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task InitializeTabs() 
+        => await Task.FromResult(
+            LabelsForTabs = new List<string>
+            {
+                "Загрузка отчета", 
+                "Транзакции", 
+                "Карты", 
+                "История закрепления карт", 
+                "Аналитика",
+                "Статистика",
+            });
+
+    #endregion
+
+    #region
+
+    public async Task InitTransactions()
+        => Tranzactions = await api.FuelTransactionApi.GetTransactions(Token);
+
+    public async Task InitCards()
+        => Cards = (await api.FuelCardAPI.GetCards(Token)).OrderBy(card => card.Number).ToList();
+
+    private async Task InitCountries()
+        => Countries = await api.CountryApi.GetCountries(Token);
+
+    private async Task InitCurrencies()
+        => Currencies = await api.CurrencyApi.GetCurrencies(Token);
+
+    private async Task InitFuelCategories()
+        => FuelCategories = await api.FuelTypeApi.GetFuelTypes(Token);
+
+    private async Task InitTrucks()
+        => Trucks = await api.TruckApi.GetTrucks(Token);
+
+    private async Task InitDivisions()
+        => Divisions = await api.DivisionApi.GetDivisions(Token);
+
+    public async Task InitFuelProviders()
+        => FuelProviders = await api.FuelProviderApi.GetFuelProviders(Token);
+
+    private async Task InitEmployees()
+        => Employees = await api.PersonApi.GetEmployees(Token);
+
+    private async Task InitEventTypes()
+        => KitEventTypes = await api.KitEventApi.GetKitEventTypes(Token);
+
+    public async Task InitTrucksLicensePlatesStatuses() 
+        => TrucksLicensePlatesStatuses = await GetTrucksLicensePlatesStatuses();
+
+    public async Task InitEmployeesAssignmentsDrivers() 
+        => EmployeesAssignmentsDrivers = await GetEmployeesAssignmentsDrivers();
+
+    public async Task<List<TrucksLicensePlatesStatusesModel>> GetTrucksLicensePlatesStatuses()
+        => await api.TruckApi.GetTrucksLicensePlatesStatuses(Token);
+
+    public async Task<List<EmployeesAssignmentsResponse>> GetEmployeesAssignmentsDrivers()
+        => await api.PersonApi.GetEmployeesAssignments(1, Token); // "Водитель"
+
+    public async Task InitObjectsFuelCardsEventsModels(string objectName)
+    {
+        var fuelCardsEvents = await api.FuelCardsEventsApi.GetObjectsCardsEvents(objectName, Token);
+
+        var fuelCardsEventsTemp = (from cardEvent in fuelCardsEvents
+                                   join card in Cards.DefaultIfEmpty() on cardEvent.CardId equals card?.Id ?? 0
+                                   join provider in FuelProviders.DefaultIfEmpty() on card.ProviderId equals provider?.Id ?? 0
+                                   join division in Divisions.DefaultIfEmpty() on card.DivisionID equals division?.Id ?? 0
+                                   select new FuelCardsEventFullModel
+                                   {
+                                       Id = cardEvent.Id,
+                                       ProviderName = provider.Name ?? string.Empty,
+                                       CardId = cardEvent.CardId,
+                                       CardNumber = card.Number ?? string.Empty,
+                                       CardFullNumber = card.FullNumber ?? string.Empty,
+                                       CarId = cardEvent.CarId,
+                                       EmployeeId = cardEvent.EmployeeId,
+                                       DivisionID = card.DivisionID,
+                                       DivisionName = division.Name ?? string.Empty,
+                                       StartDate = cardEvent.StartDate,
+                                       FinishDate = cardEvent.FinishDate,
+                                       EventTypeId = cardEvent.EventTypeId,
+                                       Comment = cardEvent.Comment,
+                                       ModifiedBy = cardEvent.ModifiedBy,
+                                       ModifiedOn = cardEvent.ModifiedOn,
+                                   })?.ToList() ?? new();
+
+        fuelCardsEventsTemp.ForEach(cardEvent =>
+            {
+                if (cardEvent.CarId.HasValue)
+                {
+                    cardEvent.CarNumberOnEventDate = FindTruckLicensePlateOnEventDate(cardEvent.CarId.Value, cardEvent.StartDate);
+                    cardEvent.CarNumber = Trucks?.FirstOrDefault(truck => truck.Id == cardEvent.CarId.Value)?.CarNumber ?? string.Empty;
+                }
+                else if (cardEvent.EmployeeId.HasValue)
+                {
+                    cardEvent.EmployeeName = FindDriverName(cardEvent.EmployeeId.Value);
+                }
+            });
+
+        FuelCardsEvents = fuelCardsEventsTemp;
+    }
+
+    private string FindTruckLicensePlateOnEventDate(int truckId, DateTime eventDate)
+    {
+        var result = string.Empty;
+        var trucksLicensePlateHistory = TrucksLicensePlatesStatuses?.FirstOrDefault(
+            TrucksLicensePlatesStatusesModelitem => TrucksLicensePlatesStatusesModelitem.TruckId == truckId)?.TrucksLicensePlates?
+            .OrderByDescending(licensePlate => licensePlate.BeginDate)?.ToList() ?? new();
+
+        foreach (var licensePlateValue in trucksLicensePlateHistory)
+        {
+            if (licensePlateValue.BeginDate.Date <= eventDate.Date
+                && (!licensePlateValue.EndDate.HasValue || licensePlateValue.EndDate.Value.Date >= eventDate.Date))
+            {
+                result = licensePlateValue.LicensePlate;
+                break;
+            }
+        }
+
+        // Если в истории номеров нету тягача с датой начала ранее даты события eventDate - по умолчанию отображать ТЕКУЩИЙ/АКТИВНЫЙ/ПОСЛЕДНИЙ номер тягача
+        if(string.IsNullOrEmpty(result))
+        {
+            result = Trucks?.FirstOrDefault(truck => truck.Id == truckId)?.CarNumber ?? string.Empty;
+        }
+
+        return result;
+    }
+
+    private string FindDriverName(int driverId)
+        => EmployeesAssignmentsDrivers?.FirstOrDefault(assignment => assignment.EmployeeId == driverId)?.EmployeeName ?? string.Empty;
+
+    public override async Task UpdateMainCollections() => await InitTransactions();
+
+    public override async Task UpdateSecondCollections()
+        => await Task.WhenAll(
+            new List<Task>
+            {
+                InitCountries(),
+                InitCurrencies(),
+                InitFuelCategories(),
+                InitTrucks(),
+                InitDivisions(),
+                InitEmployees(),
+                InitEventTypes(),
+            });
+    #endregion
+}

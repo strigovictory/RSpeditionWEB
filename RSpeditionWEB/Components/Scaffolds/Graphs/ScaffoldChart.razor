@@ -1,0 +1,273 @@
+﻿@inherits ComponentBaseClass
+@inject IJSRuntime js
+@typeparam T
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        <div class="pressed">
+            <div class="flexRow">
+                @*Обьект*@
+                <div class="flexColumn">
+                    @*Обьект*@
+                    <label_small_black>
+                        Обьект
+                    </label_small_black>
+                    <div>
+                        <select @onchange="@(async (ChangeEventArgs arg) => { this.ScaffoldChartBaseCascadingParameter.ChartsParameters.ObjectName = arg?.Value?.ToString() ?? string.Empty ;
+                                                                              this.ScaffoldChartBaseCascadingParameter.ChartsParameters.categoryName = this.ScaffoldChartBaseCascadingParameter.CategoriesNames.FirstOrDefault();
+                                                                              this.ScaffoldChartBaseCascadingParameter.ChartsParameters.subCategoryName = string.Empty;
+                                                                              this.ScaffoldChartBaseCascadingParameter.ChartKind = this.ScaffoldChartBaseCascadingParameter.ChartsKindsAlowed.FirstOrDefault(); })">
+                            @if (this.ScaffoldChartBaseCascadingParameter?.ObjectsNames != null && this.ScaffoldChartBaseCascadingParameter?.ObjectsNames.Count > 0)
+                            {
+                                @foreach (var item in this.ScaffoldChartBaseCascadingParameter.ObjectsNames)
+                                {
+                                    var label = item ?? string.Empty;
+                                    var val = label;
+                                    if (this.ScaffoldChartBaseCascadingParameter.ChartsParameters.ObjectName == item)
+                                    {
+                                        <option value="@val" selected>
+                                            @label
+                                        </option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@val">
+                                            @label
+                                        </option>
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                <option disabled selected>
+                                    Список пуст
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                @*Категория*@
+                <div class="flexColumn">
+                    <label_small_black>
+                        Категория
+                    </label_small_black>
+                    <div>
+                        <select @onchange="@(async (ChangeEventArgs arg) => { 
+                                                                              this.ScaffoldChartBaseCascadingParameter.ChartsParameters.CategoryName = arg?.Value?.ToString() ?? string.Empty ;
+                                                                              this.ScaffoldChartBaseCascadingParameter.ChartsParameters.subCategoryName = string.Empty;
+                                                                              this.ScaffoldChartBaseCascadingParameter.ChartKind = this.ScaffoldChartBaseCascadingParameter.ChartsKindsAlowed.FirstOrDefault(); })">
+                            @if (this.ScaffoldChartBaseCascadingParameter?.CategoriesNames != null && this.ScaffoldChartBaseCascadingParameter?.CategoriesNames.Count > 0)
+                            {
+                                @foreach (var item in this.ScaffoldChartBaseCascadingParameter.CategoriesNames ?? new())
+                                {
+                                    var label = item ?? string.Empty;
+                                    var val = label;
+                                    if (this.ScaffoldChartBaseCascadingParameter.ChartsParameters.CategoryName == item)
+                                    {
+                                        <option value="@val" selected>
+                                            @label
+                                        </option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@val">
+                                            @label
+                                        </option>
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                <option disabled selected>
+                                    Список пуст
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                @*Подкатегория*@
+                <div class="flexColumn">
+                    <label_small_black>
+                        Подкатегория
+                    </label_small_black>
+                    <div>
+                        <select @onchange="@(async (ChangeEventArgs arg) => {var val = arg?.Value?.ToString() ?? string.Empty;
+                                                                             this.ScaffoldChartBaseCascadingParameter.ChartsParameters.subCategoryName = val; // чтобы обновить список диаграммChartsKindsAlowed
+                                                                             this.ScaffoldChartBaseCascadingParameter.ChartKind = this.ScaffoldChartBaseCascadingParameter.ChartsKindsAlowed.FirstOrDefault();
+                                                                             this.ScaffoldChartBaseCascadingParameter.ChartsParameters.SubCategoryName = val; // чтобы обновить модель
+                                                                             if(string.IsNullOrEmpty(this.ScaffoldChartBaseCascadingParameter.ChartsParameters.SubCategoryName)
+                                                                             || string.IsNullOrEmpty(arg?.Value?.ToString() ?? string.Empty))
+                                                                                 this.ScaffoldChartBaseCascadingParameter.ChartKind = this.ScaffoldChartBaseCascadingParameter.ChartsKindsAlowed.FirstOrDefault();})">
+                            @if (this.ScaffoldChartBaseCascadingParameter?.SubCategoriesNames != null && this.ScaffoldChartBaseCascadingParameter?.SubCategoriesNames.Count > 0)
+                            {
+                                if (string.IsNullOrEmpty(this.ScaffoldChartBaseCascadingParameter.ChartsParameters.SubCategoryName))
+                                {
+                                    <option value="@string.Empty" selected>
+                                        Ничего не выбрано
+                                    </option>
+                                }
+                                else
+                                {
+                                    <option value="@string.Empty">
+                                        Ничего не выбрано
+                                    </option>
+                                }
+                                @foreach (var item in this.ScaffoldChartBaseCascadingParameter?.SubCategoriesNames?.Except(new List<string> { this.ScaffoldChartBaseCascadingParameter.ChartsParameters.CategoryName ?? string.Empty })?.ToList() ?? new())
+                                {
+                                    var label = item ?? string.Empty;
+                                    var val = label;
+                                    if (this.ScaffoldChartBaseCascadingParameter.ChartsParameters.SubCategoryName == item)
+                                    {
+                                        <option value="@val" selected>
+                                            @label
+                                        </option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@val">
+                                            @label
+                                        </option>
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                <option disabled selected>
+                                    Список пуст
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                @*Диаграмма*@
+                <div class="flexColumn">
+                    <label_small_black>
+                        Диаграмма
+                    </label_small_black>
+                    <div>
+                        <select @onchange="@(async (ChangeEventArgs arg) => { this.ScaffoldChartBaseCascadingParameter.ChartKind
+                                                                               = (Enum.GetValues<ChartKindPlotly>()?.ToList() ?? new()).FirstOrDefault(_ => Enum.GetName(_) == arg?.Value?.ToString());
+                                                                              this.InitFunction(); })">
+                            @if (ScaffoldChartBaseCascadingParameter?.ChartsKindsAlowed?.Any() ?? false)
+                            {
+                                @foreach (var item in this.ScaffoldChartBaseCascadingParameter.ChartsKindsAlowed)
+                                {
+                                    var label = item.ToString() ?? string.Empty;
+                                    var val = Enum.GetName(item);
+                                    if (this.ScaffoldChartBaseCascadingParameter.ChartKind == item)
+                                    {
+                                        <option value="@val" selected>
+                                            @label
+                                        </option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@val">
+                                            @label
+                                        </option>
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                <option disabled selected>
+                                    Список пуст
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="flexRowCenter100height">
+                <div>
+                    <div @ref="this.ChartRef"></div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Подождите..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    [CascadingParameter]
+    public ScaffoldChartBase<T> ScaffoldChartBaseCascadingParameter { get; set; }
+
+    private delegate void ChoiceChartDelegate();
+
+    private ElementReference ChartRef { get; set; }
+
+    private ChoiceChartDelegate Function { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IsRender = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+            this.InitFunction();
+        }
+    }
+
+    public void InitFunction()
+    {
+        this.Function = this.ScaffoldChartBaseCascadingParameter?.ChartKind switch
+        {
+            ChartKindPlotly.funnel => this.Function_funnel,
+            ChartKindPlotly.bar => this.Function_bar,
+            ChartKindPlotly.area => this.Function_area,
+            ChartKindPlotly.pie => this.Function_pie,
+            ChartKindPlotly.line => this.Function_line
+        };
+        this.Function?.Invoke();
+        this.StateHasChanged();
+    }
+
+    private void Function_funnel()
+    {
+        var model = (PlotlyChartGroup<T>)this.ScaffoldChartBaseCascadingParameter.ChartModel;
+        this.js?.InvokeVoidAsync("RenderPlotlyChart_funnel", this.ChartRef, model.ChartName, model.GroupsNames, model.DataNames, model.DataValues);
+        this.StateHasChanged();
+    }
+
+    private void Function_line()
+    {
+        var model = (PlotlyChartSimple<T>)this.ScaffoldChartBaseCascadingParameter.ChartModel;
+        this.js?.InvokeVoidAsync("RenderPlotlyChart_line", this.ChartRef, model?.ChartName ?? string.Empty, model?.DataNames ?? new(), model?.DataValues ?? new());
+        this.StateHasChanged();
+    }
+
+    private void Function_bar()
+    {
+        var model = (PlotlyChartSimple<T>)this.ScaffoldChartBaseCascadingParameter.ChartModel;
+        this.js?.InvokeVoidAsync("RenderPlotlyChart_bar", this.ChartRef, model?.ChartName ?? string.Empty, model?.DataNames ?? new(), model?.DataValues ?? new());
+        this.StateHasChanged();
+    }
+
+    private void Function_area()
+    {
+        var model = (PlotlyChartGroup<T>)this.ScaffoldChartBaseCascadingParameter.ChartModel;
+        this.js?.InvokeVoidAsync("RenderPlotlyChart_area", this.ChartRef, model?.ChartName ?? string.Empty, model?.GroupsNames ?? new(), model?.DataNames ?? new(), model?.DataValues ?? new());
+        this.StateHasChanged();
+    }
+
+    private void Function_pie()
+    {
+        var model = (PlotlyChartSimple<T>)this.ScaffoldChartBaseCascadingParameter.ChartModel;
+        this.js?.InvokeVoidAsync("RenderPlotlyChart_pie", this.ChartRef, model?.ChartName ?? string.Empty, model?.DataNames ?? new(), model?.DataValues ?? new());
+        this.StateHasChanged();
+    }
+}

@@ -1,0 +1,435 @@
+﻿@inject IApies api
+@inherits BanksCardsBase<EmployeeCreditCard_View_GUID>
+@inject IMapper mapper
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        var label_CardNumber = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.CardNumber)).Item1 ?? string.Empty;
+        var label_Rbsnumber = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.Rbsnumber)).Item1 ?? string.Empty;
+        var label_Bank = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.BankName)).Item1 ?? string.Empty;
+        var label_DateOfIssue = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.DateOfIssueName)).Item1 ?? string.Empty;
+        var label_ExpirationMonth = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.ExpirationMonthName)).Item1 ?? string.Empty;
+        var label_ExpirationYear = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.ExpirationYear)).Item1 ?? string.Empty;
+        var label_Comment = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.Comment)).Item1 ?? string.Empty;
+        var label_Hidden = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.Hidden)).Item1 ?? string.Empty;
+
+        <div class="form_flex">
+            <EditForm EditContext=@this.EditContext>
+                <DataAnnotationsValidator />
+                <input type="hidden" @bind-value="@this.Model.Id" />
+                @*1-я строка*@
+                <div class="flexRow">
+                    <div class="flexColumnStretchFromSecond">
+                        <div>
+                            <label_small_black>@label_CardNumber</label_small_black>
+                        </div>
+                        <div>
+                            <InputText @bind-Value="@this.Model.CardNumber"
+                                   @oninput="@((ChangeEventArgs arg) => { this.Model.CardNumber = arg.Value?.ToString() ?? string.Empty; })" />
+                        </div>
+                    </div>
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.CardNumber))
+                </div>
+                @*2-я строка*@
+                <div class="flexRow">
+                    <div class="flexColumnStretchFromSecond">
+                        <div>
+                            <label_small_black>@label_Rbsnumber</label_small_black>
+                        </div>
+                        <div>
+                            <InputText @bind-Value="@this.Model.Rbsnumber"
+                                   @oninput="@((ChangeEventArgs arg) => { this.Model.Rbsnumber = arg.Value?.ToString() ?? string.Empty; })" />
+                        </div>
+                    </div>
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.Rbsnumber))
+                </div>
+                @*3-я строка*@
+                <div class="flexRow">
+                    <div class="flexColumn">
+                        @{
+                            BankCardType cardType = new();
+                            var type_cardType = cardType.GetType();
+                            var props_cardType = new List<PropertyInfo> { type_cardType.GetProperty(nameof(cardType.Name)) };
+                            var textProp_cardType = type_cardType.GetProperty(nameof(cardType.Name));
+                            var label_CardType = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.CardTypeName)).Item1 ?? string.Empty;
+                            var cardTypeCurrent = this.BankCardTypes?.FirstOrDefault(_ => _.Abbrev.Equals(this.Model?.CardType ?? string.Empty, StringComparison.InvariantCultureIgnoreCase)) ?? null;
+                            var initPar_cardType = cardTypeCurrent == null ? null : new List<BankCardType> { cardTypeCurrent };
+                            var placeholder_cardType = this.IsCreate ? label_CardType ?? string.Empty : cardTypeCurrent?.Name ?? label_CardType;
+                        }
+                        <div>
+                            <label_small_black>@label_CardType</label_small_black>
+                        </div>
+                        <div>
+                            <SearchSelectTItems Items="@(this.BankCardTypes?.OrderBy(_ => _.Name).ToList() ?? new())"
+                                            T="@BankCardType"
+                                            KeyPropInfo="@(type_cardType.GetProperty(nameof(cardType.Id)))"
+                                            MaxSizeSelect="4"
+                                            InitParameters="@initPar_cardType"
+                                            LabelForSearch="@label_CardType"
+                                            Placeholder="@placeholder_cardType"
+                                            IsMultiple="@false"
+                                            PropertiesInfoForSearch="@props_cardType"
+                                            TextProperty="@textProp_cardType"
+                                            SendToParentFoundAndSelectedItems="@((List<BankCardType> selectedItems)
+                                                                                             => {
+                                                                                                    if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                        this.Model.CardType = this.BankCardTypes?.FirstOrDefault(_ => _.Id == selectedItems.FirstOrDefault().Id)?.Abbrev ?? string.Empty;
+                                                                                                    else
+                                                                                                        this.Model.CardType = string.Empty;
+                                                                                                })" />
+                        </div>
+                    </div>
+                    <div class="flexColumnLast">
+                        <div>
+                            <label_small_black>@label_Bank</label_small_black>
+                        </div>
+                        <div>
+                            <InputSelect @bind-Value="@this.Model.BankId"
+                                     @bind-Value:event="oninput">
+                                @if (this.Banks != null && this.Banks?.Count > 0)
+                                {
+                                    @if (!this.Model.BankId.HasValue)
+                                    {
+                                        <option disabled selected>@label_Bank</option>
+                                    }
+                                    else
+                                    {
+                                        <option disabled>@label_Bank</option>
+                                    }
+                                    @foreach (var item in this.Banks?.OrderBy(_ => _.BankNameShort)?.ToList() ?? new())
+                                    {
+                                        if (item == null) continue;
+                                        var val = item.Id;
+                                        string label = item.BankNameShort ?? string.Empty;
+                                        @if (this.Model.BankId.HasValue && this.Model.BankId.Value == val)
+                                        {
+                                            <option value="@val" selected>
+                                                @label
+                                            </option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@val">
+                                                @label
+                                            </option>
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    <option disabled selected>Список пуст</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.CardType))
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.BankId))
+                </div>
+                @*4-я строка*@
+                <div class="flexRow">
+                    <div class="flexColumn">
+                        @{
+                            CurrencyResponse curr = new();
+                            var type_curr = curr.GetType();
+                            var props_curr = new List<PropertyInfo> { type_curr.GetProperty(nameof(curr.Name)) };
+                            var textProp_curr = type_curr.GetProperty(nameof(curr.Name));
+                            var label_curr = type_curr.GetCustomDisplayValues(nameof(this.Model.CurrencyName)).Item1 ?? string.Empty;
+                            var currCurrent = this.Currencies?.FirstOrDefault(_ => _.Id == (this.Model?.CurrencyId ?? 0)) ?? null;
+                            var initPar_curr = currCurrent == null ? null : new List<CurrencyResponse> { currCurrent };
+                            var placeholder_curr = this.IsCreate ? label_curr ?? string.Empty : currCurrent?.Name ?? label_curr;
+                        }
+                        <div>
+                            <label_small_black>@label_curr</label_small_black>
+                        </div>
+                        <div>
+                            <SearchSelectTItems Items="@(this.Currencies?.OrderBy(_ => _.Name).ToList() ?? new())"
+                                            T="@CurrencyResponse"
+                                            KeyPropInfo="@(type_curr.GetProperty(nameof(curr.Id)))"
+                                            MaxSizeSelect="4"
+                                            InitParameters="@initPar_curr"
+                                            LabelForSearch="@label_curr"
+                                            Placeholder="@placeholder_curr"
+                                            IsMultiple="@false"
+                                            PropertiesInfoForSearch="@props_curr"
+                                            TextProperty="@textProp_curr"
+                                            SendToParentFoundAndSelectedItems="@((List<CurrencyResponse> selectedItems)
+                                                                                             => {
+                                                                                                    if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                        this.Model.CurrencyId = this.Currencies?.FirstOrDefault(_ => _.Id == (selectedItems?.FirstOrDefault()?.Id ?? 0))?.Id ?? null;
+                                                                                                    else
+                                                                                                        this.Model.CurrencyId = null;
+                                                                                                })" />
+                        </div>
+                    </div>
+                    <div class="flexColumnLast">
+                        <div>
+                            <label_small_black>@label_DateOfIssue</label_small_black>
+                        </div>
+                        <div>
+                            <InputDate TValue="DateTime?"
+                                       @bind-Value="@this.Model.DateOfIssue"
+                                       @oninput="@((ChangeEventArgs arg) => { this.Model.IssueDate_WereChanged(arg);})" />
+                        </div>
+                    </div>
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.CurrencyId))
+                </div>
+                <div class="validation-message">
+                    @this.Model.ManualValidationMessage_IssueDate
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.DateOfIssue))
+                </div>
+                @*5-я строка*@
+                <div class="flexRowFlexStart">
+                    <div class="flexColumn">
+                        <div>
+                            <label_small_black>@label_ExpirationMonth</label_small_black>
+                        </div>
+                        <div>
+                            <SelectMonth LabelForMonthChoice=""
+                                     MonthIntDefault="@(this.Model?.ExpirationMonth ?? -1)"
+                                     SizeSelect="1"
+                                     IsNeedSelectNull="true"
+                                     InvokeParentHendler="@((int month) => { if(month == -1)
+                                                                                        this.Model.ExpirationMonth = null;
+                                                                                     else
+                                                                                        this.Model.ExpirationMonth = month;
+                                                                                     this.Model.ExpireDate_WereChanged();
+                                                                                   })">
+                            </SelectMonth>
+                        </div>
+                    </div>
+                    <div class="flexColumn">
+                        <div>
+                            <label_small_black>@label_ExpirationYear</label_small_black>
+                        </div>
+                        <div>
+                            <SelectYear YearList="@(new List<int>(50).GetListYears())"
+                                        LabelForYear=""
+                                        IsNeedSelectNull="true"
+                                        YearDefault="@(this.Model?.ExpirationYear ?? -1)"
+                                        InvokeParentHendler="@(async (int year) => {  if(year == -1)
+                                                                                                this.Model.ExpirationYear = null;
+                                                                                             else
+                                                                                                this.Model.ExpirationYear = year;
+                                                                                            this.Model.ExpireDate_WereChanged(); })">
+                            </SelectYear>
+                        </div>
+                    </div>
+                    <div class="flexColumnLast">
+                        <div>
+                            @if (this.Model.Hidden)
+                            {
+                                <div class="squaredOne">
+                                    <label_small_black_margLeft>@label_Hidden</label_small_black_margLeft>
+                                    <input type="checkbox"
+                                   checked
+                                   id="bankCardEditF_id"
+                                   @bind-value="@this.Model.Hidden"
+                                   @oninput="@((ChangeEventArgs arg) => { this.Model.Hidden = (bool)arg.Value; } )" />
+                                    <label for="bankCardEditF_id"></label>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="squaredOne">
+                                    <label_small_black_margLeft>@label_Hidden</label_small_black_margLeft>
+                                    <input type="checkbox"
+                                   id="bankCardEditF_id"
+                                   @bind-value="@this.Model.Hidden"
+                                   @oninput="@((ChangeEventArgs arg) => { this.Model.Hidden = (bool)arg.Value; } )" />
+                                    <label for="bankCardEditF_id"></label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="validation-message">
+                    @this.Model.ManualValidationMessage_ExpirDate
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.Hidden))
+                </div>
+                @*6-я строка*@
+                <div class="flexRow">
+                    <div class="flexColumnStretchFromSecond">
+                        <div>
+                            <label_small_black>@label_Comment</label_small_black>
+                        </div>
+                        <div>
+                            <InputTextArea @bind-Value="@this.Model.Comment"
+                                       @oninput="@((ChangeEventArgs arg) => { this.Model.Comment = arg.Value?.ToString() ?? string.Empty; })"
+                                       rows="5" />
+                        </div>
+                    </div>
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.Comment))
+                </div>
+                <br />
+                @if(!this.IsModelValid)
+                {
+                    <div class="validation-message">
+                        Ошибки валидации:
+                    </div>
+                    <UlOlli Items="@(this.ValidErrors.ConvertStringToList('!'))"
+                            IsOrderedList="true"
+                            NameClass="validation-message"/>
+                }
+                <div>
+                    <ButtonDouble EventCallbackToParent="@(async () => {await this.ProgressBarOpenAsync();
+                                                                            await this.StartOperation();
+                                                                            await this.ProgressBarCloseAsync(); })"
+                                  EventCallbackToParentReset="@(async () => { await this.MedelsInitialization();
+                                                                              this.Model.ManualValidationMessage_ExpirDate = string.Empty;
+                                                                              this.Model.ManualValidationMessage_IssueDate = string.Empty; })"
+                                  LabelForButton="Сохранить"
+                                  LabelForButtonReset="Отмена"
+                                  IsActive="@(this.IsModelValid
+                                              && string.IsNullOrEmpty(this.Model.ManualValidationMessage_ExpirDate)
+                                              && string.IsNullOrEmpty(this.Model.ManualValidationMessage_IssueDate))"
+                                  TitleIfIsNonActive="Сохранение изменений возможно, если они валидны"
+                                  TitleIfIsActive="Кликните, чтобы сохранить изменения"
+                                  TitleReset="Кликните, чтобы отменить внесенные изменения">
+                    </ButtonDouble>
+                </div>
+            </EditForm>
+        </div>
+    }
+    else
+    {
+        <div>
+            Идет загрузка формы...
+        </div>
+    }
+
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => {
+                                                                                        if(this.IsCreate)
+                                                                                        {
+                                                                                            if (this.ShouldUpdateParent)
+                                                                                                await this.InvokeParentHendlerAfterCreating.InvokeAsync(this.Model);
+                                                                                            else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                                await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                                        }
+                                                                                        else
+                                                                                        {
+                                                                                            if (this.ShouldUpdateParent)
+                                                                                                await this.InvokeParentHendlerAfterUpd.InvokeAsync(this.Model);
+                                                                                            else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                                await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                                        }
+                                                                                  })">
+            <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@this.Message">
+            </ResultOperation>
+        </ModalWindowWithEventCallback>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    [CascadingParameter]
+    public BanksCardsFilters BanksCardsFiltersCascadingVal { get; set; }
+
+    private List<BankView> Banks => this.BanksCardsFiltersCascadingVal?.BankCardsCascadingParameter?.Banks ?? new();
+
+    private List<CurrencyResponse> Currencies => BanksCardsFiltersCascadingVal?.BankCardsCascadingParameter?.Currencies ?? new();
+
+    private List<EmployeeView> Employees => BanksCardsFiltersCascadingVal?.BankCardsCascadingParameter?.Employees ?? new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ReturnUrl = this.BanksCardsFiltersCascadingVal?.ReturnUrl ?? "/";
+        this.IdForProgressBar = "banksCardsEditForm_id";
+
+        if (this.IsCreate)
+            this.Model.DateOfIssue = DateTime.Today;
+
+        this.IsRender = true;
+    }
+
+    public override async Task StartOperation()
+    {
+        this.Message = string.Empty;
+
+        if (this.IsModelValid)
+        {
+            var putPostModel = this.mapper?.Map<EmployeeCreditCardView>(this.Model) ?? null;
+
+            if (putPostModel == null)
+            {
+                this.Title = "Предупреждение";
+                this.Message = "Ошибка, обратитесь в службу поддержки !";
+            }
+            else
+            {
+                if (this.IsCreate)
+                    this.OperationsResult = await this.api?.FinanceApi?.PostEmployeeCreditCard(new List<EmployeeCreditCardView> { putPostModel }, this.Token);
+                else
+                    this.OperationsResult = await this.api?.FinanceApi?.PutEmployeeCreditCard(putPostModel, this.Token);
+
+                await this.ProccessingResponse();
+            }
+        }
+        else
+        {
+            this.Title = "Предупреждение";
+            this.Message = string.Concat("Сохранить изменения невозможно, пока введенные данные не будут валидны !", this.ValidErrors);
+        }
+
+        this.RenderMessage();
+    }
+
+    public override async Task ProccessingResponse()
+    {
+        if (this.IsCreate)
+        {
+            if (this.OperationsResult == null)
+            {
+                this.Message = $"{this.OperationsResult?.Result ?? "Операция закончилась с ошибкой ! Ошибка на уровне сервера !"}";
+            }
+            else
+            {
+                this.Message = $"{this.OperationsResult?.Result ?? "Операция успешно завершена ! Изменения были зафиксированы !"}";
+                this.ShouldUpdateParent = true;
+            }
+
+            this.Title = "Результат добавления банковской карты";
+        }
+        else
+        {
+            var resUpd = (this.OperationsResult as ResponseSingleAction<EmployeeCreditCardView>)?.Item ?? null;
+
+            if (resUpd == null || resUpd.Id <= 0)
+                this.Message = "Операция закончилась с ошибкой ! Ошибка на уровне сервера !" + (this.OperationsResult.Result ?? string.Empty);
+            else
+            {
+                this.Message = string.IsNullOrEmpty(this.OperationsResult.Result ?? string.Empty)
+                               ? "Операция успешно завершена ! Изменения были зафиксированы !"
+                               : this.OperationsResult.Result ?? string.Empty
+                               ;
+                this.ShouldUpdateParent = true;
+            }
+
+            this.Title = "Результат редактирования банковской карты";
+        }
+    }
+}

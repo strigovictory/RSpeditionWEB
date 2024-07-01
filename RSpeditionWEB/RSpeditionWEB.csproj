@@ -1,0 +1,199 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Components\Mobile\Phones\**" />
+    <Content Remove="Components\Mobile\Phones\**" />
+    <EmbeddedResource Remove="Components\Mobile\Phones\**" />
+    <None Remove="Components\Mobile\Phones\**" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<Protobuf Include="Proto\fuelTranzGRPC.proto" GrpcServices="Client" />
+		<Protobuf Include="Proto\customTypesGRPC.proto" GrpcServices="Client" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Remove="Components\RefBook\TablePreview.razor.css" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="Components\RefBook\TablePreview.razor.css" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="System" />
+		<Using Include="System.Diagnostics.Metrics" />
+		<Using Include="System.Timers" />
+		<Using Include="System.Collections.Concurrent" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.BaseModels" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.TranzactionsJournal.GroupAdding" />
+		<Using Include="Microsoft.AspNetCore.ResponseCompression" />
+		<Using Include="Microsoft.JSInterop" />
+		<Using Include="System.Globalization" />
+		<Using Include="System.ComponentModel" />
+		<Using Include="System.ComponentModel.DataAnnotations" />
+		<Using Include="System.ComponentModel.DataAnnotations.Schema" />
+		<Using Include="System.Runtime.InteropServices" />
+		<Using Include="System.Collections" />
+		<Using Include="System.Collections.Generic" />
+		<Using Include="System.Collections.Specialized" />
+		<Using Include="System.Linq" />
+		<Using Include="System.Linq.Expressions" />
+		<Using Include="System.Threading.Tasks" />
+		<Using Include="System.Text" />
+		<Using Include="System.Text.Encodings.Web" />
+		<Using Include="System.Text.Json" />
+		<Using Include="System.Text.Json.Serialization" />
+		<Using Include="System.Web" />
+		<Using Include="System.Net" />
+		<Using Include="System.Net.Http.Headers" />
+		<Using Include="System.Security.Claims" />
+		<Using Include="System.Security.Principal" />
+		<Using Include="System.Reflection" />
+		<Using Include="System.Diagnostics" />
+		<Using Include="Microsoft.AspNetCore.Identity" />
+		<Using Include="Microsoft.AspNetCore.Authentication" />
+		<Using Include="Microsoft.AspNetCore.Components.Authorization" />
+		<Using Include="Microsoft.AspNetCore.Authorization" />
+		<Using Include="Microsoft.AspNetCore.Authorization.Infrastructure" />
+		<Using Include="Microsoft.AspNetCore.DataProtection" />
+		<Using Include="Microsoft.AspNetCore.Components" />
+		<Using Include="Microsoft.AspNetCore.Components.Web" />
+		<Using Include="Microsoft.Extensions.Primitives" />
+		<Using Include="Microsoft.EntityFrameworkCore" />
+		<Using Include="Microsoft.Extensions.Primitives" />
+		<Using Include="Microsoft.Extensions.Configuration" />
+		<Using Include="Microsoft.Extensions.Logging" />
+		<Using Include="Microsoft.Extensions.Options" />
+		<Using Include="Microsoft.AspNetCore.Mvc" />
+		<Using Include="Microsoft.AspNetCore.Mvc.RazorPages" />
+		<Using Include="Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage" />
+		<Using Include="AutoMapper" />
+		<Using Include="Serilog" />
+		<Using Include="Serilog.Core" />
+		<Using Include="Serilog.Sinks.SystemConsole.Themes" />
+		<Using Include="Radzen.Blazor" />
+		<Using Include="RSpeditionWEB.Components.Auth" />
+		<Using Include="RSpeditionWEB.Components.ComponentsBase" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.CarFuelCards" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.CarFuelCards.FuelCardsHistory" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.Graphs.ChartBaseClasses" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.Graphs.ChartsFuel" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.TranzactionsJournal" />
+		<Using Include="RSpeditionWEB.Components.Generic" />
+		<Using Include="RSpeditionWEB.Components.RefBook" />
+		<Using Include="RSpeditionWEB.Components.Shared.ButtonGroup" />
+		<Using Include="RSpeditionWEB.Components.Shared.DateTime" />
+		<Using Include="RSpeditionWEB.Components.Shared" />
+		<Using Include="RSpeditionWEB.Shared" />
+		<Using Include="RSpeditionWEB.UIInterfaces" />
+		<Using Include="RSpeditionWEB.Abstract" />
+		<Using Include="RSpeditionWEB.Interfaces" />
+		<Using Include="RSpeditionWEB" />
+		<Using Include="RSpeditionWEB.Validation" />
+		<Using Include="RSpeditionWEB.Abstract" />
+		<Using Include="RSpeditionWEB.API" />
+		<Using Include="RSpeditionWEB.Components.Auth" />
+		<Using Include="RSpeditionWEB.Components.ComponentsBase" />
+		<Using Include="RSpeditionWEB.Components.FuelCards" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.CarFuelCards" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.CarFuelCards.FuelCardsHistory" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.CarFuelCards.GroupAdding" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.CarFuelCards.GroupMovingToArchive" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.CarFuelCards.NotFoundFuelCards" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.Graphs" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.Graphs.ChartBaseClasses" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.Graphs.ChartsFuel" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.Graphs.ChartTemplates" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.Graphs.ChartEnums" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.Graphs.ChartModels" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.TranzactionsJournal" />
+		<Using Include="RSpeditionWEB.Components.FuelCards.TranzactionsJournal.GroupDel" />
+		<Using Include="RSpeditionWEB.Components.Generic" />
+		<Using Include="RSpeditionWEB.Components.Mobile" />
+		<Using Include="RSpeditionWEB.Components.Mobile.GPSTrackers" />
+		<Using Include="RSpeditionWEB.Components.Mobile.MobileCommunications" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.Cars" />
+		<Using Include="RSpeditionWEB.Components.Upload" />
+		<Using Include="RSpeditionWEB.Components.Mobile.SimCards" />
+		<Using Include="RSpeditionWEB.Components.RefBook" />
+		<Using Include="RSpeditionWEB.Components.Shared" />
+		<Using Include="RSpeditionWEB.Components.Shared.ButtonGroup" />
+		<Using Include="RSpeditionWEB.Components.Shared.DateTime" />
+		<Using Include="RSpeditionWEB.Components.Shared.Lists" />
+		<Using Include="RSpeditionWEB.Components.Shared.Modal" />
+		<Using Include="RSpeditionWEB.Components.Shared.Tabs" />
+		<Using Include="RSpeditionWEB.Enums" />
+		<Using Include="RSpeditionWEB.Enums.DateTime" />
+		<Using Include="RSpeditionWEB.Enums.Filters" />
+		<Using Include="RSpeditionWEB.Helpers" />
+		<Using Include="RSpeditionWEB.Helpers.Auth" />
+		<Using Include="RSpeditionWEB.Interfaces" />
+		<Using Include="RSpeditionWEB.Mapping" />
+		<Using Include="RSpeditionWEB.Models" />
+		<Using Include="RSpeditionWEB.Models.Results" />
+		<Using Include="RSpeditionWEB.Models.ViewModels" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.ReflectionModels" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.FuelCards" />
+		<Using Include="RSpeditionWEB.Pages" />
+		<Using Include="RSpeditionWEB.Services" />
+		<Using Include="RSpeditionWEB.Shared" />
+		<Using Include="RSpeditionWEB.UIInterfaces" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.Mobile" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.Person" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.Organizations" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.Banks" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.Currencies" />
+		<Using Include="RSpeditionWEB.Components.Shared.Timers" />
+		<Using Include="RSpeditionWEB.Components.Shared.Menu" />
+		<Using Include="RSpeditionWEB.Components.Scaffolds" />
+		<Using Include="RSpeditionWEB.Components.Scaffolds.EditForm" />
+		<Using Include="RSpeditionWEB.Components.Scaffolds.History" />
+		<Using Include="RSpeditionWEB.Components.Scaffolds.Graphs" />
+		<Using Include="RSpeditionWEB.Components.Scaffolds.JC" />
+		<Using Include="RSpeditionWEB.Components.Scaffolds.Search" />
+		<Using Include="RSpeditionWEB.Enums.Graphics" />
+		<Using Include="RSpeditionWEB.Services.GRPCServices" />
+		<Using Include="RSpeditionWEB.Helpers.Attributes" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.BaseModels" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.Rides" />
+		<Using Include="RSpeditionWEB.Components.Banks.BanksCards" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.Shared" />
+		<Using Include="RSpeditionWEB.Models.ViewModels.DynamicNavigation" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="wwwroot\logs\" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.0" />
+	  <PackageReference Include="Google.Protobuf" Version="3.23.2" />
+	  <PackageReference Include="Grpc.AspNetCore" Version="2.53.0" />
+	  <PackageReference Include="Grpc.Net.Client" Version="2.53.0" />
+	  <PackageReference Include="Grpc.Net.ClientFactory" Version="2.53.0" />
+	  <PackageReference Include="Grpc.Tools" Version="2.54.0">
+	    <PrivateAssets>all</PrivateAssets>
+	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	  </PackageReference>
+	  <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.0" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="7.0.0" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="7.0.0" />
+	  <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+	  <PackageReference Include="Plotly.Blazor" Version="2.16.1" />
+	  <PackageReference Include="Radzen.Blazor" Version="4.3.2" />
+	  <PackageReference Include="RestSharp" Version="110.2.0" />
+	  <PackageReference Include="Serilog.AspNetCore" Version="6.0.1" />
+	  <PackageReference Include="Serilog.Extensions.Logging.File" Version="3.0.0" />
+	  <PackageReference Include="Serilog.Settings.Configuration" Version="3.4.0" />
+	  <PackageReference Include="Serilog.Sinks.Http" Version="8.0.0" />
+	  <PackageReference Include="Serilog.Sinks.Seq" Version="5.2.1" />
+	</ItemGroup>
+
+</Project>

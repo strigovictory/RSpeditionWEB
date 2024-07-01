@@ -1,0 +1,178 @@
+﻿@inherits SearchTItemsBase<T>
+@typeparam T
+@inject Serilog.ILogger logger
+
+
+@if(this.IsRender)
+{
+    <div style="margin-left: 0px;">
+        <div class="search">
+            <input type="search"
+                   placeholder="@(this.LabelForSearch ?? "Поиск")"
+                   class="input"
+                   @bind-value="this.SearchString"
+                   @bind-value:event="oninput"/>
+        </div>
+    </div>
+}
+else
+{
+    <ProgressBar />
+}
+
+@code {
+    [CascadingParameter]
+    public ScaffoldJCParentBase<T> ScaffoldJCParentBaseCascadingParameter { get; set; }
+
+    private List<PropertyInfo> props_valueType { get; set; } = new();
+
+    private Dictionary<PropertyInfo, List<PropertyInfo>> props_referenceType { get; set; } = new();
+
+    private Predicate<PropertyInfo> isValType = (prop) => (prop?.GetGetMethod()?.ReturnType?.IsValueType ?? false)
+                                                       || (prop?.GetGetMethod()?.ReturnType?.IsEnum ?? false)
+                                                       || (prop?.GetGetMethod()?.ReturnType?.IsPrimitive ?? false)
+                                                       || (prop?.GetGetMethod()?.ReturnType == typeof(System.String));
+
+    protected override async Task OnInitializedAsync()
+    {
+        this.Message = "Подождите...";
+        await base.OnInitializedAsync();
+        this.ResetCollection();
+        this.InitProps();
+        this.IsRender = true;
+    }
+
+    public void ResetCollection()
+    {
+        this.searchString = string.Empty;
+        this.SearchedItems = new(ScaffoldJCParentBaseCascadingParameter?.ParentComponent?.GetFilteredTItems() ?? new());
+    }
+
+    private void InitProps()
+    {
+        var propertiesInfoForSearch = ScaffoldJCParentBaseCascadingParameter?.ParentComponent?.PropertiesRendered ?? new();
+
+        foreach(var prop in propertiesInfoForSearch)
+        {
+            if(((prop?.GetGetMethod()?.ReturnType?.Name?.Equals("ICollection`1", StringComparison.InvariantCultureIgnoreCase)) ?? false)
+            || (prop?.GetGetMethod()?.IsAbstract ?? false))
+            {
+                continue;
+            }
+            else if(!isValType(prop))
+            {
+                var innerPropsValType = prop?.GetGetMethod()?.ReturnType?.GetProperties()?.ToList() ?? new();
+                this.props_referenceType?.Add(prop, innerPropsValType?.Where(_ => isValType(_))?.ToList() ?? new());
+            }
+            else
+            {
+                this.props_valueType?.Add(prop);
+            }
+        }
+    }
+
+    public override async Task SearchStart()
+    {
+        SearchItems();
+
+        if (SendToParentFoundAndSelectedItems.HasDelegate)
+            await SendToParentFoundAndSelectedItems.InvokeAsync(SearchedItems);
+    }
+
+    public List<T> SearchItems()
+    {
+        ConcurrentBag<T> res = new();
+        InitProps();
+
+        var filteredItems = ScaffoldJCParentBaseCascadingParameter?.ParentComponent?.GetFilteredTItems() ?? new();
+        if (string.IsNullOrEmpty(SearchString))
+        {
+            SearchedItems = new(filteredItems);
+            return SearchedItems;
+        }
+
+        ConcurrentBag<T> source = new(filteredItems);
+        var result = Parallel.ForEach(source,
+                                      new ParallelOptions { MaxDegreeOfParallelism = 32},
+                                      item =>
+        {
+            var isFound = false;
+
+            // 1 - valueProps
+            foreach (var prop in this.props_valueType ?? new())
+            {
+                try
+                {
+                    if(prop?.CanRead ?? false)
+                    {
+                        var propValue = prop?.GetValue(item)?.ToString()?.Trim() ?? string.Empty;
+
+                        if (!string.IsNullOrEmpty(propValue)
+                        && propValue.Contains(this.SearchString?.Trim() ?? string.Empty, StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            res.Add(item);
+                            isFound = true;
+                            break; 
+                        }
+                        else
+                            continue;
+                    }
+                }
+                catch(Exception exc)
+                {
+                    this.Message = exc?.Message ?? string.Empty;  
+                }
+            }
+
+            if (!isFound)
+            {
+                // 2 - referenceProps
+                foreach (var prop in props_referenceType ?? new())
+                {
+                    if (isFound) break;
+
+                    try
+                    {
+                        if(prop.Key?.CanRead ?? false)
+                        {
+                            var innerItem = prop.Key?.GetValue(item);
+
+                            if (innerItem == null)
+                                continue;
+
+                            foreach(var innerProp in prop.Value?.Where(_ => isValType(_))?.ToList() ?? new())
+                            {
+                                var propValue = innerProp?.GetValue(innerItem)?.ToString()?.Trim() ?? string.Empty;
+
+                                if (!string.IsNullOrEmpty(propValue)
+                                && propValue.Contains(this.SearchString?.Trim() ?? string.Empty, StringComparison.InvariantCultureIgnoreCase))
+                                {
+                                    res.Add(item);
+                                    isFound = true;
+                                    break; 
+                                }
+                            }
+                        }
+                    }
+                    catch(Exception exc)
+                    {
+                        this.Message = exc?.Message ?? string.Empty;  
+                    }
+                }
+            }
+        });
+
+        if(!result.IsCompleted)
+        {
+            this.logger?.Error($"Ошибка в методе {nameof(SearchItems)} в компоненте «{this.GetType().Name ?? string.Empty}» " +
+                               $"Цикл был прерван! Выполнение завершено на итерации {result.LowestBreakIteration ?? 0}");
+        }
+
+        SearchedItems = res?.ToList() ?? new();
+        return SearchedItems;
+    }
+
+    new private async Task ProgressBarOpen() => await this.CascadingParameterRef.ProgressBarOpenAsync();
+
+    new private async Task ProgressBarClose() => await this.CascadingParameterRef.ProgressBarCloseAsync();
+}

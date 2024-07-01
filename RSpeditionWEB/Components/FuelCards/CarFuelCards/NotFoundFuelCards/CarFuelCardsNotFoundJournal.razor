@@ -1,0 +1,224 @@
+﻿@inherits ScaffoldJCFiltersBase<FuelCardNotFoundView>
+@inject IApies api
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        <div style="padding-top: 5px;">
+            <ScaffoldJCParent T="@FuelCardNotFoundView"
+                              MinHeight="60"
+                              MaxHeight="64"
+                              MaxHeightLastTableRow="30"
+                              IsRenderCheckColumn="false"
+                              @ref="@ScaffoldJCParentRef"/>
+        </div>
+
+        @*Блок кнопок в футере*@
+        <div class="stickyBottomContainer">
+            <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList"
+                             WidthForButtonWrapper="30%" />
+        </div>
+
+        @if (this.ShowConfermationDelete)
+        {
+            List<ButtonBaseClass> btnBaseClassList = new();
+            //
+            ButtonBaseClass deleteButton = new();
+            deleteButton.CallbackToParent = (async () =>
+            {
+                await this.RemoveRangeNotFoundFuelCards();
+                this.Title = "Результат удаления";
+                this.ShowConfermationDelete = false;
+                RenderMessage();
+            });
+            deleteButton.LabelForButton = "Удалить";
+            deleteButton.IsActive = IsUserHasMinimumFuelRole;
+            deleteButton.TitleIfIsActive = "Удаление карт, добавленных в базу";
+            deleteButton.TitleIfIsNonActive = "Вы не обладаете необходимым доступом для выполнения операции";
+            //
+            if (IsUserHasMinimumFuelRole)
+            {
+                btnBaseClassList.AddRange(new List<ButtonBaseClass> { deleteButton });
+            }
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                          InvokeParentHandlerwithUpdParent="@(async () => {this.ShowConfermationDelete = false;})">
+                <div class="validation-message">
+                    Вы подтверждаете удаление ?
+                </div>
+                <div class="stickyBottomContainer" style="top: 0vh !important;">
+                    <ButtonContainer ButtonBaseClassList="@btnBaseClassList"
+                                     WidthForButtonWrapper="50%" />
+                </div>
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.ShowMessage)
+        {
+            List<ButtonBaseClass> buttons = new();
+            //
+            ButtonBaseClass buttonRemovedCards = new();
+            buttonRemovedCards.CallbackToParent = (() =>
+            {
+                IsRenderSuccessItems = IsRenderSuccessItems ? false : true;
+                StateHasChanged();
+            });
+            buttonRemovedCards.LabelForButton = "Удаленные карты";
+            buttonRemovedCards.IsActive = true;
+            buttonRemovedCards.TitleIfIsActive = "Кликните для отображения перечня удаленных карт";
+            buttonRemovedCards.TitleIfIsNonActive = "Коллекция удаленных карт пустая";
+            //
+            if(SuccessItems.Any())
+                buttons.Add(buttonRemovedCards);
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { ShowMessage = false; 
+                                                                                            if(ShouldUpdateParent)
+                                                                                            {
+                                                                                                await UpdateAfterAction();
+                                                                                            }})">
+                <ResultOperation Devider="'!'"
+                                 ResList="null"
+                                 ResMessage="@Message" />
+                @if(buttons.Any())
+                 {
+                    <div class="stickyBottomContainer" style="top: 0vh !important;">
+                        <ButtonContainer ButtonBaseClassList="@buttons"
+                                         WidthForButtonWrapper="50%" />
+                    </div>
+
+                    @if (IsRenderSuccessItems)
+                    {
+                        <ItemsWithReasonList Items="@(this.GetTupleSuccess())"
+                                             NameItem="Удаленные карты"
+                                             IsDetailsHide="true" />
+                    }
+                 }
+            </ModalWindowWithEventCallback>
+        }
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка..." TopValue="40" />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    [CascadingParameter]
+    public CarFuelCardsNotFoundCont FuelCardsNotFoundCascadingParameter { get; set; }
+
+    public List<FuelCardNotFoundShortResponse> SuccessItems { get; set; }
+
+    private bool ShowConfermationDelete { get; set; }
+
+    protected bool IsRenderSuccessItems { get; set; } = false;
+
+    #region Overriden
+    public override List<(PropertyInfo pi, SortOrder sortOrder)> DefaultSortByColumns
+        => new List<(PropertyInfo pi, SortOrder sortOrder)>
+        {
+            (this.ModelsType.GetProperty(nameof(this.Model.Number)), SortOrder.asc)
+        };
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+        => new List<PropertyInfo>
+            {
+            this.ModelsType.GetProperty(nameof(this.Model.Id)),
+            this.ModelsType.GetProperty(nameof(this.Model.Number)),
+            this.ModelsType.GetProperty(nameof(this.Model.FuelProviderName)),
+            this.ModelsType.GetProperty(nameof(this.Model.ImportDate)),
+            this.ModelsType.GetProperty(nameof(this.Model.UserName)),
+        };
+
+    public override List<PropertyInfo> InitPropertiesHidden()
+        => new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.Id)),
+        };
+
+    protected override Dictionary<PropertyInfo, Func<object, string>> InitPropertiesStylesFormat()
+        => new Dictionary<PropertyInfo, Func<object, string>>
+        {
+            {this.ModelsType.GetProperty(nameof(this.Model.ImportDate)), (object val) => Convert.ToDateTime(val).FormatingDateTime()},
+        };
+
+    protected override async Task OnInitializedAsync()
+    {
+        MinimumFuelRole = FuelRoles.Fuel_Provisioner;
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task<List<FuelCardNotFoundView>> GetCollectionTItemsFromParent()
+        => FuelCardsNotFoundCascadingParameter?.FuelCardsNotFound ?? new();
+
+    protected override async void InitButtons()
+    {
+        this.ButtonBaseClassList = new();
+        //
+        ButtonBaseClass buttonConfirmRemove = new();
+        buttonConfirmRemove.CallbackToParent = (() =>
+        {
+            Title = "Подтверждение удаления";
+            ShowConfermationDelete = true;
+            this.StateHasChanged();
+        });
+        buttonConfirmRemove.LabelForButton = $"Удаление существующих карт";
+        buttonConfirmRemove.IsActive = IsUserHasMinimumFuelRole;
+        buttonConfirmRemove.TitleIfIsActive = "Удаление карт, добавленных в базу";
+        buttonConfirmRemove.TitleIfIsNonActive = "Вы не обладаете необходимым доступом для выполнения операции";
+        ButtonBaseClass buttonPrint = new();
+        buttonPrint.CallbackToParent = (async () =>
+        {
+            var uri = HostUrl + ControllersNames.fuelprint + "/notfoundcards";
+            var resGenerate = await InitGeneratePrintForm(uri, ItemsFiltered);
+            if (!resGenerate.Item1)
+            {
+                Message = resGenerate.Item2;
+                Title = "Предупреждение";
+                RenderMessage();
+            }
+        });
+        buttonPrint.LabelForButton = "Печатная форма";
+        buttonPrint.IsActive = IsRender;
+        buttonPrint.TitleIfIsActive = "";
+        buttonPrint.TitleIfIsNonActive = "";
+        //
+        this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { buttonConfirmRemove, buttonPrint });
+    }
+    #endregion
+
+    private async Task RemoveRangeNotFoundFuelCards()
+    {
+        await ProgressBarOpenAsync();
+        Message = string.Empty;
+        ShowConfermationDelete = false;
+        var response = await api?.FuelParserApi?.DeleteNotFoundCards(Token);
+        SuccessItems = response?.SuccessItems?.OrderBy(successItem => successItem.Number)?.ToList() ?? new();
+        Title = "Результат удаления";
+
+        if (SuccessItems.Any())
+        {
+            Message = $"Операция успешно завершена! Удалены существующие карты в количестве {SuccessItems.Count} шт. !"; 
+            ShouldUpdateParent = true;
+        }
+        else
+        {
+            Message = string.IsNullOrEmpty(response.Result) ? "Ни одна из существующих карт не была удалена !" : response.Result;
+        }
+        await ProgressBarCloseAsync();
+    }
+
+    protected virtual List<(int, string, string)> GetTupleSuccess()
+    {
+        List<(int, string, string)> tupleResult = new();
+        for (var i = 0; i < SuccessItems.Count; i++)
+        {
+            var item = SuccessItems[i];
+            var name = item.ToString();
+            tupleResult.Add((i+1, name, string.Empty));
+        }
+        return tupleResult;
+    }
+}

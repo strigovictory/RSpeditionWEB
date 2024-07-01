@@ -1,0 +1,287 @@
+﻿@inject IApies api
+@inject NavigationManager navMan
+@inherits UploadFilesBaseParent<BankOperationsReport, BanksCardsOperation_iew, BanksCardsOperation_iew>
+@implements ICSSClassFromParent
+
+@{
+    var labelFuelCard_BillsCurrency = this.ModelsType?.GetCustomDisplayValues(nameof(this.Model.BillsCurrency)).Item1;
+    var labelFuelCard_ReportDate = this.ModelsType?.GetCustomDisplayValues(nameof(this.Model.ReportDate)).Item1;
+    var labelFuelCard_StartDate = this.ModelsType?.GetCustomDisplayValues(nameof(this.Model.StartDate)).Item1;
+    var labelFuelCard_FinishDate = this.ModelsType?.GetCustomDisplayValues(nameof(this.Model.FinishDate)).Item1;
+}
+<CascadingValue Value="@this">
+    <p class="my-h1 inner-light-shadow">Форма для загрузки операций по банковским картам</p>
+    <br />
+    <div class="flexRowCenter">
+        <EditForm EditContext=@this.EditContext>
+            <DataAnnotationsValidator />
+            @if (this.IsRender)
+            {
+                @if (!this.IsModelValid)
+                {
+                    <div class="validation-message-medium">
+                        <ResultOperation ResMessage="@(this.ValidErrors ?? string.Empty)"
+                                         IsNumberedList="false"
+                                         Devider="'!'"
+                                         TextAlign="result_operation_center" />
+                    </div>
+                }
+                <div>
+                    <div class="form_label">@labelFuelCard_BillsCurrency:</div>
+                    <div>
+                        <InputSelect TValue="BillsCurrency"
+                                 @bind-Value="@this.Model.BillsCurrency"
+                                 @oninput="@((ChangeEventArgs arg) => { if(Enum.TryParse<BillsCurrency>(arg.Value.ToString(), out var val)) this.Model.BillsCurrency = val;
+                                                                                  else this.Model.BillsCurrency = BillsCurrency.EUR; })">
+                            <option value="@BillsCurrency.EUR">@BillsCurrency.EUR</option>
+                            <option value="@BillsCurrency.BYN">@BillsCurrency.BYN</option>
+                        </InputSelect>
+                    </div>
+                    <div class="validation-message">
+                        @this.GetPropsValidMessage(nameof(this.Model.BillsCurrency))
+                    </div>
+                </div>
+                <div>
+                    <div class="form_label">@labelFuelCard_ReportDate:</div>
+                    <div>
+                        <InputDate TValue="DateTime?"
+                               @bind-Value="@this.Model.ReportDate"
+                               @oninput="@((ChangeEventArgs arg) => {
+                                               if(DateTime.TryParse(arg.Value.ToString(), out var val)) this.Model.ReportDate = val;
+                                                                                  else this.Model.ReportDate = null; })" />
+                    </div>
+                    <div class="validation-message">
+                        @this.GetPropsValidMessage(nameof(this.Model.ReportDate))
+                    </div>
+                </div>
+                <div>
+                    <div class="form_label">@labelFuelCard_StartDate:</div>
+                    <div>
+                        <InputDate TValue="DateTime?"
+                               @bind-Value="@this.Model.StartDate"
+                               @oninput="@((ChangeEventArgs arg) => { if(DateTime.TryParse(arg.Value.ToString(), out var val)) this.Model.StartDate = val;
+                                                                                  else this.Model.StartDate = null; })" />
+                    </div>
+                    <div class="validation-message">
+                        @this.GetPropsValidMessage(nameof(this.Model.StartDate))
+                    </div>
+                </div>
+                <div>
+                    <div class="form_label">@labelFuelCard_FinishDate:</div>
+                    <div>
+                        <InputDate TValue="DateTime?"
+                               @bind-Value="@this.Model.FinishDate"
+                               @oninput="@((ChangeEventArgs arg) => { if(DateTime.TryParse(arg.Value.ToString(), out var val)) this.Model.FinishDate = val;
+                                                                          else this.Model.FinishDate = null; })" />
+                    </div>
+                    <div class="validation-message">
+                        @this.GetPropsValidMessage(nameof(this.Model.FinishDate))
+                    </div>
+                </div>
+                <div>
+                    <UploadFiles CallParentToStartOperation="@(async() => {await this.ReactClickOnUploadFiles(); })"
+                             SendToParentSelectedFile="@(async(string filepath) => { this.Model.FilePath = filepath ?? string.Empty;
+                                                                                     this.Model?.InitContent(); })"
+                             SendWarningMessageToParent="@((string error) => {this.Message = error ?? string.Empty;
+                                                                                  this.Title = "Предупреждение";
+                                                                                  this.ShowError = true;})" />
+                </div>
+            }
+            else
+            {
+                <ProgressBarInner TitleProcess="Идет загрузка ..." />
+            }
+        </EditForm>
+    </div>
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@if (this.ShowError)
+{
+    <ModalWindowWithEventCallback Title="@this.Title"
+                              InvokeParentHandlerwithUpdParent="@(async () => { this.ShowError = false; })">
+        <ResultOperation ResMessage="@this.Message"
+                     Devider="'!'"
+                     ResList="null" />
+    </ModalWindowWithEventCallback>
+}
+
+@if (this.ShowMessage)
+{
+    <ModalWindowWithEventCallback Title="@this.Title"
+                              InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false;
+                                                                                if (this.ShouldUpdateParent)
+                                                                                    this.navMan.NavigateTo(this.ReturnUrl ?? "/", true);
+                                                                                else
+                                                                                    this.ResetToStartValues(); })">
+        <ResultOperation ResMessage="@this.Message"
+                     Devider="'!'"
+                     ResList="null">
+        </ResultOperation>
+        @if ((this.SuccessItems?.Count ?? 0) > 0)
+        {
+            <div class="buttonsFilterBlock">
+                <div>
+                    <button class="my-btn"
+                    type="button"
+                    @onclick="@(() => {this.IsRenderSuccessItems = this.IsRenderSuccessItems ? false : true;})">
+                        <span>Добавленые транзакции</span>
+                    </button>
+                </div>
+            </div>
+            if (this.IsRenderSuccessItems)
+            {
+                <UlOlli Items="@(this.SuccessItems?.Select(_ => _.GetBanksOperationString(this.BanksCardsCascadingParameter.Currencies, this.BanksCardsCascadingParameter.CreditCards, this.BanksCardsCascadingParameter.Employees))?.ToList() ?? new())"
+                        IsOrderedList="true" />
+            }
+        }
+        @if ((this.NotSuccessItems?.Count ?? 0) > 0)
+        {
+            <div class="buttonsFilterBlock">
+                <div>
+                    <button class="my-btn"
+                    type="button"
+                    @onclick="@(() => {this.IsRenderNotSuccessItems = this.IsRenderNotSuccessItems ? false : true;})">
+                        <span>Не добавленые транзакции</span>
+                    </button>
+                </div>
+            </div>
+            if (this.IsRenderNotSuccessItems)
+            {
+                <ItemsWithReasonList Items="@(this.GetTupleNotSuccess())"
+                                     NameItem="Банковская операция из отчета" />
+            }
+        }
+    </ModalWindowWithEventCallback>
+}
+
+
+@code {
+    [CascadingParameter]
+    protected BanksCards BanksCardsCascadingParameter { get; set; }
+
+    public override string ClassForUploadForm => this.IsModelValid && !string.IsNullOrEmpty(this.Model?.FilePath ?? string.Empty)
+                                                    ?
+                                                    "" 
+                                                    : 
+                                                    "non-active"
+                                                    ;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IdForProgressBar = "BanksCardsUplRep_id";
+    }
+
+    protected override async Task InitializeCollections() => this.ResetToStartValues();
+
+    private void ResetToStartValues()
+    {
+        this.Model = new();
+        this.Model.ReportDate = DateTime.Today;
+        if (this.Model.ReportDate?.DayOfWeek == DayOfWeek.Monday)
+        {
+            this.Model.StartDate = DateTime.Today.AddDays(-3);
+            this.Model.FinishDate = DateTime.Today.AddDays(-1);
+        }
+        else
+        {
+            this.Model.StartDate = DateTime.Today.AddDays(-1);
+            this.Model.FinishDate = DateTime.Today.AddDays(-1);
+        }
+    }
+
+    public override async Task StartOperation()
+    => this.OperationsResult = await this.api?
+                                             .FinanceApi?
+                                             .UploadBanksCardsReport(this.Model, token: this.Token)
+                                             ;
+
+    public override async Task ProccessingResponse()
+    {
+        if (this.OperationsResult is ResponseGroupActionDetailed<BanksCardsOperation_iew, BanksCardsOperation_iew>)
+        {
+            this.SuccessItems = (this.OperationsResult as ResponseGroupActionDetailed<BanksCardsOperation_iew, BanksCardsOperation_iew>)?.SuccessItems ?? new();
+            this.NotSuccessItems = (this.OperationsResult as ResponseGroupActionDetailed<BanksCardsOperation_iew, BanksCardsOperation_iew>)?.NotSuccessItems?.OrderBy(_ => _.Reason)?.ToList() ?? new();
+            this.Title = "Результат загрузки отчета";
+            this.Message = $"{this.OperationsResult?.Result ?? string.Empty}";
+        }
+        else
+        {
+            this.Title = "Предупреждение";
+            this.Message = $"Операция была завершена с ошибкой ! Ответ сервера имеет неожиданный тип ! " +
+                           $"{this.OperationsResult?.Result ?? string.Empty}";
+        }
+
+        this.InitButtons();
+    }
+
+    protected override (bool, string) ValidateModel()
+    {
+        var check1 = this.Model?.CheckModelIsValid();
+        var check3 = this.ReportDateIsUnique(this.Model.ReportDate, this.BanksCardsCascadingParameter?.BanksCardsOperations?.Where(_ => _.CurrencyReportName.Equals(this.Model?.BillsCurrency.ToString() ?? string.Empty, StringComparison.InvariantCultureIgnoreCase))?.Select(_ => _.ReportDate)?.ToList() ?? new());
+        var check4 = this.OperationsDatesPeriodIsUnique(this.Model.StartDate, this.Model.FinishDate, this.BanksCardsCascadingParameter?.BanksCardsOperations?.Where(_ => _.CurrencyReportName.Equals(this.Model?.BillsCurrency.ToString() ?? string.Empty, StringComparison.InvariantCultureIgnoreCase))?.Select(_ => _.OperationDate.Date)?.Distinct()?.ToList() ?? new());
+        var check5 = this.FinishDateIsLaterStartDate(this.Model?.StartDate, this.Model?.FinishDate);
+        var errors3 = string.Empty;
+        var errors4 = string.Empty;
+        var errors5 = string.Empty;
+
+        if (!check3)
+            errors3 = $"Отчет за дату {this.Model?.ReportDate?.FormatingDate() ?? string.Empty} " +
+                      $"по счету «{this.Model?.BillsCurrency.ToString() ?? string.Empty}» уже загружен в систему ! ";
+
+        if (check4.Any())
+        {
+            var dates = string.Empty;
+            check4?.OrderBy(_ => _)?.ToList()?.ForEach(_ => dates += _.FormatingDate() + " ");
+            errors4 = $"Период транзакций не уникальный ! " +
+                      $"Операции по счету «{this.Model?.BillsCurrency.ToString() ?? string.Empty}» за следующие даты уже загружены в систему: {dates} !";
+        }
+
+        if (!check5)
+            errors5 = $"Дата начала периода операций д.б. меньше либо равна дате окончания периода операций ! ";
+
+        return (
+                   check1.HasValue && check1.Value.isValid && check3 && !check4.Any() && check5,
+                   (check1.HasValue ? check1.Value.errors?.ConvertListToString() : string.Empty) 
+                   + errors3 + errors4 + errors5
+               );
+    }
+
+    private Func<DateTime?, List<DateTime>, bool> ReportDateIsUnique
+        = delegate (DateTime? reportDate, List<DateTime> reportsDates)
+        { return reportDate.HasValue && !reportsDates.Any(_ => _.Date == reportDate.Value.Date); };
+
+    private Func<DateTime?, DateTime?, List<DateTime>, List<DateTime>> OperationsDatesPeriodIsUnique
+        = delegate (DateTime? startDate, DateTime? finishDate, List<DateTime> operationsDates)
+        {
+            List<DateTime> periodDays = new();
+            if (!finishDate.HasValue || !startDate.HasValue) return new();
+
+            var countDays = (finishDate.Value.Date - startDate.Value.Date).Days;
+
+            for (var i = 0; i <= countDays; i++)
+                periodDays.Add(new DateTime(day: startDate.Value.Date.AddDays(i).Day, month: startDate.Value.Date.AddDays(i).Month, year: startDate.Value.Date.AddDays(i).Year));
+
+            return operationsDates.Intersect(periodDays)?.ToList();
+        };
+
+    private Func<DateTime?, DateTime?, bool> FinishDateIsLaterStartDate
+        = delegate (DateTime? startDate, DateTime? finishDate)
+        { return startDate.HasValue && finishDate.HasValue && startDate.Value <= finishDate.Value; };
+
+    protected override List<(int, string, string)> GetTupleNotSuccess()
+    {
+        List<(int, string, string)> res = new();
+        for (var i = 0; i < this.NotSuccessItems.Count; i++)
+        {
+            var item = this.NotSuccessItems[i];
+            var name = item.NotSuccessItem.GetBanksOperationString(this.BanksCardsCascadingParameter.Currencies, this.BanksCardsCascadingParameter.CreditCards, this.BanksCardsCascadingParameter.Employees);
+            var reason = item.Reason;
+            res.Add((i+1, name, reason));
+        }
+        return res;
+    }
+}

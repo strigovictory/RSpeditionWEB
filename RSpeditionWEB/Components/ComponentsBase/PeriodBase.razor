@@ -1,0 +1,138 @@
+﻿@page "/PeriodBase"
+@inherits ComponentBaseClass
+
+<CascadingValue Value="@this">
+<div class="textcols">
+    <div class="textcols-left">
+        <label_small_black>
+            с
+        </label_small_black>
+        <SelectMonth LabelForMonthChoice=""
+                     MonthIntDefault="@this.MonthIntStart"
+                     SizeSelect="1"
+                     InvokeParentHendler="@(async (int month) => {  this.MonthIntStart = month;
+                                                                    this.SelectedPeriodBegin = new DateTime( year: this.YearStart,
+                                                                                                             month: this.MonthIntStart,
+                                                                                                             day: 1, hour: 0, minute: 0, second: 0);
+                                                                    if(this.SendToParentSelectedPeriod.HasDelegate)
+                                                                       await this.SendToParentSelectedPeriod.InvokeAsync((this.SelectedPeriodBegin , this.SelectedPeriodEnd));
+                                            })">
+        </SelectMonth>
+        <SelectYear YearList="@this.YearPeriod"
+                    LabelForYear=""
+                    YearDefault="@this.YearStart"
+                    InvokeParentHendler="@(async (int year)=> {   this.YearStart = year;
+                                                                  this.SelectedPeriodBegin = new DateTime( year: this.YearStart,
+                                                                                                           month: this.MonthIntStart,
+                                                                                                           day: 1, hour: 0, minute: 0, second: 0);
+                                                                  if(this.SendToParentSelectedPeriod.HasDelegate)
+                                                                    await this.SendToParentSelectedPeriod.InvokeAsync((this.SelectedPeriodBegin , this.SelectedPeriodEnd));
+                                           })">
+        </SelectYear>
+    </div>
+    <div class="textcols-right">
+        <label_small_black>
+            по
+        </label_small_black>
+        <SelectMonth LabelForMonthChoice=""
+                     MonthIntDefault="@MonthIntEnd"
+                     SizeSelect="1"
+                     InvokeParentHendler="@(async (int month) => { this.MonthIntEnd = month;
+                                                                     this.SelectedPeriodEnd = new DateTime(  year: this.YearEnd,
+                                                                                                                        month: this.MonthIntEnd,
+                                                                                                                        day: DateTime.DaysInMonth(this.YearEnd, this.MonthIntEnd),
+                                                                                                                        hour: 23, minute: 59, second: 59);
+                                                                     if(this.SendToParentSelectedPeriod.HasDelegate)
+                                                                          await this.SendToParentSelectedPeriod.InvokeAsync((this.SelectedPeriodBegin , this.SelectedPeriodEnd));
+                                                                        })">
+        </SelectMonth>
+        <SelectYear YearList="@this.YearPeriod"
+                    LabelForYear=""
+                    YearDefault="@this.YearEnd"
+                    InvokeParentHendler="@(async (int year)=> { this.YearEnd = year;
+                                                                  this.SelectedPeriodEnd = new DateTime( year: this.YearEnd,
+                                                                                                                    month: this.MonthIntEnd,
+                                                                                                                    day: DateTime.DaysInMonth(this.YearEnd, this.MonthIntEnd),
+                                                                                                                    hour: 23, minute: 59, second: 59);
+                                                                  if(this.SendToParentSelectedPeriod.HasDelegate)
+                                                                          await this.SendToParentSelectedPeriod.InvokeAsync((this.SelectedPeriodBegin , this.SelectedPeriodEnd));
+                                                                        })">
+        </SelectYear>
+    </div>
+</div>
+<div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+</div>
+</CascadingValue>
+
+@code {
+    [Parameter]
+    public EventCallback<(DateTime begin, DateTime end)> SendToParentSelectedPeriod { get; set; }
+
+    // Число лет, предоставляемый для выбора
+    [Parameter]
+    public int NumYear { get; set; }
+
+    // Минимальный предел даты, поддерживаемый БД
+    [Parameter]
+    public DateTime PeriodBegin { get; set; }
+
+    // Максимальный предел даты, поддерживаемый БД
+    [Parameter]
+    public DateTime PeriodEnd { get; set; }
+
+    private List<int> YearPeriod { get; set; }
+
+    // Значение выбранного периода - начало
+    private int YearStart { get; set; }
+
+    // Значение выбранного периода - окончание
+    private int YearEnd { get; set; }
+
+    // Порядковый номер в году выбранного месяца (1-12) - начало периода
+    private int MonthIntStart { get; set; }
+
+    // Порядковый номер в году выбранного месяца (1-12) - окончание периода
+    private int MonthIntEnd { get; set; }
+
+    // Выбранное начало отображения периода
+    private DateTime SelectedPeriodBegin { get; set; }
+
+    // Выбранное окончание отображения периода
+    private DateTime SelectedPeriodEnd { get; set; }
+
+    /// <summary>
+    /// Асинхронный метод срабатывает при первоначальной отрисовке компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IdForProgressBar = "periodBase_progrBar";
+        this.InitializeCollectionsPeriod();
+    }
+
+    /// <summary>
+    /// Метод для инициализации коллекции транзакций, зарегистрированных в БД
+    /// </summary>
+    /// <returns></returns>
+
+    /// <summary>
+    /// Метод для инициализации периода, в течение которого происходили транзакции
+    /// </summary>
+    /// <returns></returns>
+    private void InitializeCollectionsPeriod()
+    {
+        this.SelectedPeriodBegin = this.PeriodBegin;
+        this.SelectedPeriodEnd = this.PeriodEnd;
+
+        this.YearStart = this.SelectedPeriodBegin.Year;
+        this.YearEnd = this.SelectedPeriodEnd.Year;
+
+        this.MonthIntStart = this.SelectedPeriodBegin.Month;
+        this.MonthIntEnd = this.SelectedPeriodEnd.Month;
+
+        this.YearPeriod = new(this.NumYear);
+        this.YearPeriod = this.YearPeriod.GetListYears();
+    }
+}

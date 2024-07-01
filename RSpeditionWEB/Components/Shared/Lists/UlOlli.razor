@@ -1,0 +1,38 @@
+﻿<div class="ulLi">
+    @if (this.Items != null && this.Items?.Count > 0)
+    {
+        @if (this.IsOrderedList)
+        {
+            <ol>
+                @foreach (var label in this.Items)
+                {
+                    <li class="@this.NameClass">
+                        @label
+                    </li>
+                }
+            </ol>
+        }
+        else
+        {
+            <ul>
+                @foreach (var label in this.Items)
+                {
+                    <li class="@this.NameClass">
+                        @label
+                    </li>
+                }
+            </ul>
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public List<string> Items { get; set; }
+
+    [Parameter]
+    public bool IsOrderedList { get; set; }
+
+    [Parameter]
+    public string NameClass{ get; set; }
+}

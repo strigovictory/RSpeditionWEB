@@ -1,0 +1,362 @@
+﻿@inherits ChartPropertiesClass<ChartRefilledQuantityByFuelProvider>
+@implements IStateItemsWereChanged<Dictionary<string, List<ChartRefilledQuantityByFuelProvider>>>
+
+<CascadingValue Value="this">
+    @if (this.IsRender)
+    {
+    <div class="chartPerPage_div">
+        <label_small_black>
+            Подкатегория
+        </label_small_black>
+        <select @bind="@this.GroupingParameterIdSelected">
+                @if (this.ChartsFuelParentCascadingVal.OptionItems is not null && this.ChartsFuelParentCascadingVal.OptionItems?.Count > 0)
+            {
+                @if (this.GroupingParameterIdSelected == -1)
+                {
+                    <option value="-1" selected>
+                        Не группировать по подкатегории
+                    </option>
+                }
+                else
+                {
+                    <option value="-1">
+                        Не группировать по подкатегории
+                    </option>
+                }
+                    @foreach (var groupParameter in this.ChartsFuelParentCascadingVal.OptionItems.Except(new List<ChartGroupParameters> { ChartGroupParameters.ПоПоставщикамТоплива,
+                                                                                                             ChartGroupParameters.ПоПериоду}))
+                {
+                    var label = Enum.GetName(typeof(ChartGroupParameters), groupParameter).ConvertStringUpperToLowerCase();
+                    var val = (int)groupParameter;
+                    if (this.GroupingParameterIdSelected == val)
+                    {
+                        <option value="@val" selected>
+                            @label
+                        </option>
+                    }
+                    else
+                    {
+                        <option value="@val">
+                            @label
+                        </option>
+                    }
+                }
+            }
+            else
+            {
+                <option disabled selected>
+                    В системе не найдено ни одного параметра для группировки диграмм
+                </option>
+            }
+        </select>
+        @{
+            var buttonLabel = this.SubCategorySortOrder == SortOrder.asc ? "По возрастанию" : "По убыванию";
+            var src = this.SubCategorySortOrder == SortOrder.asc ? "/css/open-iconic/icon/up-arrow.png" : "/css/open-iconic/icon/down-arrow.png";
+        }
+        <button type="button"
+                title="@buttonLabel"
+                @onclick="@(() => { this.SubCategorySortOrder = this.SubCategorySortOrder == SortOrder.asc ? SortOrder.desc: SortOrder.asc;
+                                    this.InitData();
+                                    this.StateHasChanged();
+                                  })">
+            <img src="@src" />
+        </button>
+    </div>
+    <ChoiceChart T="ChartRefilledQuantityByFuelProvider"
+                            CategoryProperty="@nameof(ChartRefilledQuantityByFuelProvider.FuelProviderName)"
+                            CategoryLabel="Поставщик топлива"
+                            ValueProperty="@nameof(ChartRefilledQuantityByFuelProvider.RefilledQuantity)"
+                            ValueLabel="Заправлено, л."
+                            TitleChart="@this.ChartsFuelParentCascadingVal.TitleChart"
+                            Line="@LineType.Solid"
+                            Fill="#addfad"
+                            ValueStep="@(this.ValueStep <= 0 ? 1 : this.ValueStep)"
+                            ValueMin="@this.ValueMin"
+                            ValueMax="@this.ValueMax"
+                            ValueFormatString="@("{0:N}")"
+                            CategoryMin="@this.CategoryMin"
+                            CategoryMax="@this.CategoryMax"
+                            CategoryStep="@(this.CategoryStep <= 0 ? 1: this.CategoryStep)"
+                            CategoryFormatter="@((object obj) => obj?.ToString() ?? string.Empty)"
+                            ValueUnit=", л.">
+        </ChoiceChart>
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка ..." />
+    }
+</CascadingValue>
+
+@code {
+    #region
+    private int groupingParameterIdSelected;
+    private int GroupingParameterIdSelected
+    {
+        get => this.groupingParameterIdSelected;
+        set
+        {
+            this.groupingParameterIdSelected = value;
+
+            if (value != -1)
+                this.ChartGroupParametersSelected = this.ChartsFuelParentCascadingVal?.OptionItems?.FirstOrDefault(_ => ((int)_).Equals(value)) ?? ChartGroupParameters.ПоПоставщикамТоплива;
+            else
+                this.ChartGroupParametersSelected = ChartGroupParameters.ПоПоставщикамТоплива;
+
+            this.InitData();
+        }
+    }
+
+    // Выбранная подкатегория для группировки
+    private ChartGroupParameters ChartGroupParametersSelected { get; set; }
+    #endregion
+
+    #region
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.groupingParameterIdSelected = -1;
+        this.ChartGroupParametersSelected = ChartGroupParameters.ПоПоставщикамТоплива;
+        this.SubCategorySortOrder = SortOrder.asc;
+    }
+
+    public override void InitializeMinMaxStep()
+    {
+        List<decimal> sumQuantity = new();
+
+        if (this.Items != null && this.Items?.Values != null && this.Items?.Values?.Count > 0)
+        {
+            this.Items?.Values?.ToList()?.ForEach(_ => _.ForEach(o => sumQuantity.Add(o.RefilledQuantity)));
+
+            this.ValueMin = Decimal.Round(sumQuantity?.Min() ?? 0, 0, MidpointRounding.ToZero);
+            this.ValueMax = Decimal.Round(sumQuantity?.Max() ?? 0, 0, MidpointRounding.ToZero);
+            if (this.ValueMin == this.ValueMax)
+            {
+                this.ValueStep = ValueMax;
+            }
+            else
+            {
+                var temp = Math.Abs(Decimal.Round((((decimal)this.ValueMax - (decimal)this.ValueMin) / 10), 0, MidpointRounding.ToZero));
+                this.ValueStep = temp <= 0 ? 1 : temp;
+                this.ValueMax = (decimal)this.ValueMax + (decimal)this.ValueStep;
+            }
+        }
+
+        else
+        {
+            this.ValueMin = 1;
+            this.ValueMax = 1;
+            this.ValueStep = 1;
+        }
+    }
+
+    /// <summary>
+    /// Метод для запуска метода для инициализации коллекции для построения запуска в зависимости от флага - разбивать на подкатегории или нет
+    /// </summary>
+    protected override void InitData()
+    {
+        switch (this.ChartGroupParametersSelected)
+        {
+            case ChartGroupParameters.ПоПодразделенииям: { this.InitializeChartDataGroupByDivision(); break; }
+            case ChartGroupParameters.ПоПериоду: { break; }
+            case ChartGroupParameters.ПоПоставщикамТоплива: { this.InitializeChartDataNotGroupBy(); break; }
+            case ChartGroupParameters.ПоРазновидностиТопливногоПродукта: { this.InitializeChartDataGroupByFuelType(); break; }
+            default: { this.InitializeChartDataNotGroupBy(); break; }
+        };
+
+        // Пересчитать заново максимальное/минимальное значения и шаг
+        this.InitializeMinMaxStep();
+
+        // Вызвать событие изменения состояний компонента, чтобы дочерние компоненты-шаблоны-графики отреагировлаи на измененение и забрали измененный Dictionary
+        this.InvokeStateItemsWereChangedEvent();
+        this.StateHasChanged();
+    }
+
+    /// <summary>
+    /// Метод для применения сортировки внутри категории
+    /// </summary>
+    private List<ChartRefilledQuantityByFuelProvider> SortInCategory(List<ChartRefilledQuantityByFuelProvider> series)
+    {
+        if (this.ChartsFuelParentCascadingVal.CategorySortOrder == SortOrder.asc)
+            return series.OrderBy(_ => _.RefilledQuantity)?.ToList() ?? new();
+        else
+            return series.OrderByDescending(_ => _.RefilledQuantity)?.ToList() ?? new();
+    }
+
+    /// <summary>
+    /// Метод для применения сортировки внутри субкатегории
+    /// </summary>
+    private void SortInSubCategory()
+    {
+        if (this.SubCategorySortOrder == SortOrder.asc)
+            this.Items = this.Items.OrderBy(x => x.Value.Sum(y => y.RefilledQuantity)).ToDictionary(x => x.Key, x => x.Value);
+        else
+            this.Items = this.Items.OrderByDescending(x => x.Value.Sum(y => y.RefilledQuantity)).ToDictionary(x => x.Key, x => x.Value);
+    }
+    #endregion
+
+    #region
+    /// <summary>
+    /// Метод для инициализации коллекции с данными, необходимыми для построения графика - без разбивки на подкатегории
+    /// </summary>
+    private void InitializeChartDataNotGroupBy()
+    {
+        this.Items = new();
+        List<ChartRefilledQuantityByFuelProvider> series = new();
+
+        if (this.ChartsFuelParentCascadingVal.TranzactionsFilteredOrdered != null && this.ChartsFuelParentCascadingVal.TranzactionsFilteredOrdered.Count > 0)
+        {
+            var groupFuelProviderId = this.ChartsFuelParentCascadingVal?
+                                                                 .TranzactionsFilteredOrdered
+                                                                 .GroupBy(tranz => new { tranz?.ProviderId })
+                                                                 .Select(item => new
+                                                                 {
+                                                                     FuelProviderId = item?.Key?.ProviderId,
+                                                                     RefilledQuantity = item.Sum(value => value.Quantity)
+                                                                 }
+                                                             );
+
+            if (groupFuelProviderId != null && groupFuelProviderId.Count() > 0)
+            {
+                foreach (var tranz in groupFuelProviderId)
+                {
+                    series.Add(
+                                                    new ChartRefilledQuantityByFuelProvider
+                                                    {
+                                                        FuelProviderName = this.ChartsFuelParentCascadingVal.FuelCardsCascadingVal.FuelProviders?.FirstOrDefault(_ => _.Id == tranz.FuelProviderId)?.Name ?? String.Empty,
+                                                        RefilledQuantity = tranz.RefilledQuantity ?? 0
+                                                    }
+                                              );
+                }
+            }
+
+            if (series != null && series.Count() > 0)
+            {
+                var sortedSeries = this.SortInCategory(series);
+                this.Items.Add("", sortedSeries);
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// Метод для инициализации коллекции с данными, необходимыми для построения графика - с разбивкой на подкатегорию - тип топлива
+    /// </summary>
+    private void InitializeChartDataGroupByFuelType()
+    {
+        this.Items = new();
+
+        if (this.ChartsFuelParentCascadingVal.TranzactionsFilteredOrdered != null && this.ChartsFuelParentCascadingVal.TranzactionsFilteredOrdered.Count > 0)
+        {
+            // Разделить коллекцию в зависимости от разновидности топлива
+            var groupTranz_Fueltype = this.ChartsFuelParentCascadingVal?
+                                                                        .TranzactionsFilteredOrdered?
+                                                                        .GroupBy(x => new { x?.FuelTypeId })?
+                                                                        .Select(y => new
+                                                                        {
+                                                                            fuelType = this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.FuelCategories?.FirstOrDefault(_ => _.Id == y?.Key?.FuelTypeId)?.Name,
+                                                                            tranzactions = y?.ToList() ?? new()
+                                                                        });
+
+            foreach (var item in groupTranz_Fueltype)
+            {
+                List<ChartRefilledQuantityByFuelProvider> seriesValues = new();
+
+                var seriesTitle = item?.fuelType ?? string.Empty;
+
+                // Разделить коллекцию в зависимости от подразделения
+                seriesValues.AddRange(
+                                          item?
+                                              .tranzactions?
+                                              .GroupBy(x => x?.ProviderId)?
+                                              .Select(y => new ChartRefilledQuantityByFuelProvider
+                                              {
+                                                  FuelProviderName = this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.FuelProviders?.FirstOrDefault(_ => _.Id == y?.Key)?.Name ?? String.Empty,
+                                                  RefilledQuantity = y?.Sum(_ => _.Quantity) ?? 0
+                                              })
+                                              ?
+                                              .ToList()
+                                              ??
+                                              new ()
+                                              );
+
+                if (!string.IsNullOrEmpty(seriesTitle) && seriesValues != null && seriesValues?.Count > 0)
+                {
+                    var sortedSeries = this.SortInCategory(seriesValues);
+
+                    if (!this.Items.ContainsKey(seriesTitle))
+                        this.Items.Add(seriesTitle, sortedSeries);
+                    else
+                        this.Items[seriesTitle] = new List<ChartRefilledQuantityByFuelProvider>(sortedSeries);
+                }
+            }
+
+            // Отсортировать внутри подкатегории
+            if (this.Items != null && this.Items.Keys.Count() > 0)
+                this.SortInSubCategory();
+        }
+    }
+
+    /// <summary>
+    /// Метод для инициализации коллекции с данными, необходимыми для построения графика - с разбивкой на подкатегорию - подразделение
+    /// </summary>
+    private void InitializeChartDataGroupByDivision()
+    {
+        this.Items = new();
+
+        if (this.ChartsFuelParentCascadingVal.TranzactionsFilteredOrdered != null && this.ChartsFuelParentCascadingVal.TranzactionsFilteredOrdered.Count > 0)
+        {
+            // Сгруппировать по идентификатору подразделения
+            var groupTranz_divId = this.ChartsFuelParentCascadingVal?
+                                                                  .TranzactionsFilteredOrdered
+                                                                  .GroupBy(x => new { x?.CardId })?
+                                                                  .Select(y => new
+                                                                  {
+                                                                      divisionId = this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.Cards?.FirstOrDefault(_ => _.Id == y?.Key?.CardId)?.DivisionID,
+                                                                      tranzactions = y?.ToList() ?? new()
+                                                                  });
+
+            // Сгруппировать по наименованию подразделения
+            var groupTranz_divisionName = groupTranz_divId
+                                                          .GroupBy(x => new { this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.Divisions?.FirstOrDefault(_ => _.Id == x.divisionId)?.Id })?
+                                                          .Select(y => new
+                                                          {
+                                                              DivisionName = this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.Divisions?.FirstOrDefault(_ => _.Id == y?.Key.Id)?.Name ?? string.Empty,
+                                                              Tranzactions = y.SelectMany(_ => _.tranzactions)?.ToList() ?? new()
+                                                          });
+
+            foreach (var item in groupTranz_divisionName)
+            {
+                List<ChartRefilledQuantityByFuelProvider> seriesValues = new();
+
+                var seriesTitle = item?.DivisionName ?? string.Empty;
+
+                // Разделить коллекцию в зависимости от поставщика
+                seriesValues.AddRange(item?
+                                                  .Tranzactions?
+                                                  .GroupBy(x => x?.ProviderId)?
+                                                  .Select(y => new ChartRefilledQuantityByFuelProvider
+                                                  {
+                                                          FuelProviderName = this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.FuelProviders?.FirstOrDefault(_ => _.Id == y?.Key)?.Name ?? String.Empty,
+                                                      RefilledQuantity = y?.Sum(_ => _.Quantity) ?? 0
+                                                  })
+                                                  );
+
+                if (!string.IsNullOrEmpty(seriesTitle) && seriesValues != null && seriesValues?.Count > 0)
+                {
+                    var sortedSeries = this.SortInCategory(seriesValues);
+
+                    if (!this.Items.ContainsKey(seriesTitle))
+                        this.Items.Add(seriesTitle, seriesValues);
+                    else
+                        this.Items[seriesTitle] = new List<ChartRefilledQuantityByFuelProvider>(seriesValues);
+                }
+            }
+
+            // Отсортировать внутри подкатегории
+            if (this.Items != null && this.Items.Keys.Count() > 0)
+                this.SortInSubCategory();
+        }
+    }
+
+    #endregion
+}

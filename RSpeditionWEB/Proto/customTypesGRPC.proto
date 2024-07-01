@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+option csharp_namespace = "customTypesGRPC";
+
+package customTypesGRPC;
+
+message DecimalValue {
+    int64 Units = 1;
+    sfixed32 Nanos = 2;
+}

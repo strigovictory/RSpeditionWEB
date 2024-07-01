@@ -1,0 +1,51 @@
+﻿<div class="dm-overlay">
+    <div class="dm-table">
+        <div class="dm-cell">
+            <div class="dm-modal">
+                <div class="top-modal-block-center">
+                     <div class="top-modal-left">
+                        <div class="pl-left">
+                        </div>
+                    </div>
+                    <label_large class="inner-light-shadow whiteColor">@this.Title</label_large>
+                    @if (IsRenderCloseButton)
+                     {
+                        <a class="close" @onclick="@(async () => { if(this.InvokeParentHandlerwithUpdParent.HasDelegate)
+                                                                       await this.InvokeParentHandlerwithUpdParent.InvokeAsync(); })"></a>
+                     }
+                 </div>
+                @this.ChildContent
+                @if (IsRenderCloseButton)
+                {
+                    <div class="div_for_button">
+                        <button class="for_button"
+                                style="background-color: inherit;"
+                                type="button"
+                                @onclick="@(async () => {
+                                                        if(this.InvokeParentHandlerwithUpdParent.HasDelegate)
+                                                        {
+                                                            await this.InvokeParentHandlerwithUpdParent.InvokeAsync();
+                                                        }
+                                                    })">
+                            <ButtonAnimate TitleButton="Закрыть" TextOnButton="окно"></ButtonAnimate>
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; }
+
+    [Parameter]
+    public EventCallback InvokeParentHandlerwithUpdParent { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    [Parameter]
+    public bool IsRenderCloseButton { get; set; } = true;
+}

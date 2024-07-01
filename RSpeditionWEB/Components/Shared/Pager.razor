@@ -1,0 +1,62 @@
+﻿@page "/pager"
+
+<div class="pager">
+    <div>
+        <button type="button" @onclick="@(() => ReactionOnClick(1))">
+            <i>&laquo;</i>
+        </button>
+        @if (this.HasPreviousPage)
+        {
+            <button type="button" @onclick="@(() => ReactionOnClick(PageIndex - 1))">
+                <i>&lsaquo;</i>
+            </button>
+        }
+        else
+        {
+            <button type="button" class=" non-active">
+                <i>&lsaquo;</i>
+            </button>
+        }
+        <span>@PageIndex</span>
+        @if (this.HasNextPage)
+        {
+            <button type="button" @onclick="@(() => ReactionOnClick(PageIndex + 1))">
+                <i>&rsaquo;</i>
+            </button>
+        }
+        else
+        {
+            <button type="button" class=" non-active">
+                <i>&rsaquo;</i>
+            </button>
+        }
+        <button type="button" @onclick="@(() => ReactionOnClick(TotalPages))">
+            <i>&raquo;</i>
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int PageIndex { get; set; }
+
+    [Parameter]
+    public int TotalPages { get; set; }
+
+    [Parameter]
+    public bool HasPreviousPage { get; set; }
+
+    [Parameter]
+    public bool HasNextPage { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnClick { get; set; }
+
+    public void ReactionOnClick(int page)
+    {
+        if(this.OnClick.HasDelegate)
+        {
+            this.OnClick.InvokeAsync(page);
+        }
+    }
+}

@@ -1,0 +1,277 @@
+﻿@inject IApies api
+@inherits ScaffoldJCFiltersBase<MobileComCost_ByDriver_View>
+@inject IMapper mapper
+@inject IConfiguration config
+@inject Serilog.ILogger logger
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        <ScaffoldJCParent T="@MobileComCost_ByDriver_View"
+                          @ref="@ScaffoldJCParentRef"
+                          SendToParentSelectedItemRightClick="@(async(CoordinateClass<MobileComCost_ByDriver_View> item) => {this.ItemSelected = item.ItemSelected;
+                                                                                                                              this.Coordinate = new CoordinateClass<MobileComCost_ByDriver_View>(item.ItemSelected, item.X, item.Y);
+                                                                                                                              this.IsRenderContextMenu = true;})"
+                          SendToParentSelectedItem="@(async(MobileComCost_ByDriver_View item) => {this.ItemSelected = item;
+                                                                                                  this.Title = $"Список коммуникаций по телефону «{item?.phoneNum ?? string.Empty}»";
+                                                                                                  this.IsRender_MobComBySelectedItem = true;
+                                                                                                  })" />
+
+        <div class="stickyBottomContainer">
+            <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList" />
+        </div>
+
+        @*Контекст ное меню при клике на ПКМ*@
+        @if (this.IsRenderContextMenu)
+        {
+            <ContextMenu Top="@this.Coordinate.Y"
+                         Left="@this.Coordinate.X"
+                         MenuItems="@this.ContextMenuPoints"
+                         SendToParent_SelctedItem="@(async(string val) => {await this.ReactOnSelectPointInContextMenu(val);})"
+                         InvokeParentHendlerCancel="@(() => {this.IsRenderContextMenu = false;})" />
+        }
+
+        @*Все коммуникации по выбранному телефонному номеру*@
+        @if (this.IsRender_MobComBySelectedItem)
+        {
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { this.IsRender_MobComBySelectedItem = false; })">
+                <MobileComByPhonePeriod @ref="@this.MobileComByPhonePeriod_ref" />
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.Render_ChangeDeductedVal)
+        {
+            <ModalWindowShort InvokeParentHandlerwithUpdParent="@(async () => { this.Render_ChangeDeductedVal = false; })">
+                <small class="left">Сумма вычета</small>
+                <div>
+                    <input type="number" 
+                           step="0.0001" 
+                           @bind-value:event="oninput"
+                           @bind-value="@this.DeductedVal"/>
+                </div>
+                <div>
+                    @if(this.DeductedVal < 0)
+                    {
+                        <button class="table-button non-active"
+                                type="button"
+                                title="Число должно иметь НЕ отрицательное значение"
+                                @onclick="@(async() => {})">
+                            Сохранить
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="table-button"
+                                type="button"
+                                @onclick="@(async() => {await this.UpdMobComDeductedLimit(this.DeductedVal);})">
+                            Сохранить
+                        </button>
+                    }
+                </div>
+            </ModalWindowShort>
+        }
+
+        @if (this.ShowMessage)
+        {
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false; 
+                                                                                            if(this.ShouldUpdateParent)
+                                                                                            {
+                                                                                                await this.ProgressBarOpenAsync();
+                                                                                                await this.ScaffoldJCMainBaseCascadingParameter?.RaiseEventStartUpdatingMainCollectionsEvent();
+                                                                                                await this.ProgressBarCloseAsync();
+                                                                                            }
+                                                                                          })">
+                <ResultOperation Devider="'!'"
+                                 ResList="null"
+                                 ResMessage="@this.Message" />
+            </ModalWindowWithEventCallback>
+        }
+
+        <div id="@this.IdForProgressBar" style="display: none;">
+            <ProgressBar />
+        </div>
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Подождите..." />
+    }
+</CascadingValue>
+
+@code {
+    #region // Props
+    [CascadingParameter]
+    public MobileCom MobileComCascadingParameter { get; set; }
+
+    private MobileComByPhonePeriod MobileComByPhonePeriod_ref{ get; set; }
+
+    protected bool IsRender_MobComBySelectedItem { get; set; }
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+    => new List<PropertyInfo>
+    {
+        this.ModelsType.GetProperty(nameof(this.Model.truckNum)),
+        this.ModelsType.GetProperty(nameof(this.Model.phoneNum)),
+        this.ModelsType.GetProperty(nameof(this.Model.driverFio)),
+        this.ModelsType.GetProperty(nameof(this.Model.commPeriod)),
+        this.ModelsType.GetProperty(nameof(this.Model.ridesPeriod)),
+        this.ModelsType.GetProperty(nameof(this.Model.dayCount)),
+        this.ModelsType.GetProperty(nameof(this.Model.divisionName)),
+        this.ModelsType.GetProperty(nameof(this.Model.forwarder)),
+        this.ModelsType.GetProperty(nameof(this.Model.notOfficeSum)),
+        this.ModelsType.GetProperty(nameof(this.Model.allSum)),
+        this.ModelsType.GetProperty(nameof(this.Model.userCharge)),
+        this.ModelsType.GetProperty(nameof(this.Model.limit)),
+        this.ModelsType.GetProperty(nameof(this.Model.limitOver)),
+        this.ModelsType.GetProperty(nameof(this.Model.deductedValue)),
+        this.ModelsType.GetProperty(nameof(this.Model.holdSum))
+    };
+
+    private bool Render_ChangeDeductedVal { get; set; }
+
+    private decimal deductedVal;
+    private decimal DeductedVal
+    {
+        get => this.deductedVal;
+        set
+        {
+            this.deductedVal = Math.Round(value, 4); // в бд 4 знака в десятичной части числа
+        }
+    }
+    #endregion
+
+    #region // Overriden methods
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ScaffoldJCMainBaseCascadingParameter = this.MobileComCascadingParameter; 
+    }
+
+    public override async Task UpdateCollectionTItemsFromParent()
+    {
+        this.Items = new(await this.GetCollectionTItemsFromParent() ?? new());
+        this.StartFilteringTItemsInvoke(); // запускается метод UpdateFilteredTItems
+        await this.IsRenderTrueAsync();
+    }
+
+    protected override void InitGroupBySelector()
+    {
+        this.GroupByKeySelector = (MobileComCost_ByDriver_View item) => item.divisionName;
+        this.GroupBySumProps = new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.allSum)),  
+            this.ModelsType.GetProperty(nameof(this.Model.notOfficeSum))
+        };
+        this.TotalSumProps = new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.allSum)),
+            this.ModelsType.GetProperty(nameof(this.Model.notOfficeSum)),
+            this.ModelsType.GetProperty(nameof(this.Model.dayCount)),
+            this.ModelsType.GetProperty(nameof(this.Model.holdSum)),
+            this.ModelsType.GetProperty(nameof(this.Model.limitOver)),
+            this.ModelsType.GetProperty(nameof(this.Model.deductedValue)),
+        };
+    }
+
+    protected override async Task<List<MobileComCost_ByDriver_View>> GetCollectionTItemsFromParent()
+        => this.MobileComCascadingParameter?.Communications_ByDriver ?? new();
+
+    protected override List<Dictionary<string, string>> ContextMenuPoints
+        => new List<Dictionary<string, string>>
+        {
+                new Dictionary<string, string>
+                {
+                    {"1", "Установить вычет из превышения" }
+                },
+                new Dictionary<string, string>
+                {
+                    {"2", "Очистить вычет из превышения" }
+                }
+        };
+
+    protected override async Task ReactOnSelectPointInContextMenu(string val)
+    {
+        if (val == "1")
+        {
+            this.DeductedVal = this.ItemSelected.deductedValue;
+            this.Render_ChangeDeductedVal = true;
+        }
+        else
+            await this.UpdMobComDeductedLimit(null);
+    }
+
+    protected override void InitButtons()
+    {
+        this.ButtonBaseClassList = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (() =>
+        {
+            this.IsRenderSortWindow = true;
+            this.StateHasChanged();
+        });
+        b1.LabelForButton = "Сортировать записи";
+        b1.IsActive = this.IsRender;
+        b1.TitleIfIsActive = "Кликните для настройки групповой сортировки";
+        b1.TitleIfIsNonActive = "Групповая сортировка станет возможной после загрузки журнала";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (async () =>
+        {
+            await this.ProgressBarOpenAsync();
+            var uri = GateWayConfigs.Value.BaseUrl + "/mobilecommunicationsprint" + "/driver";
+            var resGenerate = await this.InitGeneratePrintForm(uri, this.ItemsFiltered);
+            if (!resGenerate.Item1)
+            {
+                this.Message = resGenerate.Item2;
+                this.Title = "Предупреждение";
+                this.ShowMessage = true;
+                this.StateHasChanged();
+            }
+            await this.ProgressBarCloseAsync();
+        });
+        b2.LabelForButton = "Печатная форма";
+        b2.IsActive = this.IsRender;
+        b2.TitleIfIsActive = "Кликните для формирования печатной формы отчета";
+        b2.TitleIfIsNonActive = "Печатная форма отчета станет доступной после полной загрузки страницы";
+        //
+        this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { b2 });
+    }
+    #endregion
+
+    #region // Components methods
+    private async Task UpdMobComDeductedLimit(decimal? newVal)
+    {
+        var resp = await this.api?
+                                   .MobileApi?
+                                   .ChangeMobComDeductedLimit(new MobComDeductedLimitView
+                                                                   {
+                                                                       Id = this.ItemSelected.deductedValId,
+                                                                       Mmonth = this.MobileComCascadingParameter.MonthSelected,
+                                                                       Myear = this.MobileComCascadingParameter.YearSelected,
+                                                                       FkEmployeeId = this.ItemSelected.driverID,
+                                                                       FkTruckId = this.ItemSelected.truckId,
+                                                                       DeductedValue = newVal.HasValue ? newVal.Value : 0
+                                                                   },
+                                                               this.Token)
+                                   ;
+
+        if (resp == null)
+        {
+            this.Message = $"{resp?.Result ?? "Операция закончилась с ошибкой ! Ошибка на уровне сервера !"}";
+            this.ShouldUpdateParent = false;
+            this.Title = "Предупреждение";
+        }
+        else
+        {
+            this.Message = $"{resp?.Result ?? "Операция успешно завершена ! Изменения были зафиксированы !"}";
+            this.ShouldUpdateParent = true;
+            this.Title = "Результат изменения вычета";
+        }
+        this.IsRenderContextMenu = false;
+        this.Render_ChangeDeductedVal = false;
+        this.RenderMessage();
+    }
+    #endregion
+}

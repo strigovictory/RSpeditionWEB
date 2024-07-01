@@ -1,0 +1,43 @@
+﻿@page "/"
+@namespace RSpeditionWEB.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RSpeditionWEB</title>
+    <base href="~/" />
+    <link rel="stylesheet" href="_content/Radzen.Blazor/css/default.css">
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link href="/css/site.css" rel="stylesheet" type="text/css" />
+    <link href="RSpeditionWEB.styles.css" rel="stylesheet" type="text/css" />
+    <link href="/css/ComponentsStyles/ModalWindow.css" rel="stylesheet" type="text/css">
+    <link href="/css/ComponentsStyles/Table.css" rel="stylesheet" type="text/css">
+    <link href="/css/ComponentsStyles/General.css" rel="stylesheet" type="text/css">
+    <link href="/css/ComponentsStyles/ResultOperation.css" rel="stylesheet" type="text/css">
+    <link href="/css/ComponentsStyles/Form.css" rel="stylesheet" type="text/css">
+    <script src="plotly-2.16.1.min.js"></script>
+</head>
+<body>
+    @(await Html.RenderComponentAsync<App>(RenderMode.Server))
+    <script src="https://cdn.plot.ly/plotly-2.16.1.min.js"></script>
+    <script src="_framework/blazor.server.js"></script>
+    <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+    <script src="/js/tab.js"></script>
+    <script src="/js/modalWindow.js"></script>
+    <script src="/js/ScrollIndicator.js"></script>
+    <script src="/js/SelectMultiple.js"></script>
+    <script src="/js/HiddenElementById.js"></script>
+    <script src="/js/SetFocus.js"></script>
+    <script src="/js/RenderingProgressBar.js"></script>
+    <script src="/js/plotlyChart.js"></script>
+    <script src="/js/DruggableTable.js"></script>
+    <script src="/js/dropZone.js"></script>
+    <script src="/js/resizeTable.js"></script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+﻿@inject IApies api
+@inherits EventsHistoryBase<SimCardsOperationView, SimCardView>
+@inject IMapper mapper
+@inject Serilog.ILogger logger
+@inject IConfiguration config
+
+<CascadingValue Value="@this">
+    <div style="text-align: center;">
+        <p class="my-h1 inner-light-shadow">Sim-карты</p>
+    </div>
+    @if (this.IsRender)
+    {
+        <ScaffoldJCParent T="@SimCardView"
+                          @ref="@ScaffoldJCParentRef"
+                          SendToParentSelectedItem="@(async(SimCardView item) => { this.ItemSelected = item;
+                                                                                            await this.ProgressBarOpenAsync();
+                                                                                            await this.InitSimCardsOperations();
+                                                                                            await this.ProgressBarCloseAsync();
+                                                                                            this.IsRenderMenuActions = true; })" />
+        @*Блок кнопок в футере*@
+        <div class="stickyBottomContainer">
+            <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList" />
+        </div>
+
+        if (this.IsRenderGroupAdding)
+        {
+            <ModalWindowWithEventCallback Title="Групповое добавление sim-карт"
+                                  InvokeParentHandlerwithUpdParent="@(async(object addedItem) => { this.IsRenderGroupAdding = false; })">
+                <SimCardsEditGroupForm InvokeParentHendlerAfterCreating="@(async(object addedItem) => { await this.UpdateAfterAction();
+                                                                                                             this.IsRenderGroupAdding = false; })"
+                               InvokeParentHendlerCancel="@(async() => { this.IsRenderGroupAdding = false; })"
+                               OperationsType="@OperationsType.create" />
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.IsRenderMenuActions)
+        {
+            <ScaffoldJCMenuActions T="@SimCardView"
+                           InvokeParentHendlerCancel="@(() => { this.ItemSelected = null;
+                                                                 this.IsRenderMenuActions = false; })"
+                           LableItemGenitive="sim-карты">
+                <ChildContent_EditItem>
+                    <SimCardsEditForm TItemFromParent="@this.ItemSelected"
+                              InvokeParentHendlerAfterCreating="@(async(object addedItem) => { await this.UpdateAfterAction();
+                                                                                                                await this.InitSimCardsOperations();
+                                                                                                                this.IsRenderMenuActions = false; })"
+                              InvokeParentHendlerAfterUpd="@(async(object item) => { await this.UpdateAfterAction();
+                                                                                                      await this.InitSimCardsOperations();
+                                                                                                      this.IsRenderMenuActions = false; })"
+                              InvokeParentHendlerCancel="@((object item) => { this.ItemSelected = null;
+                                                                                               this.IsRenderMenuActions = false; })" />
+                </ChildContent_EditItem>
+                <ChildContent_StatusHistory>
+                    <ScaffoldJCItemsHistory T="@SimCardsOperationView"
+                                    V="@SimCardView"
+                                    HistoryEvents="@this.EventHistoryItems"
+                                    InvokeParentToStartAction="@(((OperationsType operType, SimCardsOperationView item) actionToDo)
+                                                                               => { this.ActionsChoice(actionToDo); })" />
+                </ChildContent_StatusHistory>
+            </ScaffoldJCMenuActions>
+        }
+
+        @if (this.Show_DeleteEventHistory)
+        {
+            List<ButtonBaseClass> buttons = new();
+            //
+            ButtonBaseClass b1 = new();
+            b1.CallbackToParent = (async () =>
+            {
+                await this.DeleteOperation();
+            });
+            b1.LabelForButton = "Удалить";
+            b1.IsActive = this.EventHistorySelected != null && this.EventHistorySelected != default && this.EventHistorySelected.Id != 0;
+            b1.TitleIfIsActive = "Кликните для удаления события по sim-карте";
+            b1.TitleIfIsNonActive = "Удаление станет возможным после выбора события по sim-карте";
+            //
+            ButtonBaseClass b2 = new();
+            b2.CallbackToParent = (() =>
+            {
+                this.Show_DeleteEventHistory = false;
+                this.StateHasChanged();
+            });
+            b2.LabelForButton = "Отмена";
+            b2.IsActive = true;
+            b1.TitleIfIsActive = "Кликните отмены удаления события по sim-карте";
+            b2.TitleIfIsNonActive = string.Empty;
+            buttons.AddRange(new List<ButtonBaseClass> { b1, b2 });
+
+            <ModalWindowWithEventCallback Title="Удаление операции по sim-карте"
+                                  InvokeParentHandlerwithUpdParent="@(() => { this.Show_DeleteEventHistory = false; })">
+                <div class="validation-message-medium">
+                    @($"Вы подтверждаете удаление выбранного события по sim-карте? ")
+                </div>
+                <div class="stickyBottomContainer">
+                    <ButtonContainer ButtonBaseClassList="@buttons"
+                             WidthForButtonWrapper="70%" />
+                </div>
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.Show_AddEventHistory)
+        {
+            <ModalWindowWithEventCallback Title="Добавление новой операции по sim-карте"
+                                  InvokeParentHandlerwithUpdParent="@(() => { this.Show_AddEventHistory = false; })">
+                <SimCardEventEditForm TItemFromParent="@null"
+                               HistoryEvents="@this.EventHistoryItems"
+                               Cars="@(this.SimCardsCascadingParameter?.Trucks ?? new())"
+                               Employees="@(this.SimCardsCascadingParameter?.Employees ?? new())"
+                               GpsTrackers="@(this.SimCardsCascadingParameter?.GpsTrackers ?? new())"
+                               EventSource="@this.ItemSelected"
+                               OperationsType="@OperationsType.create"
+                               InvokeParentHendlerResponseBaseAfterAction="@(async(ResponseBase res) =>
+                                                                                                                        {
+                                                                                                                        if (res == null)
+                                                                                                                        {
+                                                                                                                            this.Message = $"Операция закончилась с ошибкой ! Попробуйте снова !";
+                                                                                                                            this.Message += res?.Result ?? string.Empty;
+                                                                                                                        }
+                                                                                                                        else
+                                                                                                                        {
+                                                                                                                            await this.UpdateAfterAction();
+                                                                                                                            await this.InitSimCardsOperations();
+                                                                                                                            this.UpdateSelectedItem();
+                                                                                                                            this.Message = $"Операция успешно завершена ! Изменения были зафиксированы !";
+                                                                                                                        }
+
+                                                                                                                        this.ShowMessage = true;
+                                                                                                                        this.Title = "Результат выполнения операции";
+                                                                                                                    })" />
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.Show_UpdateEventHistory)
+        {
+            <ModalWindowWithEventCallback Title="Редактирование операции по sim-карте"
+                                  InvokeParentHandlerwithUpdParent="@(() => { this.Show_UpdateEventHistory = false; })">
+                <SimCardEventEditForm TItemFromParent="@this.EventHistorySelected"
+                               HistoryEvents="@this.EventHistoryItems"
+                               Cars="@(this.SimCardsCascadingParameter?.Trucks ?? new())"
+                               Employees="@(this.SimCardsCascadingParameter?.Employees ?? new())"
+                               GpsTrackers="@(this.SimCardsCascadingParameter?.GpsTrackers ?? new())"
+                               EventSource="@this.ItemSelected"
+                               OperationsType="@OperationsType.update"
+                               InvokeParentHendlerResponseBaseAfterAction="@(async(ResponseBase res) =>
+                                                                                                                    {
+                                                                                                                        if (res == null)
+                                                                                                                        {
+                                                                                                                            this.Message = $"Операция закончилась с ошибкой ! Попробуйте снова !";
+                                                                                                                            this.Message += res?.Result ?? string.Empty;
+                                                                                                                        }
+                                                                                                                        else
+                                                                                                                        {
+                                                                                                                            await this.UpdateAfterAction();
+                                                                                                                            await this.InitSimCardsOperations();
+                                                                                                                            this.UpdateSelectedItem();
+                                                                                                                            this.Message = $"Операция успешно завершена ! Изменения были зафиксированы !";
+                                                                                                                        }
+
+                                                                                                                        this.ShowMessage = true;
+                                                                                                                        this.Title = "Результат выполнения операции";
+                                                                                                                    })" />
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.ShowMessage)
+        {
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false;
+                                                                                                this.Show_UpdateEventHistory = false;
+                                                                                                this.Show_AddEventHistory = false;
+                                                                                                this.Show_DeleteEventHistory = false;
+                                                                                              })">
+                <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@this.Message" />
+            </ModalWindowWithEventCallback>
+        }
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Подождите..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    #region
+    [CascadingParameter]
+    public SimCards SimCardsCascadingParameter { get; set; }
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+    => new List<PropertyInfo>
+    {
+        this.ModelsType.GetProperty(nameof(this.Model.CellularOperatorName)),
+        this.ModelsType.GetProperty(nameof(this.Model.SimCardNumber)),
+        this.ModelsType.GetProperty(nameof(this.Model.DivisionName)),
+        this.ModelsType.GetProperty(nameof(this.Model.ReceiveDate)),
+        this.ModelsType.GetProperty(nameof(this.Model.DiscardDate)),
+        this.ModelsType.GetProperty(nameof(this.Model.Fdiscarded)),
+        this.ModelsType.GetProperty(nameof(this.Model.Fdeleted)),
+        this.ModelsType.GetProperty(nameof(this.Model.TelephoneNumber)),
+        this.ModelsType.GetProperty(nameof(this.Model.TruckName)),
+        this.ModelsType.GetProperty(nameof(this.Model.TrackerName)),
+        this.ModelsType.GetProperty(nameof(this.Model.EmployeeName))
+    };
+    #endregion
+
+    #region
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task<List<SimCardView>> GetCollectionTItemsFromParent()
+        => this.SimCardsCascadingParameter?.SimCardsItems ?? new();
+
+    protected override void InitButtons()
+    {
+        this.ButtonBaseClassList = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (() =>
+        {
+            this.IsRenderGroupAdding = true;
+            this.StateHasChanged();
+        });
+        b1.LabelForButton = "Добавить новые sim-карты";
+        b1.IsActive = this.IsActive;
+        b1.TitleIfIsActive = "Кликните для добавления новых sim-карт";
+        b1.TitleIfIsNonActive = "Добавление новых sim-карт станет возможным после загрузки коллекций, необходимых для выполнения операции";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (() =>
+        {
+            this.IsRenderSortWindow = true;
+            this.StateHasChanged();
+        });
+        b2.LabelForButton = "Сортировать sim-карты";
+        b2.IsActive = this.IsRender;
+        b2.TitleIfIsActive = "Кликните для настройки групповой сортировки sim-карт";
+        b2.TitleIfIsNonActive = "Групповая сортировка sim-карт станет возможной после загрузки журнала";
+        //
+        ButtonBaseClass b3 = new();
+        b3.CallbackToParent = (async () =>
+        {
+            var uri = GateWayConfigs.Value.BaseUrl + "/simcardsprint";
+            var resGenerate = await this.InitGeneratePrintForm(uri, this.ItemsFiltered);
+            if (!resGenerate.Item1)
+            {
+                this.Message = resGenerate.Item2;
+                this.Title = "Предупреждение";
+                this.RenderMessage();
+            }
+        });
+        b3.LabelForButton = "Печатная форма";
+        b3.IsActive = this.IsRender;
+        b3.TitleIfIsActive = "Кликните для формирования печатной формы отчета";
+        b3.TitleIfIsNonActive = "Печатная форма отчета по sim-картам станет доступной после полной загрузки страницы";
+        this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { b1, b3 });
+    }
+
+    private async Task InitSimCardsOperations()
+    => this.EventHistoryItems = (await this.api?
+                                               .MobileApi?
+                                               .GetSimCardsOperations(this.ItemSelected?.Id ?? 0, this.Token))?
+                                               .OrderByDescending(_ => _.OperationDate)?
+                                               .ThenByDescending(_ => _.Id)?
+                                               .ToList()
+                                               ??
+                                               new()
+                                               ;
+
+
+    private void UpdateSelectedItem() => this.ItemSelected = this.Items?.FirstOrDefault(_ => _.Id == (this.ItemSelected?.Id ?? 0)) ?? null;
+
+    private async Task DeleteOperation()
+    {
+        await this.ProgressBarOpenAsync();
+        var mappedSimCardOper = this.Mapper?.Map<SimCardsOperationView>(this.EventHistorySelected);
+
+        var res = await this.api?.MobileApi?.DeleteSimCardsOperation(mappedSimCardOper, this.Token);
+
+        if (res == null)
+        {
+            this.Message = string.IsNullOrEmpty(res?.Result) ? "Операция закончилась с ошибкой ! Ошибка на уровне сервера !" : res?.Result ?? string.Empty;
+        }
+        else
+        {
+            this.Message = string.IsNullOrEmpty(res?.Result) ? "Операция успешно завершена ! Изменения были зафиксированы !" : res?.Result ?? string.Empty;
+            await this.UpdateAfterAction();
+            await this.InitSimCardsOperations();
+            this.UpdateSelectedItem();
+        }
+
+        this.Title = "Результат удаления операции по sim-карте";
+        this.RenderMessage();
+        await this.ProgressBarCloseAsync();
+    }
+    #endregion
+}

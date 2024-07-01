@@ -1,0 +1,133 @@
+﻿@typeparam TItem
+@*Generic - компонент с выбором единственного экземпляра типа TItem*@
+
+<div class="form_label">@this.Title</div>
+<div class="divcenter">
+    <select size="@this.SizeSelect" 
+            @oninput="@(async(ChangeEventArgs arg) => { if(int.TryParse(arg?.Value?.ToString() ?? "0", out var value))
+                                                        { 
+                                                            Id = value;
+                                                            if (EventCallbackSelectedItemId.HasDelegate)
+                                                                await EventCallbackSelectedItemId.InvokeAsync(Id);
+                                                        }
+                                                        else
+                                                        {
+                                                            Id = 0;
+                                                        }})">
+        @if ((this.List_IIdItems_All?.Count ?? 0) > 0)
+        {
+            @if (this.Id == 0)
+            {
+                <option selected value="0" disabled>@this.DefaultValue</option>
+            }
+            @foreach (var item in this.List_IIdItems_All)
+            {
+                if (this.List_IIdItems_NonActive.Any(_ => _.Id == item.Id))
+                {
+                    <option value="0" disabled>
+                        @item.GetType().GetProperty(this.PropInfo.Name).GetValue(item)
+                    </option>
+                }
+                else
+                {
+                    if (this.Id > 0 && this.Id == item.Id)
+                    {
+                        <option selected value="@item.Id">
+                            @item.GetType().GetProperty(this.PropInfo.Name).GetValue(item)
+                        </option>
+                    }
+                    else
+                    {
+                        <option value="@item.Id">
+                            @item.GetType().GetProperty(this.PropInfo.Name).GetValue(item)
+                        </option>
+                    }
+                }
+            }
+        }
+        else
+        {
+            <option selected value="0" disabled>Список пуст</option>
+        }
+    </select>
+</div>
+
+@code {
+    // Коллекция экземпляров типа TItem, из которых нужно выбрать один
+    [Parameter]
+    public List<TItem> List_TItems_All { get; set; }
+
+    [Parameter]
+    public List<TItem> List_TItems_NonActive { get; set; }
+
+    [Parameter]
+    public PropertyInfo PropInfo { get; set; }
+
+    [Parameter]
+    public string Title { get; set; }
+
+    [Parameter]
+    public string DefaultValue { get; set; }
+
+    [Parameter]
+    public IId IIdOuterInitParameter { get; set; }
+
+    private int Id { get; set; }
+
+    private List<IId> List_IIdItems_All { get; set; } = new();
+    private List<IId> List_IIdItems_NonActive { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<int> EventCallbackSelectedItemId { get; set; }
+
+    // Значение атрибута Size тега Select
+    public int SizeSelect { get; set; } = 1;
+
+    /// <summary>
+    /// Асинхронный метод срабатывает при первоначальной отрисовке компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override void OnInitialized()
+    {
+        Id = this.IIdOuterInitParameter?.Id ?? 0;
+        this.InitializeCollections();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        Id = this.IIdOuterInitParameter?.Id ?? 0;
+    }
+
+    /// <summary>
+    /// Метод для инициализации коллекций компонента
+    /// </summary>
+    private void InitializeCollections()
+    {
+        // Initialize List_IIdItems_All
+        this.List_IIdItems_All = new List<IId>();
+
+        if (this.List_TItems_All != null)
+        {
+            this.List_TItems_All.ForEach(_ => this.List_IIdItems_All.Add((IId)_));
+        }
+        else
+        {
+            this.List_TItems_All = new();
+            this.List_IIdItems_All = new();
+        }
+
+        // Initialize List_IIdItems_All
+        this.List_IIdItems_NonActive = new List<IId>();
+
+        if (this.List_TItems_NonActive != null)
+        {
+            this.List_TItems_NonActive.ForEach(_ => this.List_IIdItems_NonActive.Add((IId)_));
+        }
+        else
+        {
+            this.List_TItems_NonActive = new();
+            this.List_IIdItems_NonActive = new();
+        }
+    }
+}

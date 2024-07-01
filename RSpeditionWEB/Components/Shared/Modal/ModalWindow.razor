@@ -1,0 +1,37 @@
+﻿<div class="dm-overlay">
+    <div class="dm-table">
+        <div class="dm-cell">
+            <div class="dm-modal">
+                <div class="top-modal-block">
+                    <div class="top-modal-left">
+                        <div class="pl-left">
+                            <img src="/css/open-iconic/icon/r_logo.png">
+                        </div>
+                    </div>
+                    <label_xlarge class="inner-light-shadow whiteColor">@this.Title</label_xlarge>
+                    <a class="close" @onclick="(() => this.InvokeParentHendler.Invoke())"></a>
+                </div>
+                @this.ChildContent
+                <div class="div_for_button">
+                    <button class="for_button"
+                            type="button"
+                            @onclick="(() => this.InvokeParentHendler.Invoke())"
+                            style="background-color: inherit;">
+                        <ButtonAnimate TitleButton="Закрыть" TextOnButton="окно"></ButtonAnimate>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; }
+
+    [Parameter]
+    public Action InvokeParentHendler { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+}

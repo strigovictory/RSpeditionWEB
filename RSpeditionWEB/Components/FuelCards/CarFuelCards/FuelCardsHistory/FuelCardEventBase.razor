@@ -1,0 +1,139 @@
+﻿@inject IApies api
+@inherits EventsEditFormBase<FuelCardsEventResponse, FuelCardFullModel>
+
+@*Компонент, в котором скоонцентрировано все, что связано с валидацией модели FuelCardEvent*@
+
+@code {
+    protected override DateTime? startPrevious => this.TEventPrevious?.StartDate.Date ?? null;
+    protected override DateTime? finishNext => this.TEventNext?.FinishDate?.Date ?? null;
+    protected override DateTime? startLast => this.TEventLast?.StartDate.Date ?? null;
+    protected override DateTime? startNext => this.TEventNext?.StartDate.Date ?? null;
+
+    protected override bool IsModelValid => this.ValidateModel().isValid
+                                         && string.IsNullOrEmpty(this.ValidationMessageCar)
+                                         && string.IsNullOrEmpty(this.ValidationMessageEmpl)
+                                         && string.IsNullOrEmpty(this.ValidationMessageTypeEvent)
+                                         && string.IsNullOrEmpty(this.ValidationMessageComment)
+                                         && string.IsNullOrEmpty(this.ValidationMessageDivision)
+                                         && string.IsNullOrEmpty(this.ValidationMessageFinishDate)
+                                         && string.IsNullOrEmpty(this.ValidationMessageStartDate);
+
+    // Утверждения для валидации дат
+    // - 
+    private Func<DateTime?, DateTime?, bool> ExpirationCardDateLaterFinishEventDate
+    = delegate (DateTime? expirationCard, DateTime? finishEvent) { if (finishEvent != null && expirationCard != null)
+        return expirationCard?.Date >= finishEvent?.Date; else return true; };
+    // - 
+    private Func<DateTime?, DateTime?, bool> ExpirationCardDateLaterStartEventDate
+    = delegate (DateTime? expirationCard, DateTime? startEvent) { if (startEvent != null && expirationCard != null)
+        return expirationCard?.Date >= startEvent?.Date; else return true; };
+    // - 
+    private Func<DateTime?, DateTime?, bool> StartEventDateLaterReceiveCardDate
+    = delegate (DateTime? startEvent, DateTime? reciveCard) { if (startEvent != null && reciveCard != null)
+        return startEvent?.Date >= reciveCard?.Date; else return true; };
+
+    // Утверждения для валидации остальных полей
+    private Func<int?, bool> IsIdNotEmpty = (int? id) => id.HasValue && id.Value > 0;
+
+    // Валидационные сообщения остальные
+    protected string ValidationMessageTypeEvent { get; set; }
+    protected string ValidationMessageCar { get; set; }
+    protected string ValidationMessageEmpl { get; set; }
+    protected string ValidationMessageDivision => this.GetValidationMessageForProp(this.Model, nameof(this.Model.DivisionID)) ?? string.Empty;
+    //IsIdNotEmpty(Model.DivisionID) ? string.Empty : "Подразделение д.б. заполнено";
+    protected string ValidationMessageComment => this.GetValidationMessageForProp(this.Model, nameof(this.Model.Comment)) ?? string.Empty;
+
+    /// <summary>
+    /// Метод для преверки валидности дат по отношению друг к другу
+    /// </summary>
+    protected new void CheckPropDates()
+    {
+        var receiveCard = this.EventSource?.ReceiveDate?.Date ?? null;
+        var expirationCard = this.EventSource?.ExpirationDate?.Date ?? null;
+
+        base.CheckPropDates();
+        // - 
+        if (!this.StartEventDateLaterReceiveCardDate(this.EventsStartDate, receiveCard))
+            this.ValidationMessageStartDate += " Дата начала события не может быть раньше даты прихода топливной карты !";
+        // -
+        if (!this.ExpirationCardDateLaterFinishEventDate(expirationCard, this.EventsFinishDate))
+            this.ValidationMessageFinishDate += " Дата окончания события не может быть позже даты окончания срока действия топливной карты !";
+        // -
+        if (!this.ExpirationCardDateLaterStartEventDate(expirationCard, this.EventsStartDate))
+            this.ValidationMessageStartDate += " Дата начала события не может быть позже даты окончания срока действия топливной карты !";
+            // -
+        if (!this.ExpirationCardDateLaterStartEventDate(this.EventSource?.ExpirationDate?.Date, this.Model.StartDate))
+            this.ValidationMessageStartDate += " Дата начала события не может быть позже даты окончания срока действия топливной карты !";
+    }
+
+    /// <summary>
+    /// Метод для преверки валидности привязки к авто 
+    /// </summary>
+    protected void CheckCarProp(int? carId, int eventTypeId)
+    {
+        this.ValidationMessageCar = string.Empty;
+
+        // Идентификатор события ТЯГАЧ
+        var idEventTypeCar = this.KitEventTypes?.FirstOrDefault(_ => _.Name.Equals(Enum.GetName(EventType.Тягач), StringComparison.InvariantCultureIgnoreCase))?.Id;
+
+        // Если тип текущего события - ТЯГАЧ
+        if(eventTypeId == idEventTypeCar)
+        {
+            if(!IsIdNotEmpty(carId))
+            {
+                this.ValidationMessageCar = "Для типа события «ТЯГАЧ» поле «Автомобиль» обязательно для заполнения !";
+            }
+            else
+            {
+                this.ValidationMessageCar = string.Empty;
+            }
+        }
+        else
+        {
+            this.ValidationMessageCar = string.Empty;
+        }
+    }
+
+    protected void CheckEmplProp(int? emplId, int eventTypeId)
+    {
+        this.ValidationMessageEmpl = string.Empty;
+
+        // Идентификатор события Водитель
+        var idEventTypeEmpl = this.KitEventTypes?.FirstOrDefault(_ => _.Name.Equals(Enum.GetName(EventType.Водитель), StringComparison.InvariantCultureIgnoreCase))?.Id;
+
+        // Если тип текущего события - Водитель
+        if (eventTypeId == idEventTypeEmpl)
+        {
+            if (!IsIdNotEmpty(emplId))
+            {
+                this.ValidationMessageEmpl = "Для типа события «ВОДИТЕЛЬ» поле «Водитель» обязательно для заполнения !";
+            }
+            else
+            {
+                this.ValidationMessageEmpl = string.Empty;
+            }
+        }
+        else
+        {
+            this.ValidationMessageEmpl = string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Метод для преверки валидности привязки к типу события 
+    /// </summary>
+    protected void CheckEventTypeProp(int? eventTypeId)
+    {
+        this.ValidationMessageTypeEvent = string.Empty;
+
+        if (eventTypeId == null || eventTypeId == 0)
+        {
+            var item = new FuelCardsEventResponse();
+            this.ValidationMessageTypeEvent = $"Поле «{item.GetType()?.GetCustomDisplayValues(nameof(item.EventTypeId)).Item1 ?? string.Empty}» обязательно для заполнения";
+        }
+        else
+        {
+            this.ValidationMessageTypeEvent = string.Empty;
+        }
+    }
+}

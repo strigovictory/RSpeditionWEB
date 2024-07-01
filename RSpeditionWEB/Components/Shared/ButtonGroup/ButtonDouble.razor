@@ -1,0 +1,95 @@
+﻿@if (this.IsActive)
+{
+    <div class="ButtonDoubleContainer">
+        @if (IsRenderActionButton)
+        {
+            <div class="ButtonDoubleWrapper"
+                 title="@this.TitleIfIsActive"
+            @onclick="@(async() => { await this.EventCallbackToParent.InvokeAsync(); })">
+                <div class="ButtonDoubleLabel">
+                    <p>@this.LabelForButton</p>
+                </div>
+            </div>
+        }
+        <div class="ButtonDoubleWrapper"
+             title="@this.TitleReset"
+             @onclick="@(async() => { await this.EventCallbackToParentReset.InvokeAsync(); })">
+            <div class="ButtonDoubleLabel">
+                <p>@this.LabelForButtonReset</p>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="ButtonDoubleContainer">
+        <div class="ButtonDoubleWrapper non-active"
+             title="@this.TitleIfIsNonActive">
+            <div class="ButtonDoubleLabel">
+                <p>@this.LabelForButton</p>
+            </div>
+        </div>
+        <div class="ButtonDoubleWrapper"
+             title="@this.TitleReset"
+             @onclick="@(async() => { await this.EventCallbackToParentReset.InvokeAsync(); })">
+            <div class="ButtonDoubleLabel">
+                <p>@this.LabelForButtonReset</p>
+            </div>
+        </div>
+    </div>
+}
+@code {
+    [Parameter]
+    public EventCallback EventCallbackToParent { get; set; }
+
+    [Parameter]
+    public EventCallback EventCallbackToParentReset { get; set; }
+
+    [Parameter]
+    public string LabelForButton { get; set; }
+
+    [Parameter]
+    public string LabelForButtonReset { get; set; }
+
+    // Если свойство равно истина - кнопка активна
+    [Parameter]
+    public bool IsActive { get; set; }
+
+    [Parameter]
+    public bool IsRenderActionButton{ get; set; }
+
+    [Parameter]
+    public string TitleIfIsNonActive { get; set; }
+
+    [Parameter]
+    public string TitleIfIsActive { get; set; }
+
+    [Parameter]
+    public string TitleReset { get; set; }
+
+    /// <summary>
+    /// Метод задает параметры, предоставляемые родительским элементом компонента в дереве отрисовки или из параметров маршрута.
+    /// </summary>
+    /// <param name="parameters">Параметры, предоставляемые родительским элементом компонента в дереве отрисовки или из параметров маршрута</param>
+    /// <returns></returns>
+    public override async Task SetParametersAsync(ParameterView parameters)
+    {
+        if(parameters.TryGetValue<string>(nameof(TitleIfIsNonActive), out var value_TitleIfIsNonActive))
+        {
+            if (value_TitleIfIsNonActive is null)
+            {
+                this.TitleIfIsNonActive = string.Empty;
+            }
+        }
+
+        if (parameters.TryGetValue<string>(nameof(TitleIfIsActive), out var value_TitleIfIsActive))
+        {
+            if (value_TitleIfIsActive is null)
+            {
+                this.TitleIfIsActive = string.Empty;
+            }
+        }
+
+        await base.SetParametersAsync(parameters);
+    }
+}

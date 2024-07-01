@@ -1,0 +1,105 @@
+﻿@inherits ChildComponentBaseClass
+
+<div class="adapt_table scroll font-journal">
+    <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+        <thead class="adapt_table_inner_thead">
+            <tr>
+                <th>
+                    <div class="squaredOne">
+                        <input type="checkbox"
+                               checked
+                               id="groupMovToArchiveChild1"
+                               @oninput="@(async (ChangeEventArgs arg) => {var isChecked = (bool)(arg?.Value ?? false);
+                                                                           this.FuelCardsToMoveToArchiveChecked = isChecked ?
+                                                                           new(this.FuelCardsToMoveToArchive ?? new()) : new();
+                                                                           if (this.InvokeParentHendlerCheckedItems.HasDelegate)
+                                                                               await this.InvokeParentHendlerCheckedItems.InvokeAsync(this.FuelCardsToMoveToArchiveChecked?.Cast<object>()?.ToList() ?? new());})" />
+                        <label for="groupMovToArchiveChild1"></label>
+                    </div>                                 
+                </th>
+                <th>
+                    №
+                </th>
+                <th> 
+                    Транзакция
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (this.FuelCardsToMoveToArchive != null && this.FuelCardsToMoveToArchive?.Count > 0)
+            {
+                foreach (var card in this.FuelCardsToMoveToArchive)
+                {
+                    var ind = this.FuelCardsToMoveToArchive.IndexOf(card);
+                    var num = ind + 1;
+                    var id_checkbox = $"groupMovToArchiveChild2{ind}";
+                    var labelFoCard = $"№ {card?.Number ?? string.Empty}" +
+                                      $" - поставщик «{card.ProviderName ?? string.Empty}»";
+                    var isChecked = this.FuelCardsToMoveToArchiveChecked.Any(_ => _.Id == card.Id) ? true : false;
+                    <tr>
+                        @if (isChecked)
+                        {
+                            <td>
+                                <div class="squaredOne">
+                                    <input type="checkbox"
+                                           id="@id_checkbox"
+                                           checked
+                                           @oninput="@(async () => {
+                                                                     this.FuelCardsToMoveToArchiveChecked.Remove(card);
+                                                                     if (this.InvokeParentHendlerCheckedItems.HasDelegate)
+                                                                        await this.InvokeParentHendlerCheckedItems.InvokeAsync(this.FuelCardsToMoveToArchiveChecked.Cast<object>()?.ToList());
+                                                                   })" />
+                                    <label for="@id_checkbox"></label>
+                                </div>
+                            </td>
+                        }
+                        else
+                        {
+                            <td>
+                                <div class="squaredOne">
+                                    <input type="checkbox"
+                                           id="@id_checkbox"
+                                           @oninput="@(async () => { 
+                                                                     this.FuelCardsToMoveToArchiveChecked.Add(card);
+                                                                     if (this.InvokeParentHendlerCheckedItems.HasDelegate)
+                                                                        await this.InvokeParentHendlerCheckedItems.InvokeAsync(this.FuelCardsToMoveToArchiveChecked.Cast<object>()?.ToList());
+                                                                   })" />
+                                    <label for="@id_checkbox"></label>
+                                </div>
+                            </td>
+                        }
+                        <td>
+                            @num
+                        </td>
+                        <td>
+                            @labelFoCard
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="3">
+                        Нет ни одной топливной карты, помеченной на отправку в архив
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+
+@code {
+    [Parameter]
+    public List<FuelCardFullModel> FuelCardsToMoveToArchive { get; set; }
+
+    private List<FuelCardFullModel> FuelCardsToMoveToArchiveChecked { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.FuelCardsToMoveToArchiveChecked = new(this.FuelCardsToMoveToArchive ?? new());
+    }
+}
+

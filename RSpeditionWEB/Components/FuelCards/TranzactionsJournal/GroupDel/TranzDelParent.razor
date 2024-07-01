@@ -1,0 +1,96 @@
+﻿@using RSpeditionWEB.Models.RequestModels;
+@inject IFuelApies api
+@inherits ChildComponentBaseClass
+@implements IDisposable
+
+<AuthorizeView>
+    <TranzDelChild TranzactionsToDel="@this.TranzactionsToDelParent"
+                     InvokeParentHendlerCheckedItems="@((List<object> checkedTranz) =>
+                                                         { this.TranzactionsToDel = new List<FuelTransactionFullResponse>(checkedTranz.Cast<FuelTransactionFullResponse>()); })" />
+    <div class="stickyBottomContainer" style="top: 0vh !important;">
+        @{
+            var isActive = IsUserHasFuelRoleInHierarchy(FuelRoles.Fuel_Provisioner)
+            && (this.TranzactionsToDel?.Count ?? 0) > 0;
+            List<ButtonBaseClass> buttonBaseClassList = new();
+            //
+            ButtonBaseClass b1 = new();
+            b1.CallbackToParent = (async () =>
+            {
+                await this.RemoveRangeTranz();
+                this.ShowMessage = true;
+                this.StateHasChanged();
+            });
+            b1.LabelForButton = $"Удалить отмеченные транзакции { this.TranzactionsToDel?.Count ?? 0} шт.";
+            b1.IsActive = isActive;
+            b1.TitleIfIsActive = "Кликните для удаления группы отмеченных транзакций из базы данных";
+            b1.TitleIfIsNonActive = (this.TranzactionsToDel != null && this.TranzactionsToDel?.Count > 0) ?
+                                     "У вас недостаточные права доступа для удаления транзакции из базы данных" :
+                                     "Для удаления д.б. отмечена хотя бы одна транзакция";
+            if (isActive)
+            {
+                buttonBaseClassList.AddRange(new List<ButtonBaseClass> { b1 });
+            }
+        }
+        <ButtonContainer ButtonBaseClassList="@buttonBaseClassList"
+                         WidthForButtonWrapper="50%">
+        </ButtonContainer>
+    </div>
+</AuthorizeView>
+
+@if (this.ShowMessage)
+{
+    <ModalWindowWithEventCallback Title="Результат удаления группы транзакций"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { if (this.ShouldUpdateParent && this.InvokeParentHendlerAfterGroupDel.HasDelegate)
+                                                                                        await this.InvokeParentHendlerAfterGroupDel.InvokeAsync(this.TranzactionsDeleted?.Cast<object>()?.ToList() ??  new());
+                                                                                      else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                        await this.InvokeParentHendlerCancel.InvokeAsync();})">
+        <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@this.Message">
+        </ResultOperation>
+    </ModalWindowWithEventCallback>
+}
+
+@code {
+    private List<FuelTransactionFullResponse> tranzactionsToDelParent;
+
+    [Parameter]
+    public List<FuelTransactionFullResponse> TranzactionsToDelParent
+    {
+        get => this.tranzactionsToDelParent;
+        set
+        {
+            this.tranzactionsToDelParent = value;
+            this.TranzactionsToDel = new List<FuelTransactionFullResponse>(value);
+        }
+    }
+
+    private List<FuelTransactionFullResponse> TranzactionsToDel { get; set; }
+
+    private List<FuelTransactionFullResponse> TranzactionsDeleted { get; set; }
+
+    /// <summary>
+    /// Метод для вызова группового удаления коллекции транзакций
+    /// </summary>
+    /// <returns></returns>
+    private async Task RemoveRangeTranz()
+    {
+        this.Message = string.Empty;
+        var count = this.TranzactionsToDel?.Count ?? 0;
+        this.TranzactionsDeleted = new List<FuelTransactionFullResponse>(this.TranzactionsToDel);
+
+        var res = await this.api?.FuelTransactionApi?.DeleteTransactions(
+            new RequestGroupAction<int>(User, this.TranzactionsToDel?.Select(_ => _.Id)?.ToList() ?? new()), this.Token) ?? new();
+
+        if (res != null)
+        {
+            this.ShouldUpdateParent = true;
+            this.Message = $"Операция успешно завершена ! Из базы данных была удалена коллекция транзакций в количестве {count} шт.";
+        }
+        else
+        {
+            this.Message = $"Операция закончилась с ошибкой ! {res.Result ?? string.Empty} !";
+            this.TranzactionsDeleted = new();
+        }
+    }
+}

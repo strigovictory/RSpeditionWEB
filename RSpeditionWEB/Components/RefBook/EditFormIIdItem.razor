@@ -1,0 +1,288 @@
+﻿@page "/EditFormIIdItem"
+@inherits EditFormIIdItemBase<IId>
+@inject AdminApi admin
+@inject GenericApi api
+
+@if (this.IsRender)
+{
+    @if (this.PropValuesVisible != null && this.PropValuesVisible?.Count > 0)
+    {
+        <EditForm Model="@this.Item"
+                  OnValidSubmit="@(async() => await this.HandleValidSubmit())">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            @foreach (var prop in this.PropValuesVisible)
+            {
+                var itemData = prop.Key;
+                var label_Name = this.ItemsType.GetDisplayAttributeValues(itemData.Name) ?? string.Empty;
+                <div class="form_label">
+                <label>@label_Name</label>
+            </div>
+            <div class="form-group center">
+                
+                @if (this.Flag_Hidden(prop.Key))
+                {
+                    <input type="hidden" 
+                                           @bind-value="@itemData" />
+                }
+                else if (this.Flag_Double(itemData))
+                {
+                    var val = Convert.ToDouble(this.Item?
+                                                         .GetType()?
+                                                         .GetProperty(itemData.Name)?
+                                                         .GetValue(this.Item))
+                                                         ;
+                    <InputNumber @bind-Value="@val"/>
+                    <ValidationMessage For="@(() => val)" />
+                }
+                else if (this.Flag_Decimal(itemData))
+                {
+                    var val = Convert.ToDecimal(this.Item?
+                                                         .GetType()?
+                                                         .GetProperty(itemData.Name)?
+                                                         .GetValue(this.Item))
+                                                         ;
+                    <InputNumber @bind-Value="@val"/>
+                    <ValidationMessage For="@(() => val)" />
+                }
+                else if (this.Flag_Int16(itemData))
+                {
+                    var val = Convert.ToInt16(this.Item?
+                                                         .GetType()?
+                                                         .GetProperty(itemData.Name)?
+                                                         .GetValue(this.Item))
+                                                         ;
+                    <InputNumber @bind-Value="@val"/>
+                    <ValidationMessage For="@(() => val)" />
+                }
+                else if (this.Flag_Int32(itemData) && !this.Flag_FKClass(itemData))
+                {
+                    var val = Convert.ToInt32(this.Item?
+                                                         .GetType()?
+                                                         .GetProperty(itemData.Name)?
+                                                         .GetValue(this.Item))
+                                                         ;
+                    <InputNumber @bind-Value="@val"/>
+                    <ValidationMessage For="@(() => val)" />
+                }
+                else if (this.Flag_Int64(itemData))
+                {
+                    var val = Convert.ToInt64(this.Item?
+                                                         .GetType()?
+                                                         .GetProperty(itemData.Name)?
+                                                         .GetValue(this.Item))
+                                                         ;
+                    <InputNumber @bind-Value="@val"/>
+                    <ValidationMessage For="@(() => val)" />
+                }
+                else if (this.Flag_Date(itemData))
+                {
+                    var val = Convert.ToDateTime(this.Item?
+                                                         .GetType()?
+                                                         .GetProperty(itemData.Name)?
+                                                         .GetValue(this.Item))
+                                                         ;
+                    <InputDate @bind-Value="@val"/>
+                    <ValidationMessage For="@(() => val)" />
+                }
+                else if (this.Flag_String(itemData))
+                {
+                    var val = this.Item?
+                                       .GetType()?
+                                       .GetProperty(itemData.Name)?
+                                       .GetValue(this.Item)?
+                                       .ToString()
+                                       ??
+                                       string.Empty
+                                       ;
+                    if (val?.Length <= 20)
+                    {
+                        <InputText @bind-Value="@val"/>
+                        <ValidationMessage For="@(() => val)" />
+                    }
+                    else
+                    {
+                        <InputTextArea @bind-Value="@val"/>
+                        <ValidationMessage For="@(() => val)" />
+                    }
+                }
+                else if(this.Flag_bool(itemData))
+                {
+                    var val = Convert.ToBoolean(this.Item?
+                                                         .GetType()?
+                                                         .GetProperty(itemData.Name)?
+                                                         .GetValue(this.Item))
+                                                         ;
+                    <InputCheckbox @bind-Value="@val"/>
+                }
+                else if(this.Flag_List(itemData))
+                {
+                }
+                else if(this.Flag_FKClass(itemData))
+                {
+                    var innerElements = this.GetInnerIIddItems(itemData);
+                    var tvalue = (int)this.Item.GetType().GetProperty(itemData.Name).GetValue(this.Item);
+                    if (innerElements.Count > 0)
+                    {
+                        <InputSelect @bind-Value="@tvalue">
+                            @foreach (var inner in innerElements)
+                            {
+                                var propVal = inner.GetType().GetProperty(this.GetFKPropsName(itemData)).GetValue(inner);
+                                <option value="@inner.Id">
+                                    @propVal
+                                </option>
+                            }
+                        </InputSelect>
+                    }
+                }
+            </div>
+            }
+            <div class="form-group center">
+                <br />
+                <div class="form-group">
+                    <button type="submit" class="my-btn">Сохранить</button>
+                </div>
+            </div>
+        </EditForm>
+    }
+}
+else
+{
+    <ProgressBar />
+}
+
+
+@code {
+    [CascadingParameter]
+    public TablePreview TablePreviewCascadingParameter { get; set; }
+
+    [Parameter]
+    public EventCallback<string> SendToParent_OperationsResult { get; set; }
+
+    [Parameter]
+    public Dictionary<TablesColumn, string> ItemData { get; set; }
+
+    [Parameter]
+    public  TableSettingView TableSetting { get; set; }
+
+    [Parameter]
+    public List<IId> IIdItems { get; set; }
+
+    private Dictionary<string, List<IId>> FK_Values => this.TablePreviewCascadingParameter?.FK_Values ?? new();
+
+    private IId Item{ get; set; }
+
+    private Type ItemsType{ get; set; }
+
+    protected bool IsNew => this.Item is null;
+
+    private Dictionary<PropertyInfo, object> PropValues{ get; set; }
+    private Dictionary<PropertyInfo, object> PropValuesVisible => this.PropValues?
+                                                                                 .Where(_ => !_.Key.GetGetMethod().IsAbstract
+                                                                                          && !_.Key.GetGetMethod().IsVirtual)?
+                                                                                 .ToDictionary(x => x.Key, y => y.Value)
+                                                                                 ?? 
+                                                                                 new()
+                                                                                 ;
+
+    private bool Flag_Int16(PropertyInfo prop) => prop.PropertyType == Int16.MinValue.GetType();
+    private bool Flag_Int32(PropertyInfo prop) => prop.PropertyType == Int32.MinValue.GetType();
+    private bool Flag_Int64(PropertyInfo prop) => prop.PropertyType == Int64.MinValue.GetType();
+    private bool Flag_Double (PropertyInfo prop) => prop.PropertyType == Double.MinValue.GetType();
+    private bool Flag_Decimal (PropertyInfo prop) => prop.PropertyType == Decimal.MinValue.GetType();
+    private bool Flag_String (PropertyInfo prop) => prop.PropertyType == typeof(string);
+    private bool Flag_bool(PropertyInfo prop) => prop.PropertyType == true.GetType();
+    private bool Flag_Date(PropertyInfo prop) => prop.PropertyType == DateTime.Now.GetType();
+    private bool Flag_Hidden(PropertyInfo prop) => !prop.PropertyType.IsVisible;
+    private bool Flag_List(PropertyInfo prop) => prop.PropertyType.IsArray;
+    private bool Flag_FKClass(PropertyInfo prop) => !string.IsNullOrEmpty(GetFKClassName(prop));
+
+    private TablesColumn GetTableColByPI(PropertyInfo prop)
+        => this.ItemData.Keys.FirstOrDefault(_ => _.DBName.Equals(prop.Name, StringComparison.InvariantCultureIgnoreCase));
+
+    private string GetFKClassName(PropertyInfo prop) => this.GetTableColByPI(prop)?.FK_ClassName ?? string.Empty;
+
+    private string GetFKPropsName(PropertyInfo prop) => this.GetTableColByPI(prop)?.FK_PropNameSelected ?? string.Empty;
+
+    private List<IId> GetInnerIIddItems(PropertyInfo prop) => this.FK_Values.FirstOrDefault(_ => _.Key.Equals(this.GetFKClassName(prop))).Value ?? new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.InitIIdItem();
+        this.IsRender = true;
+    }
+
+    private void InitIIdItem()
+    {
+        this.ItemsType = this.TablePreviewCascadingParameter?.ItemsType;
+
+        if (ItemData == null || ItemData?.Count == 0)
+        {
+            this.Item = null;
+        }
+        else
+        {
+            var idStr = this.ItemData?.FirstOrDefault(o => o.Key.DBName.Equals("Id", StringComparison.InvariantCultureIgnoreCase)).Value;
+            if(Int32.TryParse(idStr, out int id))
+            {
+                this.Item = this.IIdItems?.FirstOrDefault(_ => _.Id == id) ?? null;
+            }
+        }
+
+        this.InitPropValues();
+    }
+
+    private void InitPropValues()
+    {
+        this.PropValues = new();
+        var props = this.ItemsType?.GetProperties()?.ToList() ?? new();
+
+        if(this.IsNew)
+        {
+            props?.ForEach(_ => this.PropValues.Add(_, default));
+        }
+        else
+        {
+            props?.ForEach(_ => this.PropValues.Add(_, _.GetValue(this.Item)));
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        IId res = null;
+
+        if(this.IsNew)
+        {
+            res = await this.api?.PostTItem(this.Item, this.Token);
+
+            if(res != null && res.Id > 0)
+            {
+                this.Message = $"Операция успешно завершена, ноовый экземпляр типа «{this.ItemsType}» был добавлен в базу данных. ";
+            }
+            else
+            {
+                this.Message = $"Операция завершилась с ошибкой, новый экземпляр типа «{this.ItemsType}» не был добавлен в базу данных. ";
+            }
+        }
+        else
+        {
+            res =await this.api?.PutTItem(this.Item, this.Token);
+
+            if(res != null && res.Id > 0)
+            {
+                this.Message = $"Операция успешно завершена, экземпляр типа «{this.ItemsType}» был обновлен в базе данных. ";
+            }
+            else
+            {
+                this.Message = $"Операция завершилась с ошибкой, экземпляр типа «{this.ItemsType}» не был обновлен в базе данных. ";
+            }
+        }
+
+        if(this.SendToParent_OperationsResult.HasDelegate)
+        {
+            await this.SendToParent_OperationsResult.InvokeAsync(this.Message);
+        }
+    }
+}

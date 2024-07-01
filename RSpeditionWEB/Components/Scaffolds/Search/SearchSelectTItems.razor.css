@@ -1,0 +1,38 @@
+﻿select {
+    border-top-width: 0px !important;
+}
+
+input {
+    margin: 0 !important;
+    border-radius: 0 !important;
+}
+
+
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    height: 15px;
+    width: 15px;
+    background-image: url(css/open-iconic/icon/krest_black.png);
+    background-size: 15px;
+}
+
+    input[type="search"]::-webkit-search-decoration:hover,
+    input[type="search"]::-webkit-search-cancel-button:hover,
+    input[type="search"]::-webkit-search-results-button:hover,
+    input[type="search"]::-webkit-search-results-decoration:hover {
+        background-image: url(css/open-iconic/icon/krest_black_empty.png);
+        background-size: 15px;
+        cursor: pointer;
+    }
+
+button {
+    margin: 0 !important;
+    border-radius: 0 !important;
+}
+
+.form_label{
+    margin-right: 15px;
+}

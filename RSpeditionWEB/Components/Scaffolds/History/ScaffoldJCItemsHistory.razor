@@ -1,0 +1,204 @@
+﻿@inherits ScaffoldJCItemsHistoryBase<T, V>
+@typeparam T
+@typeparam V
+@inject GenericApi api
+
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        <div class="left">
+            <button type="button"
+                class="table-button"
+                @onclick="@(async() => { if(this.InvokeParentToStartAction.HasDelegate)
+                                            await this.InvokeParentToStartAction.InvokeAsync((OperationsType.create, (T)Activator.CreateInstance(typeof(T)))); })">
+                Добавить событие
+            </button>
+        </div>
+        @if (this.HistoryEvents != null && this.HistoryEvents.Any() && !this.Token.IsCancellationRequested)
+        {
+            var numColumns = (this.PropertiesRendered?.Count ?? 0);
+            <div class="adapt_table scroll font-journal" style="@StyleMaxHeightName">
+                <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+                    <thead class="adapt_table_inner_thead">
+                        <tr>
+                            <th data-label="№">
+                                №
+                            </th>
+                            @for (var i = 0; i < this.PropertiesRendered?.Count; i++)
+                            {
+                                var ind = i;
+                                var thItem = this.PropertiesRendered.ElementAt(ind);
+                                var thItemName = thItem?.Name ?? string.Empty;
+                                var thLabel = typeof(T).GetCustomDisplayValues(thItem.Name).Item1;
+                                <th data-label="@thItemName">
+                                    @(thLabel ?? string.Empty)
+                                </th>
+                            }
+                            <th data-label="Действия" colspan="2">
+                                Действия
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody style="width: 100%;">
+                        <Virtualize Items="@(this.HistoryEvents ?? new())" ItemSize="25">
+                            <ItemContent>
+                                <tr>
+                                    <td data-label="№">
+                                        @(this.HistoryEvents.IndexOf(context) + 1)
+                                    </td>
+                                    @if (this.PropertiesRendered != null && this.PropertiesRendered.Any())
+                                    {
+                                        foreach (var propInfo in this.PropertiesRendered)
+                                        {
+                                            var labelVal = this.GetFKValue(propInfo, context);
+                                            <td data-label="@(propInfo?.Name ?? string.Empty)">
+                                                @if (propInfo.PropertyType == typeof(bool))
+                                                {
+                                                    var val = (bool)propInfo.GetValue(context);
+                                                    if (val)
+                                                    {
+                                                        <input type="checkbox" checked disabled />
+                                                    }
+                                                    else
+                                                    {
+                                                        <input type="checkbox" disabled />
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    @labelVal
+                                                }
+                                            </td>
+                                        }
+                                        @if (this.HistoryEvents.IndexOf(context) == 0 && this.HistoryEvents?.Count > 1)
+                                        {
+                                            <td data-label="Действия">
+                                                <button type="button"
+                                        class="table-button"
+                                        @onclick="@(async() => { if(this.InvokeParentToStartAction.HasDelegate)
+                                                                                            await this.InvokeParentToStartAction.InvokeAsync((OperationsType.update, context)); })">
+                                                    Редактировать
+                                                </button>
+                                            </td>
+                                            <td data-label="Действия">
+                                                <button type="button"
+                                        class="table-button"
+                                        @onclick="@(async() => { if(this.InvokeParentToStartAction.HasDelegate)
+                                                                                            await this.InvokeParentToStartAction.InvokeAsync((OperationsType.delete, context)); })">
+                                                    Удалить
+                                                </button>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td data-label="Действия" colspan="2">
+                                                <button type="button"
+                                        class="table-button"
+                                        @onclick="@(async() => { if(this.InvokeParentToStartAction.HasDelegate)
+                                                                                            await this.InvokeParentToStartAction.InvokeAsync((OperationsType.update, context)); })">
+                                                    Редактировать
+                                                </button>
+                                            </td>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <td colspan="@(this.PropertiesRendered?.Count ?? 1 + 3)">
+                                            Нет информации для отображения
+                                        </td>
+                                    }
+                                </tr>
+                            </ItemContent>
+                            <Placeholder>
+                                <tr>
+                                    <td colspan="@numColumns">
+                                        Идет отрисовка табличной части ...
+                                    </td>
+                                </tr>
+                            </Placeholder>
+                        </Virtualize>
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p><em>Записи для отображения отсутствуют</em></p>
+        }
+        <div id="@this.IdForProgressBar" style="display: none;">
+            <ProgressBar />
+        </div>
+    }
+    else
+    {
+        <ProgressBarInner />
+    }
+</CascadingValue>
+
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IsRender = true;
+    }
+
+    #region
+    protected override List<PropertyInfo> GetPropertiesRendered()
+        => Activator.CreateInstance<T>()?.GetType()?.GetProperties()?.Where(_ => !_.GetGetMethod().IsVirtual)?.ToList() ?? new();
+
+    protected override async Task<Dictionary<Type, List<object>>> GetItemsFK()
+    {
+        Dictionary<Type, List<object>> res = new();
+
+        var fkProps = Activator.CreateInstance<T>()?.GetType()?.GetProperties()?.Where(_ => _.GetCustomAttributes<CustomForeignAttribute>()?.Count() > 0)?.ToList() ?? new();
+
+        var itemsTypes = fkProps?.Select(_ => _.GetCustomAttributes<CustomForeignAttribute>()?.FirstOrDefault()?.TypeForeignClass);
+
+        await Parallel.ForEachAsync(itemsTypes,
+                                    new ParallelOptions { MaxDegreeOfParallelism = 32 },
+                                    async (itemsType, token) =>
+                                    {
+                                        var values = await this.api?.GetListObjItems(itemsType, this.Token);
+                                        if (!res.ContainsKey(itemsType))
+                                            res.Add(itemsType, values);
+                                    });
+
+        return res;
+    }
+
+    protected override string GetFKValue(PropertyInfo prop, T item)
+    {
+        var res = string.Empty;
+        var valProp = prop?.GetValue(item);
+        var customAttrFK = prop?.GetCustomAttribute<CustomForeignAttribute>() ?? null;
+
+        if (customAttrFK != null && !string.IsNullOrEmpty(customAttrFK.NamePropForeignClass))
+        {
+            var typeInnerClass = customAttrFK.TypeForeignClass;
+            var namePropFK = customAttrFK.NamePropForeignClass;
+            var propIdFk = typeInnerClass.GetProperty("Id") ?? typeInnerClass.GetProperty("ID");
+            if (this.ItemsFK.TryGetValue(typeInnerClass, out var itemsFK))
+            {
+                foreach (object fkItem in itemsFK)
+                {
+                    if (fkItem != null && fkItem.GetType().Equals(typeof(JsonElement)))
+                    {
+                        var jsonElement = (JsonElement)fkItem;
+                        if (valProp != null && (int)valProp == jsonElement.GetProperty(propIdFk.Name).GetInt32())
+                        {
+                            res = jsonElement.GetProperty(namePropFK).GetString() ?? string.Empty;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        else
+            res = valProp?.ToString() ?? string.Empty;
+
+        return res;
+    }
+    #endregion
+}

@@ -1,0 +1,5 @@
+﻿select,
+input[type="date"] {
+    width: 150px;
+    font-size: small;
+}

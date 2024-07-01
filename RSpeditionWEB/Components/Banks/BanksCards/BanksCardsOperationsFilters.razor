@@ -1,0 +1,205 @@
+﻿@inject IApies api
+@inherits ScaffoldJCFiltersBase<BanksCardsOperation_iew>
+@inject IMapper mapper
+@inject Serilog.ILogger logger
+@inject IConfiguration config
+
+<CascadingValue Value="@this">
+    <div style="text-align: center;">
+        <p class="my-h1 inner-light-shadow">Операции по банковским картам</p>
+    </div>
+    @if (this.IsRender)
+    {
+        @*Табличная часть*@
+        <ScaffoldJCParent T="@BanksCardsOperation_iew"
+                          @ref="@ScaffoldJCParentRef"
+                          SendToParentSelectedItem="@(async(BanksCardsOperation_iew item) => {  this.ItemSelected = item;
+                                                                                                        this.IsRenderMenuActions = true; })" />
+
+        @*Блок кнопок в футере*@
+        <div class="stickyBottomContainer">
+            <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList" />
+        </div>
+
+        @if (this.IsRenderMenuActions)
+        {
+            <ScaffoldJCMenuActions T="@BanksCardsOperation_iew"
+                                   InvokeParentHendlerCancel="@(() => { this.ItemSelected = null;
+                                                                         this.IsRenderMenuActions = false; })"
+                                   LableItemGenitive="операции по банковской карте">
+                <ChildContent_EditItem>
+                    <BanksCardsOperationEditForm TItemFromParent="@this.ItemSelected"
+                                                 InvokeParentHendlerAfterCreating="@(async(object addedItem) => { await this.UpdateAfterAction(); })"
+                                                 InvokeParentHendlerAfterUpd="@(async(object item) => { await this.UpdateAfterAction(); })"
+                                                 InvokeParentHendlerCancel="@((object item) => { this.ItemSelected = null;
+                                                                                                  this.IsRenderMenuActions = false; })" />
+                </ChildContent_EditItem>
+                <ChildContent_DeleteItem>
+                    <div class="validation-message-medium">
+                        @{
+                            var confermation = $"Вы подтверждаете удаление отмеченной транзакции?";
+                            var bnClList = new List<ButtonBaseClass>();
+                            //
+                            ButtonBaseClass b1 = new();
+                            b1.CallbackToParent = (async () =>
+                            {
+                                await this.ProgressBarOpenAsync();
+                                var resDel = await this.api?.FinanceApi?.DeleteBanksCardsOperations(new List<int> { this.ItemSelected?.Id ?? 0 }, this.Token);
+                                this.Message = resDel?.Result ?? String.Empty;
+                                this.ItemSelected = null;
+
+                                if (resDel != null)
+                                {
+                                    this.Title = "Результат операции";
+                                    this.ShouldUpdateParent = true;
+                                }
+                                else
+                                    this.Title = "Предупреждение";
+
+                                await this.ProgressBarCloseAsync();
+                                this.RenderMessage();
+                            });
+                            b1.LabelForButton = $"Удалить";
+                            b1.IsActive = this.ItemSelected != null;
+                            b1.TitleIfIsActive = "Кликните для удаления отмеченной транзакции";
+                            b1.TitleIfIsNonActive = "Транзакция не отмечена";
+                            //
+                            bnClList?.AddRange(new List<ButtonBaseClass> { b1 });
+                        }
+                        @confermation
+                    </div>
+                    <div class="stickyBottomContainer">
+                        <ButtonContainer ButtonBaseClassList="@bnClList"
+                                         WidthForButtonWrapper="30%" />
+                    </div>
+                </ChildContent_DeleteItem>
+            </ScaffoldJCMenuActions>
+        }
+
+        if (this.IsRenderGroupDel)
+        {
+            <ModalWindowWithEventCallback Title="Удаление банковских операций"
+                                  InvokeParentHandlerwithUpdParent="@(() => { this.IsRenderGroupDel = false; })">
+                <BanksCardsOperationGroupDelete InvokeParentHendlerAfterGroupDel="@(async(List<object> items) => { this.IsRenderGroupDel = false; 
+                                                                                                                    await this.UpdateAfterAction(); })"
+                                                InvokeParentHendlerCancel="@(() => { this.IsRenderGroupDel = false; })"
+                                                Items="@this.ItemsFilteredChecked" />
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.ShowMessage)
+        {
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { if (this.ShouldUpdateParent)
+                                                                                                await this.UpdateAfterAction();
+                                                                                            this.ShowMessage = false;
+                                                                                            this.IsRenderGroupAdding = false;
+                                                                                            this.IsRenderMenuActions = false; })">
+                <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@this.Message" />
+            </ModalWindowWithEventCallback>
+        }
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Подождите..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    #region
+    [CascadingParameter]
+    public BanksCards BankCardsCascadingParameter { get; set; }
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+    => new List<PropertyInfo>
+    {
+        this.ModelsType.GetProperty(nameof(this.Model.ReportDate)),      
+        this.ModelsType.GetProperty(nameof(this.Model.CurrencyReportName)),
+        this.ModelsType.GetProperty(nameof(this.Model.EmployeeName)),
+        this.ModelsType.GetProperty(nameof(this.Model.Rbsnumber)),
+        this.ModelsType.GetProperty(nameof(this.Model.OperationDate)),
+        this.ModelsType.GetProperty(nameof(this.Model.Details)),
+        this.ModelsType.GetProperty(nameof(this.Model.AmountOperationOriginal)),
+        this.ModelsType.GetProperty(nameof(this.Model.KindOperationName)),
+        this.ModelsType.GetProperty(nameof(this.Model.CurrencyOperationName)),
+        this.ModelsType.GetProperty(nameof(this.Model.AmountTotal)),
+        this.ModelsType.GetProperty(nameof(this.Model.AmountCommission)),
+        this.ModelsType.GetProperty(nameof(this.Model.AmountWithoutCommission)),
+        this.ModelsType.GetProperty(nameof(this.Model.AmountWithoutCommissionEuro)),
+        this.ModelsType.GetProperty(nameof(this.Model.CurrencyRate)),
+        this.ModelsType.GetProperty(nameof(this.Model.CurrencyRateUnit)),
+        this.ModelsType.GetProperty(nameof(this.Model.RideDriverReportName))
+    };
+    #endregion
+
+    #region
+    protected override async Task<List<BanksCardsOperation_iew>> GetCollectionTItemsFromParent()
+    => this.BankCardsCascadingParameter?.BanksCardsOperations ?? new();
+
+    protected override void InitGroupBySelector()
+    {
+        this.GroupByKeySelector = (BanksCardsOperation_iew item) => item.CurrencyOperationName;
+        this.GroupBySumProps = new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.AmountOperationOriginal))
+        };
+        this.TotalSumProps = new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.AmountWithoutCommissionEuro))
+        };
+    }
+
+    protected override void InitButtons()
+    {
+        this.ButtonBaseClassList = new();        
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (() =>
+        {
+            this.IsRenderGroupDel = true;
+            this.StateHasChanged();
+        });
+        b1.LabelForButton = "Удалить операции";
+        b1.IsActive = this.ItemsFilteredChecked != null && this.ItemsFilteredChecked?.Count > 0;
+        b1.TitleIfIsActive = "Кликните для удаления группы операций";
+        b1.TitleIfIsNonActive = "Групповое удаление станет возможным после того, как пользователь отметит хотя бы одну операцию";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (() =>
+        {
+            this.IsRenderSortWindow = true;
+            this.StateHasChanged();
+        });
+        b2.LabelForButton = "Сортировать операции";
+        b2.IsActive = this.IsRender;
+        b2.TitleIfIsActive = "Кликните для настройки групповой сортировки";
+        b2.TitleIfIsNonActive = "Групповая сортировка станет возможной после загрузки журнала";
+        //
+        ButtonBaseClass b3 = new();
+        b3.CallbackToParent = (async () =>
+        {
+            await this.ProgressBarOpenAsync();
+            var uri = GateWayConfigs.Value.BaseUrl + "/banks" + "/operations";
+            var resGenerate = await this.InitGeneratePrintForm(uri, this.ItemsFiltered);
+            if (!resGenerate.Item1)
+            {
+                this.Message = resGenerate.Item2;
+                this.Title = "Предупреждение";
+                this.ShowMessage = true;
+                this.StateHasChanged();
+            }
+            await this.ProgressBarCloseAsync();
+        });
+        b3.LabelForButton = "Печатная форма";
+        b3.IsActive = this.IsRender;
+        b3.TitleIfIsActive = "Кликните для формирования печатной формы отчета";
+        b3.TitleIfIsNonActive = "Печатная форма отчета станет доступной после полной загрузки страницы";
+        this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { b1, b3 });
+    }
+    #endregion
+}

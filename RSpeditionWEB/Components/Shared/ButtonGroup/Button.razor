@@ -1,0 +1,84 @@
+﻿@if (this.IsActive)
+{
+    <div class="ButtonContainer">
+        <div class="ButtonWrapper"
+             style="@this.StyleButton"
+             title="@this.TitleIfIsActive"
+             @onclick="@(async() => { if(this.EventCallbackToParent.HasDelegate) 
+                                          await this.EventCallbackToParent.InvokeAsync(); })">
+            <div class="ButtonLabel">
+                <p>@this.LabelForButton</p>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="ButtonContainer">
+        <div class="ButtonWrapper non-active"
+             title="@this.TitleIfIsNonActive">
+            <div class="ButtonLabel">
+                <p>@this.LabelForButton</p>
+            </div>
+        </div>
+    </div>
+}
+@code {
+    [Parameter]
+    public EventCallback EventCallbackToParent { get; set; }
+
+    [Parameter]
+    public string LabelForButton { get; set; }
+
+    // Если свойство равно истина - кнопка активна
+    [Parameter]
+    public bool IsActive { get; set; }
+
+    [Parameter]
+    public string TitleIfIsNonActive { get; set; }
+
+    [Parameter]
+    public string TitleIfIsActive { get; set; }
+
+    [Parameter]
+    public string Width { get; set; }
+
+    private string StyleButton 
+    {
+        get => $"min-width: {this.Width ?? "auto"}";
+    }
+
+    /// <summary>
+    /// Метод задает параметры, предоставляемые родительским элементом компонента в дереве отрисовки или из параметров маршрута.
+    /// </summary>
+    /// <param name="parameters">Параметры, предоставляемые родительским элементом компонента в дереве отрисовки или из параметров маршрута</param>
+    /// <returns></returns>
+    public override async Task SetParametersAsync(ParameterView parameters)
+    {
+        await base.SetParametersAsync(parameters);
+
+        if (parameters.TryGetValue<string>(nameof(LabelForButton), out var value_LabelForButton))
+        {
+            if (value_LabelForButton is null)
+            {
+                this.LabelForButton = string.Empty;
+            }
+        }
+
+        if(parameters.TryGetValue<string>(nameof(TitleIfIsNonActive), out var value_TitleIfIsNonActive))
+        {
+            if (value_TitleIfIsNonActive is null)
+            {
+                this.TitleIfIsNonActive = string.Empty;
+            }
+        }
+
+        if (parameters.TryGetValue<string>(nameof(TitleIfIsActive), out var value_TitleIfIsActive))
+        {
+            if (value_TitleIfIsActive is null)
+            {
+                this.TitleIfIsActive = string.Empty;
+            }
+        }
+    }
+}

@@ -1,0 +1,331 @@
+﻿@implements IDisposable
+@inherits ChildComponentBaseClass
+@inject IApies api
+
+<CascadingValue Value="this">
+    @if (this.IsRender)
+    {
+        FuelCardsEventResponse item = new();
+        var typeItem = item.GetType();
+        var label_Car = typeItem.GetCustomDisplayValues(nameof(item.CarId)).Item1 ?? string.Empty;
+        var label_Empl = typeItem.GetCustomDisplayValues(nameof(item.EmployeeId)).Item1 ?? string.Empty;
+        var label_Division = typeItem.GetCustomDisplayValues(nameof(item.DivisionID)).Item1 ?? string.Empty;
+        var label_EventType = typeItem.GetCustomDisplayValues(nameof(item.EventTypeId)).Item1 ?? string.Empty;
+        var label_EventStartDate = typeItem.GetCustomDisplayValues(nameof(item.StartDate)).Item1 ?? string.Empty;
+        var label_FinishDate = typeItem.GetCustomDisplayValues(nameof(item.FinishDate)).Item1 ?? string.Empty;
+        var label_Comment = typeItem.GetCustomDisplayValues(nameof(item.Comment)).Item1 ?? string.Empty;
+        var label_ChangeDate = typeItem.GetCustomDisplayValues(nameof(item.ModifiedOn)).Item1 ?? string.Empty;
+        var label_ChangeUsername = typeItem.GetCustomDisplayValues(nameof(item.ModifiedBy)).Item1 ?? string.Empty;
+        <div class="left">
+            <button type="button"
+                    class="table-button"
+                    @onclick="@(() => { this.ShowEditEvent = true;
+                                    this.Title = $"Добавление нового события по карте";
+                                    this.FuelCardEventSelected = null; })">
+                Добавить событие
+            </button>
+        </div>
+            <div class="adapt_table scroll font-journal" style="@StyleMaxHeightName">
+                <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+                    <thead class="adapt_table_inner_thead">
+                    <tr>
+                        <th data-label="№">
+                            №
+                        </th>
+                        <th data-label="@label_EventType">
+                            @label_EventType
+                        </th>
+                        <th data-label="@label_Division">
+                            @label_Division
+                        </th>
+                        <th data-label="@label_Car">
+                            @label_Car
+                        </th>
+                        <th data-label="@label_Empl">
+                            @label_Empl
+                        </th>
+                        <th data-label="@label_EventStartDate">
+                            @label_EventStartDate
+                        </th>
+                        <th data-label="@label_FinishDate">
+                            @label_FinishDate
+                        </th>
+                        <th data-label="@label_Comment">
+                            @label_Comment
+                        </th>
+                        <th data-label="@label_ChangeDate">
+                            @label_ChangeDate
+                        </th>
+                        <th data-label="@label_ChangeUsername">
+                            @label_ChangeUsername
+                        </th>
+                        <th data-label="Действия" colspan="2">
+                            Действия
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (this.FuelCardEvents != null && this.FuelCardEvents?.Count > 0)
+                    {
+                        foreach (var cardEvent in this.FuelCardEvents)
+                        {
+                            var ind = this.FuelCardEvents.IndexOf(cardEvent) + 1;
+                            var labelForCar = cardEvent.CarId.HasValue 
+                            ? FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.Trucks?.FirstOrDefault(_ => _.Id == cardEvent.CarId.Value)?.CarNumber ?? string.Empty
+                            : string.Empty;
+                            var labelForEmpl = cardEvent.EmployeeId.HasValue
+                            ? FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.Employees?.FirstOrDefault(_ => _.Id == cardEvent.EmployeeId.Value)?.ToString() ?? string.Empty
+                            : string.Empty;
+                            var labelForDivision = cardEvent.DivisionID.HasValue
+                            ? FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.Divisions?.FirstOrDefault(_ => _.Id == cardEvent.DivisionID.Value)?.Name ?? string.Empty
+                            : string.Empty;
+                            var labelFoEvent = FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.KitEventTypes?.FirstOrDefault(_ => _.Id == (cardEvent?.EventTypeId ?? 0))?.Name ?? string.Empty;
+                            <tr>
+                                <td data-label="№">
+                                    @ind
+                                </td>
+                                <td data-label="@label_EventType">
+                                    @labelFoEvent
+                                </td>
+                                <td data-label="@label_Division">
+                                    @labelForDivision
+                                </td>
+                                <td data-label="@label_Car">
+                                    @labelForCar
+                                </td>
+                                <td data-label="@label_Empl">
+                                    @labelForEmpl
+                                </td>
+                                <td data-label="@label_EventStartDate">
+                                    @(cardEvent?.StartDate.FormatingDate() ?? string.Empty)
+                                </td>
+                                <td data-label="@label_FinishDate">
+                                    @(cardEvent?.FinishDate?.FormatingDate() ?? string.Empty)
+                                </td>
+                                <td data-label="@label_Comment">
+                                    @(cardEvent?.Comment ?? string.Empty)
+                                </td>
+                                <td data-label="@label_ChangeDate">
+                                    @(cardEvent?.ModifiedOn?.FormatingDate() ?? string.Empty)
+                                </td>
+                                <td data-label="@label_ChangeUsername">
+                                    @(cardEvent?.ModifiedBy ?? string.Empty)
+                                </td>
+                                @if (ind == 1 && this.FuelCardEvents?.Count > 1)
+                                {
+                                    <td data-label="Действия">
+                                        <button type="button"
+                                                class="table-button"
+                                                @onclick="@(() => { this.ShowEditEvent = true;
+                                                                this.Title = $"Редактирование события";
+                                                                    this.FuelCardEventSelected = cardEvent; })">
+                                            Редактировать
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <button type="button"
+                                                class="table-button"
+                                                @onclick="@(() => { this.ShowDeleteEvent = true;
+                                                        this.Title = $"Удаление последнего события";
+                                                        this.FuelCardEventSelected = cardEvent; })">
+                                            Удалить
+                                        </button>
+                                    </td>
+                                }
+                                else
+                                {
+                                    <td data-label="Действия" colspan="2">
+                                        <button type="button"
+                                                class="table-button"
+                                                @onclick="@(() => { this.ShowEditEvent = true;
+                                                        this.Title = $"Редактирование события";
+                                                        this.FuelCardEventSelected = cardEvent; })">
+                                            Редактировать
+                                        </button>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="13">
+                                Нет истории
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка ..." />
+    }
+
+    @if (this.ShowEditEvent)
+    {
+        <AuthorizeView>
+            <Authorized>
+                @if (!context?.User?.Identity?.IsAuthenticated ?? false)
+                {
+                    <ForbiddenAccess></ForbiddenAccess>
+                }
+                else
+                {
+                    <ModalWindowWithEventCallback Title="@this.Title"
+                                                  InvokeParentHandlerwithUpdParent="@(() => { this.ShowEditEvent = false; })">
+                        <FuelCardEventEditForm TItemFromParent="@this.FuelCardEventSelected"
+                                                KitEventTypes="@FuelCardsJournalCascadingParameter.FuelCardsCascadingParameter.KitEventTypes"
+                                                EventSource="@this.FuelCard"
+                                                InvokeParentHendlerResponseBaseAfterAction="@(async(ResponseBase res) =>
+                                                                                                                    { if (res  == null)
+                                                                                                                        {
+                                                                                                                            this.Message = $"Операция закончилась с ошибкой ! Попробуйте снова !";
+                                                                                                                            this.Message += res?.Result ?? string.Empty;
+                                                                                                                        }
+                                                                                                                        else
+                                                                                                                        {
+                                                                                                                            await this.InitStatusFuelCardHistory();
+                                                                                                                            this.Message = $"Операция успешно завершена ! Изменения были зафиксированы !";
+                                                                                                                        }
+                                                                                                                        this.ShowEditEvent = false;
+                                                                                                                        this.ShowMessage = true;
+                                                                                                                        this.Title = "Результат выполнения операции"; })">
+                        </FuelCardEventEditForm>
+                    </ModalWindowWithEventCallback>
+                }
+            </Authorized>
+        </AuthorizeView>
+    }
+
+    @if (this.ShowDeleteEvent)
+    {
+        <AuthorizeView>
+            <Authorized>
+                @if (!context?.User?.Identity?.IsAuthenticated ?? false)
+                {
+                    <ForbiddenAccess></ForbiddenAccess>
+                }
+                else
+                {
+                    <ModalWindowWithEventCallback Title="@this.Title"
+                                                  InvokeParentHandlerwithUpdParent="@(() => { this.ShowDeleteEvent = false; })">
+                        @{
+                            var isActive = true;
+                            List<ButtonBaseClass> buttonBaseClassList = new();
+                            //
+                            ButtonBaseClass b1 = new();
+                            b1.CallbackToParent = (async () =>
+                            {
+                                await this.DeleteLastEvent();
+                            });
+                            b1.LabelForButton = "Удалить событие";
+                            b1.IsActive = isActive;
+                            b1.TitleIfIsActive = "Кликните для удаления последнего события";
+                            b1.TitleIfIsNonActive = "";
+                            if(IsUserHasFuelRoleInHierarchy(FuelRoles.Fuel_Provisioner))
+                            {
+                                buttonBaseClassList.AddRange(new List<ButtonBaseClass> { b1 });
+                            }
+                        }
+                        <div class="validation-message">
+                            @($"Вы подтверждаете удаление последнего события по выбранной карте № «{this.FuelCard?.Number ?? string.Empty}» ?")
+                        </div>
+                        <ButtonContainer ButtonBaseClassList="@buttonBaseClassList"
+                                         WidthForButtonWrapper="20%" />
+                    </ModalWindowWithEventCallback>
+                }
+            </Authorized>
+        </AuthorizeView>
+    }
+
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                      InvokeParentHandlerwithUpdParent="@(async() => { this.ShowMessage = false; 
+                                                                                       if (InvokeParentHendlerAfterUpd.HasDelegate)
+                                                                                        {
+                                                                                            await InvokeParentHendlerAfterUpd.InvokeAsync(default);
+                                                                                        }})">
+            <ResultOperation Devider="'!'"
+                             IsNumberedList="false"
+                             ResMessage="@this.Message" />
+        </ModalWindowWithEventCallback>
+    }
+</CascadingValue>
+
+
+@code {
+    [CascadingParameter]
+    public FuelCardsJournal FuelCardsJournalCascadingParameter { get; set; }
+
+    [Parameter]
+    public FuelCardFullModel FuelCard { get; set; }
+
+    private bool ShowEditEvent { get; set; }
+    private bool ShowDeleteEvent { get; set; }
+
+    public List<FuelCardsEventResponse> FuelCardEvents { get; set; }
+
+    private FuelCardsEventResponse FuelCardEventSelected { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        //this.KitEventTypes = await this.api?.KitEventApi?.GetKitEventTypes(this.Token); TODO: когда будет готов микросервис с типами событий - переделать
+        await InitStatusFuelCardHistory();
+        this.IsRender = true;
+    }
+
+    /// <summary>
+    /// Метод для инициализации коллекцуии истории по заданной карте
+    /// </summary>
+    /// <returns></returns>
+    private async Task InitStatusFuelCardHistory()
+    {
+        if ((FuelCard?.Id ?? 0) > 0)
+        {
+            this.FuelCardEvents = (await this.api?
+                                                 .FuelCardsEventsApi?
+                                                 .GetCardsEvents(this.FuelCard?.Id ?? 0, this.Token))?
+                                                 .OrderByDescending(_ => _.StartDate.Date)?
+                                                 .ThenByDescending(_ => _.Id)?
+                                                 .ToList() 
+                                                 ??
+                                                 new()
+                                                 ;
+        }
+
+        FuelCardEventSelected = null;
+    }
+
+    /// <summary>
+    /// Метод для удаление последнего события в цепочке событий
+    /// </summary>
+    /// <returns></returns>
+    private async Task DeleteLastEvent()
+    {
+        var res = await this.api?.FuelCardsEventsApi?.DeleteCardsEvent(this.FuelCardEventSelected, this.Token);
+
+        await this.InitStatusFuelCardHistory();
+
+        if (res == null)
+        {
+            this.Message = $"Операция закончилась с ошибкой ! Попробуйте снова !";
+            this.Message += res?.Result ?? string.Empty;
+        }
+        else
+        {
+            await this.InitStatusFuelCardHistory();
+            this.Message = $"Операция успешно завершена ! Событие было удалено из системы !";
+        }
+
+        this.Title = "Результат удаления последнего события";
+        this.ShowDeleteEvent = false;
+        this.ShowMessage = true;
+        StateHasChanged();
+    }
+}
+

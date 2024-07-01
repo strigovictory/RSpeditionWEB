@@ -1,0 +1,17 @@
+﻿@inject IJSRuntime js
+
+    <div class="progress-header">
+        <div class="progress-container">
+            <div class="progress-bar" id="myBar"></div>
+        </div>
+    </div>
+
+    @code {
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (firstRender)
+            {
+                await this.js.InvokeVoidAsync("ScrollIndicatorActivate");
+            }
+        }
+}

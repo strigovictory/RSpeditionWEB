@@ -1,0 +1,35 @@
+﻿@inherits ComponentBaseClass
+@inject NavigationManager navMan
+
+<container>
+    <img src="/css/open-iconic/icon/white_arrow_right.png" 
+         class="img_arrow" 
+         title="Вставьте пистолет в бак" />
+    <img src="/css/open-iconic/img/gun_color.png" class="img_gun"
+         draggable="true"
+         ondragstart="dragstart_handler(event)"
+         ondragover="dragover_handler(event)"
+         ondrop="drop_handler(event)"
+         id="gun" 
+         title="Вставьте пистолет в бак" />
+    <img src="/css/open-iconic/img/truck.png" class="img_truck"
+        @ref="@this.DropZoneRef"
+        @onchange="@(() => { this.navMan?.NavigateTo(this.ReturnUrl, true); })" />
+</container>
+
+
+@code {
+    private ElementReference DropZoneRef { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        ReturnUrl = "/FuelCardsCont";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await this.js.InvokeVoidAsync("initializeDropZone", this.DropZoneRef, this.DropZoneRef);
+    }
+}

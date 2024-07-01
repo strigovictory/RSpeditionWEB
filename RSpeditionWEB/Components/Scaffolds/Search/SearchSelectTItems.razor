@@ -1,0 +1,356 @@
+﻿@inherits SearchTItemsBase<T>
+@typeparam T
+@inject Serilog.ILogger logger
+
+@{
+    var img_dropdown = ShowSearchResult ? "css/open-iconic/icon/up_black.png" : "css/open-iconic/icon/down_black.png";
+    var placeHolderValue = IsMultiple 
+    ? Placeholder ?? LabelForSearch ?? "Поиск"
+    : ((SelectedItems?.Count ?? 0) > 0 ? TextProperty?.GetValue(SelectedItems.FirstOrDefault())?.ToString() ?? "Поиск" : Placeholder ?? LabelForSearch ?? "Поиск");
+}
+@if (IsRenderLabelForSearch)
+{
+    <div class="form_label">
+        @LabelForSearch
+    </div>
+}
+<div>
+    <div class="search">
+        <input type="search"
+               placeholder="@placeHolderValue"
+               @bind-value="SearchString"
+               @bind-value:event="oninput"
+               @onclick="@(() => { if(!ShowSearchResult)
+                                           ShowSearchResult = true; })" />
+        <button type="button"
+                class="button"
+                @onclick="@(() => OnShow())">
+            <img src="@img_dropdown" />
+        </button>
+    </div>
+
+    @if (ShowSearchResult)
+    {
+        var trimmedSearchedItems = (SearchedItems?.Count ?? 0) < 1001 ? SearchedItems ?? new() : SearchedItems?.Take(1000)?.ToList() ?? new();
+        <div class="flexColumnStretch">
+            @if (this.IsMultiple)
+            {
+                <select @ref="@this.ElementReference_Select_Multiple"
+                        size="@this.SizeSelect"
+                        class="search_select"
+                        multiple
+                        @onchange="@(async (ChangeEventArgs args) => { await this.ProgressBarOpen();
+                                                                   await this.SelectionChanged(args, this.ElementReference_Select_Multiple);
+                                                                   await this.ProgressBarClose(); })">
+                    @if (trimmedSearchedItems.Count > 0)
+                    {
+                        if ((SearchedItems?.Count ?? 0) == (SelectedItems?.Count ?? 0) || (SelectedItems?.Count ?? 0) == 0)
+                        {
+                            <option disabled selected>Выбрать всё</option>
+                        }
+                        else
+                        {
+                            <option>Выбрать всё</option>
+                        }
+
+                        @foreach (var item in trimmedSearchedItems)
+                        {
+                            if (item == null) continue;
+                            var val = item;
+                            var valId = this.GetKeyValue(item);
+                            string label = this.TextProperty != null ? this.TextProperty?.GetValue(val)?.ToString() ?? string.Empty : item?.ToString() ?? string.Empty;
+                            <option value="@valId">
+                                @label
+                            </option>
+                        }
+                    }
+                    else
+                    {
+                        <option disabled selected>Ничего не найдено</option>
+                    }
+                </select>
+            }
+            else
+            {
+                <select @ref="@this.ElementReference_Select_Single"
+                        size="@this.SizeSelect"
+                        class="search_select"
+                        @onchange="@(async (ChangeEventArgs args) => { await this.ProgressBarOpen();
+                                                                   await this.SelectionChanged(args, this.ElementReference_Select_Single);
+                                                                   await this.ProgressBarClose(); })">
+                    @if (trimmedSearchedItems.Count > 0)
+                    {
+                        if ((SearchedItems?.Count ?? 0) == (SelectedItems?.Count ?? 0) || (SelectedItems?.Count ?? 0) == 0)
+                        {
+                            <option disabled selected>@(this.LabelForSearch ?? string.Empty)</option>
+                        }
+
+                        @foreach (var item in trimmedSearchedItems)
+                        {
+                            if (item == null) continue;
+                            var val = item;
+                            var valId = this.GetKeyValue(item);
+                            string label = this.TextProperty != null ? this.TextProperty?.GetValue(val)?.ToString() ?? string.Empty : item?.ToString() ?? string.Empty;
+                            @if (this.SelectedItems != null && this.SelectedItems.Any(_ => this.GetKeyValue(_) == valId))
+                            {
+                                <option value="@valId" selected>
+                                    @label
+                                </option>
+                            }
+                            else
+                            {
+                                <option value="@valId">
+                                    @label
+                                </option>
+                            }
+                        }
+                    }
+                    else
+                    {
+                        <option disabled selected>Ничего не найдено</option>
+                    }
+                </select>
+            }
+        </div>
+    }
+    @if (IsMultiple && SelectedItems.Count() < 11)
+    {
+        <div class="selectedItems">
+            @foreach (var item in this.SelectedItems ?? new())
+            {
+                var val = item;
+                var valId = this.GetKeyValue(item);
+                string label = this.TextProperty != null && val != null ? this.TextProperty?.GetValue(val)?.ToString() ?? string.Empty : item?.ToString() ?? string.Empty;
+                <span>
+                    <span>@label</span>
+                    <a @onclick="@(async(MouseEventArgs args) => {
+                                                                                         await this.ProgressBarOpen();
+                                                                                         this.SelectedItems?.RemoveAll(_ => this.GetKeyValue(_) == valId);
+                                                                                         if(this.SearchedItems != null && this.SelectedItems?.Count == 0 )
+                                                                                         {
+                                                                                             if(this.IsMultiple)
+                                                                                             {
+                                                                                                 if(this.SearchedItems != null && this.SearchedItems?.Count > 1)
+                                                                                                 {
+                                                                                                     this.SelectedItems = new(this.SearchedItems);
+                                                                                                 }
+                                                                                                 else
+                                                                                                 {
+                                                                                                     this.SelectedItems = new(Items);
+                                                                                                 }
+                                                                                             }
+                                                                                         }
+
+                                                                                         if ((this.SearchedItems?.Count ?? 0) < 1001)
+                                                                                            {
+                                                                                                if(this.KeyPropInfoType == typeof(int))
+                                                                                                    await this.js.InvokeAsync<List<int>>("ResetSelectedValues", this.ElementReference_Select_Multiple, valId);
+                                                                                                else
+                                                                                                    await this.js.InvokeAsync<List<string>>("ResetSelectedStringValues", this.ElementReference_Select_Multiple, valId);
+                                                                                            }
+                                                                                         await this.SendToParentFoundAndSelectedItems.InvokeAsync(this.SelectedItems);
+                                                                                         await this.ProgressBarClose();
+                                                                                     })">
+                        <sup>x</sup>
+                        &nbsp;&nbsp;&nbsp;&nbsp;
+                    </a>
+                </span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    #region
+    [Parameter]
+    public List<T> Items { get; set; } = new();
+
+    [Parameter]
+    public int MaxSizeSelect { get; set; }
+
+    [Parameter]
+    public bool IsMultiple { get; set; }
+
+    // Коллекция свойств в рамках которых будет осуществляться поиск вхождения строки SearchString
+    [Parameter]
+    public List<PropertyInfo> PropertiesInfoForSearch { get; set; }
+
+    // Свойство для отображения в select-option
+    [Parameter]
+    public PropertyInfo TextProperty { get; set; }
+
+    private bool ShowSearchResult { get; set; } = false;
+
+    private List<T> SelectedItems { get; set; } = new();
+
+    private int SizeSelect { get; set; }
+
+    // Ссылка на тег select
+    private ElementReference ElementReference_Select_Multiple { get; set; }
+
+    // Ссылка на тег select
+    private ElementReference ElementReference_Select_Single{ get; set; }
+
+    #endregion
+
+    #region
+    new protected async Task ProgressBarOpen() => await this.CascadingParameterRef?.ProgressBarOpenAsync();
+
+    new protected async Task ProgressBarClose() => await this.CascadingParameterRef?.ProgressBarCloseAsync();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        FirstInitializeCollection();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender && this.CascadingParameterRef != null)
+        {
+            this.CascadingParameterRef.ObjItemsChangedEvent += this.ReactOnInParent_IsObjItemsWereChangedEvent;
+        }
+    }
+
+    private void ReactOnInParent_IsObjItemsWereChangedEvent()
+    {
+        if(this.ElementReference_Select_Multiple.Context != null && !string.IsNullOrEmpty(this.ElementReference_Select_Multiple.Id))
+            this.js.InvokeVoidAsync("ResetAllSelectedValues", this.Token, new object[] { this.ElementReference_Select_Multiple });
+
+        if (this.GetObjItems != null)
+        {
+            Items = GetObjItems()?.Cast<T>()?.ToList() ?? new();
+            searchString = string.Empty;
+            SearchedItems = new(Items);
+            SelectedItems = new();
+            ChangeSizeSelect();
+        }
+
+        this.OnShow();
+        this.StateHasChanged();
+    }
+
+    private void FirstInitializeCollection()
+    {
+        this.searchString = string.Empty;
+        this.SearchedItems = new(Items);
+
+        if(this.IsMultiple)
+            this.SelectedItems = (this.InitParameters == null || this.InitParameters?.Count == 0) 
+            ? new(Items)
+            : new(this.InitParameters);
+        else
+            this.SelectedItems = (this.InitParameters == null || this.InitParameters?.Count == 0) ? null : new (this.InitParameters.Take(1));
+
+        this.ChangeSizeSelect();
+    }
+
+    /// <summary>
+    /// Метод для отображения / сокрытия найденных совпадений
+    /// </summary>
+    public void OnShow() => this.ShowSearchResult = this.ShowSearchResult ? false : true;
+
+    /// <summary>
+    /// Метод для запуска сервиса по поиску
+    /// </summary>
+    public override async Task SearchStart()
+    {
+        // Вызов поискового сервиса
+        if (string.IsNullOrEmpty(this.SearchString))
+        {
+            this.FirstInitializeCollection();
+        }
+        else
+        {
+            this.SearchedItems = this.SearchItems() ?? new();
+            this.SelectedItems = this.IsMultiple ? new(this.SearchedItems) : null;
+        }
+
+        this.ChangeSizeSelect();
+        await this.SendToParentFoundAndSelectedItems.InvokeAsync(this.SelectedItems);
+    }
+
+    public List<T> SearchItems()
+    {
+        ConcurrentBag<T> res = new();
+        ConcurrentBag<T> source = new(Items);
+        var result = Parallel.ForEach( source,
+                                       new ParallelOptions { MaxDegreeOfParallelism = 32 },
+                                       item =>
+        {
+            foreach (var prop in this.PropertiesInfoForSearch ?? new())
+            {
+                var propValue = prop?.GetValue(item)?.ToString()?.Trim() ?? string.Empty;
+
+                if (!string.IsNullOrEmpty(propValue)
+                && propValue.Contains(this.SearchString?.Trim() ?? string.Empty, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    res.Add(item);
+                    break; // перейти к следующему экземпляру при первом вхождении поисковой строки со значеним одного из свойств
+                }
+                else
+                {
+                    continue;
+                }
+            }
+        });
+        if(!result.IsCompleted)
+        {
+            this.logger?.Error($"Ошибка в методе {nameof(SearchItems)} в компоненте «{this.GetType().Name ?? string.Empty}» " +
+                               $"Цикл был прерван! Выполнение завершено на итерации {result.LowestBreakIteration ?? 0}");
+        }
+
+        return res?.ToList() ?? new();
+    }
+
+    private async Task SelectionChanged(ChangeEventArgs e, ElementReference element)
+    {
+        var idSelectedItems = (await this.GetSelectedListFromJs(element)) ?? new();
+
+        if (this.IsMultiple && idSelectedItems.Contains("Выбрать все"))
+        {
+            this.SelectedItems = new(this.SearchedItems);
+        }
+        else if (!this.IsMultiple && idSelectedItems.Contains(this.Placeholder))
+        {
+            this.SelectedItems = null;
+        }
+        else
+        {
+            this.SelectedItems = new();
+            this.SelectedItems.AddRange(Items?.Where(x => 
+                idSelectedItems.Any(y => y.Equals(this.GetKeyValue(x), StringComparison.InvariantCultureIgnoreCase))));
+        }
+
+        if(this.SendToParentFoundAndSelectedItems.HasDelegate)
+            await this.SendToParentFoundAndSelectedItems.InvokeAsync(this.SelectedItems);
+            
+        ShowSearchResult = false;
+        searchString = string.Empty;
+        SearchedItems = new(Items);
+    }
+
+    public async ValueTask<List<string>> GetSelectedListFromJs(ElementReference element) 
+        => await this.js.InvokeAsync<List<string>>("GetSelectedStringValues", new object[] { element });
+
+    private void ChangeSizeSelect()
+    {
+        var num = this.SearchedItems?.Count ?? 0;
+
+        if (num >= 0 && num < this.MaxSizeSelect)
+        {
+            this.SizeSelect = num + 2;
+        }
+        else if (num > this.MaxSizeSelect)
+        {
+            this.SizeSelect = this.MaxSizeSelect;
+        }
+        else if (num == 0)
+        {
+            this.SizeSelect = 2;
+        }
+    }
+    #endregion
+}

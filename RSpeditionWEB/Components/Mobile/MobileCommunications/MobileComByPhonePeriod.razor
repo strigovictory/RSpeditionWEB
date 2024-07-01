@@ -1,0 +1,120 @@
+﻿@inherits ScaffoldJCFiltersBase<MobileComView>
+@inject IApies api
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        @*Табличная часть*@
+        <ScaffoldJCParent T="@MobileComView"
+                          SendToParentSelectedItem="@(async(MobileComView item) => {this.ItemSelected = item; 
+                                                                                     this.Title = $"Изменение источника оплаты";
+                                                                                     this.IsRender_EditMobCom = true;})" />
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Подождите..." />
+    }
+
+    @if (this.IsRender_EditMobCom)
+    {
+        var labelSourcePay = this.ItemSelected.EmployeeNotPay ? "Оплата водителем" : "Оплата компанией";
+        <ModalWindowShort InvokeParentHandlerwithUpdParent="@(async () => { this.IsRender_EditMobCom = false; })">
+            <div>
+                <button class="table-button"
+                        type="button"
+                        @onclick="@(async() => {await this.UpdMobCom();})">
+                    Изменить на «@labelSourcePay»
+                </button>
+            </div>
+        </ModalWindowShort>
+    }
+
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { this.IsRender_EditMobCom = false; 
+                                                                                    this.ShowMessage = false; })">
+            <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@this.Message">
+            </ResultOperation>
+        </ModalWindowWithEventCallback>
+    }
+
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    [CascadingParameter]
+    public MobileComJournalDrivers MobileComJournalDriversCascadingParameter { get; set; }
+
+    [CascadingParameter]
+    public MobileComJournalPhones MobileComJournalPhonesCascadingParameter { get; set; }
+
+    private bool IsRender_EditMobCom { get; set; }
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+    => new List<PropertyInfo>
+    {
+        this.ModelsType.GetProperty(nameof(this.Model.DateName)),
+        this.ModelsType.GetProperty(nameof(this.Model.DestinationPhoneNumber)),
+        this.ModelsType.GetProperty(nameof(this.Model.Img_View)),
+        this.ModelsType.GetProperty(nameof(this.Model.CallLength)),
+        this.ModelsType.GetProperty(nameof(this.Model.Cost)),
+        this.ModelsType.GetProperty(nameof(this.Model.Payer))
+    };
+
+    protected override void InitGroupBySelector()
+    {
+        this.GroupByKeySelector = (MobileComView item) => item.Payer;
+        this.GroupBySumProps = new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.Cost))
+        };
+        this.TotalSumProps = new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.Cost))
+        };
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await this.UpdateCollectionTItemsFromParent();
+    }
+
+    protected virtual async Task UpdateCollectionTItemsFromParent()
+    {
+        this.Items = new(await this.GetCollectionTItemsFromParent() ?? new());
+        this.StartFilteringTItemsInvoke(); // запускается метод UpdateFilteredTItems
+        this.IsRender = true;
+    }
+
+    protected override async Task<List<MobileComView>> GetCollectionTItemsFromParent()
+        => this.MobileComJournalDriversCascadingParameter?.ItemSelected?.mobCommunications?.OrderBy(_ => _.Date)?.ToList() ?? new();
+
+    private async Task UpdMobCom()
+    {
+        var resp = await this.api?.MobileApi?.PutMobileCommunication(this.ItemSelected.Id, this.Token);
+
+        if (resp == null)
+        {
+            this.Message = $"{resp?.Result ?? "Операция закончилась с ошибкой ! Ошибка на уровне сервера !"}";
+            this.ShouldUpdateParent = false;
+            this.Title = "Предупреждение";
+        }
+        else
+        {
+            this.Message = $"{resp?.Result ?? "Операция успешно завершена ! Изменения были зафиксированы !"}";
+            this.ItemSelected.EmployeeNotPay = this.ItemSelected.EmployeeNotPay ? false : true;
+            this.ShouldUpdateParent = true;
+            this.StartFilteringTItemsInvoke();
+            this.Title = "Результат изменения источника оплаты";
+        }
+
+        this.RenderMessage();
+    }
+}

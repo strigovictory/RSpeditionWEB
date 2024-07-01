@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "Proto/customTypesGRPC.proto";
+
+option csharp_namespace = "fuelTranzGRPC";
+
+package fuelTranzGRPC;
+
+service FuelTranzGRPCService{
+ 
+  rpc GetListFuelTranz(google.protobuf.Empty) returns (ListFuelTranzReply);
+}
+  
+message ListFuelTranzReply{
+  repeated FuelTranzReply Tranzactions = 1;
+}
+
+message FuelTranzReply{
+  int32 Id = 1;
+  string TransactionID = 2;
+  google.protobuf.Timestamp OperationDate = 3;
+  customTypesGRPC.DecimalValue Quantity = 4;
+  customTypesGRPC.DecimalValue Cost = 5;
+  customTypesGRPC.DecimalValue TotalCost = 6;
+  bool IsCheck = 7;
+  string DivisionName = 8;
+  int32 FuelProviderId = 9;
+  string FuelProviderName = 10;
+  int32 FuelType = 11;
+  string FuelTypeName = 12;
+  google.protobuf.Int32Value CurrencyId = 13;
+  string CurrencyName = 14;
+  int32 CardId = 15;
+  string CardName = 16;
+  google.protobuf.Int32Value CountryId = 17;
+  string CountryName = 18;
+  int32 DriverReportId = 19;
+}

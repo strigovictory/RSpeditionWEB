@@ -1,0 +1,24 @@
+﻿.block_for_buttons{
+    margin-top: 10px;
+}
+
+.block_for_buttons button{
+    cursor: pointer;
+}
+
+    .block_for_buttons button:hover {
+        background-color: black;
+        color: white;
+    }
+
+.top {
+    vertical-align: top;
+    color: black;
+    font-weight: bolder;
+}
+
+.middle {
+    margin-left: 40%;
+    text-align: left;
+    vertical-align: middle;
+}

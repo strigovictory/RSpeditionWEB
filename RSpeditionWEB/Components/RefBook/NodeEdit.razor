@@ -1,0 +1,110 @@
+﻿@page "/NodeEdit"
+@page "/NodeEdit/{NodeId}"
+@inherits NodeBase
+@inject NavigationManager navMan
+
+    <AuthorizeView Roles="@(Enum.GetName(RolesNames.Super_Administrator))">
+        <Authorized>
+            <CascadingValue Value="this">
+                @if (this.IsRender)
+                {
+                    @*Добавление нового узла*@
+                    @if (this.IsNew)
+                    {
+                        @if (this.IsChoiceDone)
+                        {
+                            @if (this.IsModule)
+                            {
+                                <ModuleEdit ReturnUrl="@(Path.Combine(this.navMan?.BaseUri, "NodePreview", this.NodeId ?? string.Empty))">
+                                </ModuleEdit>
+                            }
+                            else
+                            {
+                                <TableEdit ReturnUrl="@(Path.Combine(this.navMan?.BaseUri, "NodePreview", this.NodeId ?? string.Empty))">
+                                </TableEdit>
+                            }
+                        }
+                        else
+                        {
+                            <div>
+                                <p class="my-h1 inner-light-shadow">Выберите узел для добавления</p>
+
+                                <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList"
+                                                 WidthForButtonWrapper="15%">
+                                </ButtonContainer>
+                            </div>
+                        }
+                    }
+                    @*Редактирование выбранного узла*@
+                    else
+                    {
+                        @if (this.IsModule)
+                        {
+                            <ModuleEdit ReturnUrl="@(Path.Combine(this.navMan?.BaseUri, "NodePreview", this.NodeId ?? string.Empty))">
+                            </ModuleEdit>
+                        }
+                        else
+                        {
+                            <TableEdit ReturnUrl="@(Path.Combine(this.navMan?.BaseUri, "NodePreview", this.NodeId ?? string.Empty))">
+                            </TableEdit>
+                        }
+                    }
+                }
+                else
+                {
+                    <ProgressBar />
+                }
+            </CascadingValue>
+        </Authorized>
+    </AuthorizeView>
+
+@code {
+    private List<ButtonBaseClass> ButtonBaseClassList { get; set; }
+
+    /// <summary>
+    /// Метод для первоначальной инициализации компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.InitMembers();
+        this.InitButtonGroup();
+        this.IsChoiceDone = !this.IsNew;
+        this.IsRender = true;
+    }
+
+    /// <summary>
+    /// Метод для инициализации кнопок
+    /// </summary>
+    private void InitButtonGroup()
+    {
+        this.ButtonBaseClassList = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (() =>
+        {
+            this.IsModule = true;
+            this.IsChoiceDone = true;
+            this.StateHasChanged();
+        });
+        b1.LabelForButton = "Категория";
+        b1.IsActive = true;
+        b1.TitleIfIsActive = "Кликните для перехода в режим добавления новой категории";
+        b1.TitleIfIsNonActive = "У вас недостаточно прав для использования этой функции";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (() =>
+        {
+            this.IsModule = false;
+            this.IsChoiceDone = true;
+            this.StateHasChanged();
+        });
+        b2.LabelForButton = "Подкатегория";
+        b2.IsActive = true;
+        b2.TitleIfIsActive = "Кликните для перехода в режим добавления новой подкатегории";
+        b2.TitleIfIsNonActive = "У вас недостаточно прав для использования этой функции";
+
+        this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { b1, b2 });
+    }
+}

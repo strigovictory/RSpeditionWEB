@@ -1,0 +1,177 @@
+﻿@page "/RefBook_Parent"
+@inject NavigationManager navManager
+@inherits NodeBase
+@implements IDisposable
+@*Компонент для навигации по модулям-контейнерам и вложенным в них таблицам*@
+
+<AuthorizeView Roles="@(Enum.GetName(RolesNames.Super_Administrator))">
+    <Authorized>
+        <div class="inputRadioConteiner">
+            <input type="radio"
+                   id="previewMode"
+                   checked
+                   name="choiceRenderMode" value="1" @oninput="@((ChangeEventArgs arg) => { this.ReactOnChoiceRadioInput(arg); })">
+            <span>просмотр</span>
+            <input type="radio"
+                   id="editMode"
+                   name="choiceRenderMode" value="2" @oninput="@((ChangeEventArgs arg) => { this.ReactOnChoiceRadioInput(arg); })">
+            <span>редактирование</span>
+        </div>
+    </Authorized>
+</AuthorizeView>
+@if (this.IsRender)
+{
+    @if (this.Data != null && this.Data?.Count > 0)
+    {
+        @for (int i = 0; i < this.Data.Count(); i++)
+        {
+            var category = this.Data.ElementAt(i)?.ModuleContainer;
+            var categoryName = category?.Name ?? string.Empty;
+            var subCategories = this.Data.ElementAt(i)?.Tables ?? new();
+
+            <nav class="zornetukodsa">
+                <input type="checkbox"
+                       @oninput="@((ChangeEventArgs args) => {
+                                                                if((bool)args.Value)
+                                                                {
+                                                                    this.CategorySelected(category?.Id ?? 0);
+                                                                }
+                                                                else
+                                                                {
+                                                                    this.SelectedNodeID = null;
+                                                                }
+                                                             })"
+                       class="terdsaxemik"
+                       id="@categoryName"
+                       name="@categoryName">
+                <label for="@categoryName"
+                       class="gsazemipolan">
+                    @categoryName
+                    @if (subCategories?.Count > 0)
+                    {
+                        if(string.IsNullOrEmpty(this.SelectedNodeID))
+                        {
+                            <img src="/css/open-iconic/icon/sort-down-arrow.png" />
+                        }
+                        else
+                        {
+                            <img src="/css/open-iconic/icon/sort-up-arrow.png" />
+                        }
+                    }
+                </label>
+
+                @if (subCategories != null && subCategories?.Count > 0)
+                {
+                    <!--Последний элемент в списке не присутствует в цикле т.к. у него будет другой стилевой класс-->
+                    var lastSubcategory = subCategories.ElementAt(subCategories.Count - 1);
+                    @for (int j = 0; j < subCategories.Count - 1; j++)
+                    {
+                        var subcategory = subCategories?.ElementAt(j);
+                        <div class="tukolopas">
+                            <a @onclick="@(() => { this.SubCategorySelected(subcategory?.Id); })">
+                                @($"{subcategory?.SortOrder ?? 0} - {subcategory?.DisplayName ?? string.Empty}")
+                            </a>
+                        </div>
+                    }
+                    <div class="tukolopas">
+                        <a class="last"
+                           @onclick="@(() => { this.SubCategorySelected(lastSubcategory?.Id); })">
+                            @($"{lastSubcategory?.SortOrder ?? 0} - {lastSubcategory?.DisplayName ?? string.Empty}")
+                        </a>
+                    </div>
+                }
+            </nav>
+        }
+    }
+}
+else
+{
+    <ProgressBar />
+}
+
+
+@code {
+    private bool RenderCategories { get; set; } = false;
+
+    // Режим просмотра (истина) / редактирования (ложь)
+    private bool IsPreviewMode { get; set; }
+
+    // Идентификатор выбранного узла (модуль или табличные настройки)
+    private string SelectedNodeID { get; set; } = string.Empty;
+
+    // Коллекция данных, которые будет содержать дерево каталогов
+    private List<FlatDataItem> Data { get; set; } = new();
+
+    /// <summary>
+    /// Метод дпервоначальной инициализации компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IsPreviewMode = true;
+        this.InitData();
+        this.IsRender = true;
+    }
+
+    /// <summary>
+    /// Метод для инициализации главной коллекции с данными для тулбара
+    /// </summary>
+    private void InitData()
+    {
+        this.Data = new();
+
+        foreach (var module in this.Modules)
+        {
+            this.Data.Add(new FlatDataItem
+            {
+                ModuleContainer = module,
+                Tables = this.TableSettings?.Where(_ => _.ModuleContainerId == module.Id)?.ToList() ?? new()
+            });
+        }
+    }
+
+    /// <summary>
+    ///Метод для переключения режима отображения справочнико просмотр/редактирование
+    /// </summary>
+    /// <param name="arg"></param>
+    private void ReactOnChoiceRadioInput(ChangeEventArgs arg)
+    {
+        this.IsPreviewMode = (Convert.ToInt32(arg.Value)) == 1 ? true : false;
+        this.ChangeView();
+        this.StateHasChanged();
+    }
+
+    /// <summary>
+    /// Метод реагирует на событие выбора модуля
+    /// </summary>
+    /// <returns></returns>
+    private void CategorySelected(int? id)
+    {
+        this.SelectedNodeID = $"m{id?.ToString() ?? string.Empty}";
+        this.ChangeView();
+        this.StateHasChanged();
+    }
+
+    /// <summary>
+    /// Метод реагирует на событие выбора таблицы
+    /// </summary>
+    /// <returns></returns>
+    private void SubCategorySelected(int? id)
+    {
+        this.SelectedNodeID = id?.ToString() ?? string.Empty;
+        this.ChangeView();
+        this.StateHasChanged();
+    }
+
+    /// <summary>
+    /// Метод для перехода на срницу с просмотром/редактированием модуля/таблицы
+    /// </summary>
+    private void ChangeView() => this.navManager.NavigateTo(GetNavUrlForItem());
+
+    /// <summary>
+    /// Метод для генерирования трокового представления url, который ведет к модулю или к таблице
+    /// </summary>
+    /// <returns></returns>
+    private string GetNavUrlForItem() => Path.Combine(this.navManager?.BaseUri, (this.IsPreviewMode ? "NodePreview" : "NodeEdit"), this.SelectedNodeID ?? string.Empty);
+}

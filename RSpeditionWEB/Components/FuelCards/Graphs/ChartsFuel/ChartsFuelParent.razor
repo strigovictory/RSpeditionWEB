@@ -1,0 +1,246 @@
+﻿@attribute [Authorize]
+@inherits ComponentBaseClass
+@implements IDisposable
+@implements IStateComponentWereChanged<FuelTransactionFullResponse>
+
+    <CascadingValue Value="this">
+        @if (this.IsRender)
+        {
+            <div style="text-align: center;">
+                <p class="my-h1 inner-light-shadow">Диаграммы</p>
+            </div>
+
+            @*Выбор периода*@
+            @if (this.isRendered_period)
+            {
+                <PeriodBase NumYear="20"
+                            PeriodBegin="@this.PeriodBegin"
+                            PeriodEnd="@this.PeriodEnd"
+                            SendToParentSelectedPeriod="@(async((DateTime begin, DateTime end) period) => {await this.ProgressBarOpenAsync();
+                                                                                                            this.PeriodBegin = period.begin;
+                                                                                                            this.PeriodEnd = period.end;
+                                                                                                            this.InitChartTitle();
+                                                                                                            await this.ApplyFilterOrderToTranzactions();
+                                                                                                            await this.ProgressBarCloseAsync();})" />
+            }
+            else
+            {
+                <ProgressBarInner TitleProcess="Идет загрузка ..." />
+            }
+            @*Выбор разновидности графика*@
+            <div class="div_kindChartChoice">
+                <label_small_black>
+                    Категория
+                </label_small_black>
+                <select @onchange="@(async (ChangeEventArgs args) => {await this.ProgressBarOpenAsync(); 
+                                                                      this.SelectionChanged(args);
+                                                                      await this.ProgressBarCloseAsync();})">
+                    @if (this.OptionItems is not null && this.OptionItems?.Count > 0)
+                    {
+                        @foreach (var item in this.OptionItems)
+                        {
+                            var label = Enum.GetName(typeof(ChartGroupParameters), item).ConvertStringUpperToLowerCase();
+                            var val = (int)item;
+                            if ((int)this.ChartGroupParametersSelected == val)
+                            {
+                                <option value="@val" selected>
+                                    @label
+                                </option>
+                            }
+                            else
+                            {
+                                <option value="@val">
+                                    @label
+                                </option>
+                            }
+                        }
+                    }
+                    else
+                    {
+                        <option disabled selected>
+                            В системе не найдено ни одной разновидности диаграмм
+                        </option>
+                    }
+                </select>
+                @if (this.ChartGroupParametersSelected != ChartGroupParameters.ПоПериоду)
+                {
+                    var buttonLabel = this.CategorySortOrder == SortOrder.asc ? "По возрастанию" : "По убыванию";
+                    var src = this.CategorySortOrder == SortOrder.asc ? "/css/open-iconic/icon/up-arrow.png" : "/css/open-iconic/icon/down-arrow.png";
+                    <button type="button"
+                            title="@buttonLabel"
+                            @onclick="@(async() => {await this.ProgressBarOpenAsync(); 
+                                                    this.CategorySortOrder = this.CategorySortOrder == SortOrder.asc ? SortOrder.desc: SortOrder.asc;
+                                                    // Применить сортировку
+                                                    this.ApplySortingToTranzactions();
+                                                    // Вызов события, на которое подписаны дочерние компоненты, при изменении коллекции текущего компонента
+                                                    this.StateComponentWereChanged?.Invoke();
+                                                    this.StateHasChanged();
+                                                    await this.ProgressBarCloseAsync();
+                                                  })">
+                        <img src="@src" />
+                    </button>
+                }
+            </div>
+            @*Отображение графика*@
+            @switch ((int)this.ChartGroupParametersSelected)
+            {
+                case ((int)ChartGroupParameters.ПоПодразделенииям):
+                    {
+                        <RefilledQuantityByDivision />
+                        break;
+                    }
+                case ((int)ChartGroupParameters.ПоПоставщикамТоплива):
+                    {
+                        <RefilledQuantityByFuelProvider />
+                        break;
+                    }
+                case ((int)ChartGroupParameters.ПоПериоду):
+                    {
+                        <RefilledQuantityByPeriod />
+                        break;
+                    }
+                case ((int)ChartGroupParameters.ПоРазновидностиТопливногоПродукта):
+                    {
+                        <RefilledQuantityByFuelCategory />
+                        break;
+                    }
+                default: break;
+            }
+        }
+        else
+        {
+            <ProgressBarInner TitleProcess="Идет загрузка ..." TopValue="40" />
+        }
+        <div id="@this.IdForProgressBar" style="display: none;">
+            <ProgressBar IsTimerNotRender="true"/>
+        </div>
+    </CascadingValue>
+
+@code {
+    #region // Props
+    [CascadingParameter]
+    public FuelCardsCont FuelCardsCascadingVal { get; set; }
+
+    public List<FuelTransactionFullResponse> TranzactionsFilteredOrdered { get; set; } = new();
+
+    public event StateDelegate StateComponentWereChanged;
+
+    public string TitleChart { get; set; } = string.Empty;
+
+    public List<ChartGroupParameters> OptionItems { get; set; } = new();
+
+    private DateTime PeriodBegin { get; set; }
+
+    private DateTime PeriodEnd { get; set; }
+
+    private int ChartFuelKindsSelected_Int { get; set; }
+
+    private ChartGroupParameters ChartGroupParametersSelected { get; set; }
+
+    public SortOrder CategorySortOrder { get; set; }
+
+    private bool isRendered_period = false;
+
+    #endregion
+
+    #region // Overriden methods
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.InitPeriod();
+        this.InitChartTitle();
+        this.InitCollections();
+        this.InitGroupParameters();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            this.FuelCardsCascadingVal.FinishUpdSecondCollectionsEvent += this.ApplyFilterOrderToTranzactions;
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private void InitPeriod()
+    {
+        // При первоначальной загрузке график составляется за предыдуущий месяц
+
+        var lastMonth = DateTime.Now.AddMonths(-1);
+        var numMonth = lastMonth.Month;
+        var numYear = lastMonth.Year;
+
+        this.PeriodBegin = new DateTime(year: numYear, month: numMonth, day: 1, hour: 0, minute: 0, second: 0);
+        this.PeriodEnd = new DateTime(year: numYear, month: numMonth, day: DateTime.DaysInMonth(numYear, numMonth), hour: 23, minute: 59, second: 59);
+
+        this.InitChartTitle();
+
+        this.isRendered_period = true;
+    }
+
+    private void InitChartTitle() => this.TitleChart = string.Concat("Потребление топливной продукции ",
+                                                                    Enum.GetName(this.ChartGroupParametersSelected)?.ConvertStringUpperToLowerCase() ?? string.Empty,
+                                                                    " за период ",
+                                                                    this.PeriodBegin.FormatingDate(),
+                                                                    " - ",
+                                                                    this.PeriodEnd.FormatingDate(),
+                                                                    " г.г.")
+                                                                    ;
+
+    #endregion
+
+    #region // Components methods
+    private void InitCollections()
+        => this.OptionItems = new((IEnumerable<ChartGroupParameters>)Enum.GetValues(typeof(ChartGroupParameters)));
+
+    private void InitGroupParameters()
+    {
+        this.ChartFuelKindsSelected_Int = 0;
+        this.ChartGroupParametersSelected = this.OptionItems?.FirstOrDefault() ?? ChartGroupParameters.ПоПодразделенииям;
+    }
+
+    private async Task ApplyFilterOrderToTranzactions()
+    {
+        this.TranzactionsFilteredOrdered = new(this.FuelCardsCascadingVal.Tranzactions);
+
+        // Применить фильтры
+        this.ApplyFiltersToTranzactions();
+
+        // Применить сортировку
+        this.ApplySortingToTranzactions();
+
+        await this.IsRenderTrueAsync();
+
+        // Вызов события, на которое подписаны дочерние компоненты, при изменении коллекции текущего компонента
+        this.StateComponentWereChanged?.Invoke();
+    }
+
+    private void ApplyFiltersToTranzactions()
+        => this.TranzactionsFilteredOrdered = this.TranzactionsFilteredOrdered?
+                                                                            .Where(_ =>_.OperationDate.Date.IsInsidePeriod(this.PeriodBegin.Date, this.PeriodEnd.Date))?
+                                                                            .ToList()
+                                                                            ??
+                                                                            new()
+                                                                            ;
+
+    private void ApplySortingToTranzactions()
+        => this.TranzactionsFilteredOrdered = this.CategorySortOrder == SortOrder.asc
+                                              ?
+                                              this.TranzactionsFilteredOrdered?.OrderBy(_ => _.Quantity)?.ToList() ?? new()
+                                              :
+                                              this.TranzactionsFilteredOrdered?.OrderByDescending(_ => _.Quantity)?.ToList() ?? new();
+
+
+
+    private void SelectionChanged(ChangeEventArgs e)
+    {
+        int num = 0;
+        if (Int32.TryParse(e?.Value?.ToString(), out num))
+        {
+            this.ChartFuelKindsSelected_Int = num;
+            this.ChartGroupParametersSelected = this.OptionItems.FirstOrDefault(_ => ((int)_).Equals(num));
+            this.InitChartTitle();
+        }
+    }
+
+    #endregion
+}

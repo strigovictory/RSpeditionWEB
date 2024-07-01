@@ -1,0 +1,202 @@
+﻿@inject AdminApi reflService
+@inherits ComponentBaseClass
+@inject NavigationManager navMan
+
+
+@if (this.IsRender)
+{
+    var label = this.OperationsType == OperationsType.create ? "Регистрация нового модуля-контейнера" : "Редактирование выбранного модуля-контейнера";
+    var label_Name = this.ModuleContainer?.GetType()?.GetCustomDisplayValues(nameof(this.ModuleContainer.Name)).Item2 ?? string.Empty;
+    var label_Index = this.ModuleContainer?.GetType()?.GetCustomDisplayValues(nameof(this.ModuleContainer.SortOrder)).Item2 ?? string.Empty;
+
+    <p class="my-h1 inner-light-shadow">@label</p>
+    @*Форма для создания/редактирования модуля-контейнера*@
+    <div class="form">
+        <EditForm Model="@this.ModuleContainer"
+                  OnValidSubmit="@HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <input type="hidden" @bind-value="this.ModuleContainer.Id" />
+            <input type="hidden" @bind-value="this.ModuleContainer.ChangedDate" />
+            <input type="hidden" @bind-value="this.ModuleContainer.ChangedUsername" />
+
+            @*Наименование*@
+            <div class="form_label">
+                <label>@label_Name</label>
+            </div>
+            <div class="form-group">
+                <InputText @bind-Value="@this.ModuleContainer.Name" />
+                <ValidationMessage For="() => this.ModuleContainer.Name" />
+            </div>
+            @*Порядок следования*@
+            <div class="form_label">
+                <label>@label_Index</label>
+            </div>
+            <div class="form-group">
+                <InputNumber @bind-Value="@this.ModuleContainer.SortOrder" />
+                <ValidationMessage For="() => this.ModuleContainer.SortOrder" />
+            </div>
+            <div class="form-group">
+                <div class="validation-message">@this.Message</div>
+                <br />
+                <div class="form-group">
+                    <button type="submit" class="my-btn">Сохранить</button>
+                    <button type="button" class="my-btn" @onclick="@(() => { this.InitModel(); })">Отменить</button>
+                </div>
+            </div>
+        </EditForm>
+        @if(this.OperationsType == OperationsType.update)
+        {
+            <div class="form-group">
+                <button type="button"
+                class="my-btn"
+                @onclick="@(async() => { await this.DeleteModuleWithTableSettings(); })">Удалить модуль со всеми вложенными табличными настройками</button>
+            </div>
+        }
+    </div>
+
+    @*Модальное окно для отображения результата операции или отображения предупреждения об ошибке*@
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                      InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false;
+                                                                                        if (this.NeedNavigateToReturnUrl)
+                                                                                                this.navMan?.NavigateTo(this.ReturnUrl, true);})">
+            <ResultOperation Devider="'!'"
+                             ResList="null"
+                             ResMessage="@this.Message">
+            </ResultOperation>
+        </ModalWindowWithEventCallback>
+    }
+}
+else
+{
+    <ProgressBar  />
+}
+
+
+@code {
+    [CascadingParameter]
+    public NodeEdit NodeEditCascadingParameter { get; set; }
+
+    private ModuleContainerView ModuleContainer { get; set; } = new();
+
+    // Если компонент используется для создания новой модели модуля-контейнера - значение будев default,
+    // а иначе - модель из БД для дальнейшего редактирования
+    private OperationsType OperationsType
+    {
+        get
+        {
+            if (this.ModuleContainer == null || this.ModuleContainer?.Id == 0)
+            {
+                return OperationsType.create;
+            }
+            else
+            {
+                return OperationsType.update;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Метод для первоначальной инициализации компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.Message = string.Empty;
+        this.InitModel();
+        this.IsRender = true;
+    }
+
+    private void InitModel()
+    {
+        this.ModuleContainer = this.NodeEditCascadingParameter?.ModuleContainer ?? new();
+        this.ModuleContainer.ChangedDate = DateTime.Now;
+        this.ModuleContainer.ChangedUsername = this.User ?? string.Empty;
+
+        // При создании нового модуля порядок сортировки по умолчанию = 1
+        if(this.ModuleContainer?.Id == 0)
+        {
+            this.ModuleContainer.SortOrder = 1;
+        }
+    }
+
+    /// <summary>
+    /// Метод срабатывает каждый раз, когда родительский компонент обновляется и заново предоставляет каскадные параметры
+    /// </summary>
+    /// <returns></returns>
+    protected async override Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        this.InitModel();
+    }
+
+    /// <summary>
+    /// Метод для выполнеия операции над модулем-контейнером в случае его валидности
+    /// </summary>
+    private async void HandleValidSubmit()
+    {
+        if (this.OperationsType == OperationsType.create)
+        {
+            var res = await this.reflService?.CreateModuleContainer(this.ModuleContainer, this.Token);
+
+            this.Message = res?.Result;
+
+            if (res == null)
+            {
+                this.Title = "Результат выполнения операции";
+                this.NeedNavigateToReturnUrl = true;
+            }
+            else
+            {
+                this.Title = "Ошибка при выполнении операции";
+            }
+        }
+        else if (this.OperationsType == OperationsType.update)
+        {
+            var res = await this.reflService?.UpdateModuleContainer(this.ModuleContainer, this.Token);
+
+            this.Message = res?.Result;
+
+            if (res == null)
+            {
+                this.Title = "Результат выполнения операции";
+                this.NeedNavigateToReturnUrl = true;
+            }
+            else
+            {
+                this.Title = "Ошибка при выполнении операции";
+            }
+        }
+
+        this.ShowMessage = true;
+        this.StateHasChanged();
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    private async Task DeleteModuleWithTableSettings()
+    {
+        var res = await this.reflService?.DeleteModuleContainer(this.ModuleContainer?.Id ?? 0, this.Token);
+        this.Message = res?.Result ?? String.Empty;
+
+        if (res == null)
+        {
+            this.Title = "Результат выполнения операции";
+            this.ReturnUrl = $"{Path.Combine(this.navMan?.BaseUri, "NodePreview")}";
+            this.NeedNavigateToReturnUrl = true;
+        }
+        else
+        {
+            this.Title = "Ошибка при выполнении операции";
+        }
+
+        this.ShowMessage = true;
+        this.StateHasChanged();
+    }
+}
+

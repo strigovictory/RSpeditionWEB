@@ -1,0 +1,142 @@
+﻿@page "/SimCardsCharts"
+@inject IJSRuntime js
+@inherits ScaffoldChartBase<int>
+
+<CascadingValue Value="@this">
+    <div style="text-align: center;">
+        <p class="my-h1 inner-light-shadow">@this.Title</p>
+    </div>
+    <br /> 
+    @if (this.IsRender)
+    {
+        <ScaffoldChart T="int"
+                       @ref="@this.ScaffoldChartRef" />
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка ..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    [CascadingParameter]
+    public SimCards SimCardsCascadingParameter { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.Title = "Статистика по Sim-картам";
+    }
+
+    protected override async Task InitChartModel()
+    => this.ChartModel = this.ChartKind switch
+    {
+        ChartKindPlotly.funnel or ChartKindPlotly.area => this.InitPlotlyChartGroup(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Подразделение" 
+        => this.InitPlotlyChartSimple_byDivision(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Оператор" 
+        => this.InitPlotlyChartSimple_byOperator(),
+        _ => this.InitPlotlyChartGroup()
+    };
+
+    private PlotlyChartBase<int> InitPlotlyChartGroup()
+    {
+        var temp = GetDataValues_ByOperatorByDivision();
+        var res = new PlotlyChartGroup<int>
+        {
+            ChartName = this.ChartsParameters.ObjectName,
+            GroupsNames = temp.groupsNames,
+            DataValues = temp.values,
+            DataNames = temp.names
+        };
+
+        return res;
+    }
+
+    private (List<string> groupsNames, List<string> names, List<List<int>> values) GetDataValues_ByOperatorByDivision()
+    {
+        List<string> groupsNames = new();
+        List<string> dataNames = new();
+        List<List<int>> values = new();
+
+        var groupedItems_byDiv = this.SimCardsCascadingParameter?
+                                                                  .SimCardsItems?
+                                                                  .GroupBy(_ => _.DivisionName)?
+                                                                  .OrderBy(_ => _.Key)?
+                                                                  .Select(_ => new
+                                                                  {
+                                                                      divisionName = _.Key,
+                                                                      simCards = _.ToList()
+                                                                  })
+                                                                  ;
+
+        groupsNames = groupedItems_byDiv?.Select(_ => _.divisionName)?.ToList() ?? new();
+        dataNames = this.SimCardsCascadingParameter?
+                                                    .SimCardsItems?
+                                                                  .GroupBy(_ => _.CellularOperatorName)?
+                                                                  .OrderByDescending(_ => _.Count())?
+                                                                  .Select(_ => _.Key)?
+                                                                  .ToList()
+                                                                  ??
+                                                                  new()
+                                                                  ;
+
+        var groupedItems_byDivByOper = groupedItems_byDiv?.Select(x => x.simCards?.GroupBy(y => y.CellularOperatorName)?.OrderByDescending(_ => _.Count()));
+
+        values = groupedItems_byDivByOper?.Select(_ => _.Select(y => (y.Count()))?.ToList())?.ToList();
+
+        return (groupsNames, dataNames, values);
+    }
+
+    private PlotlyChartBase<int> InitPlotlyChartSimple_byDivision()
+        => new PlotlyChartSimple<int>
+        {
+            ChartName = this.ChartsParameters.ObjectName,
+            DataValues = this.GetDataValues_ByDivision().values,
+            DataNames = this.GetDataValues_ByDivision().names
+        };
+
+    private (List<string> names, List<int> values) GetDataValues_ByDivision()
+    {
+        List<string> names = new();
+        List<int> values = new();
+
+        var groupedItems = this.SimCardsCascadingParameter?.SimCardsItems?.GroupBy(_ => _.DivisionName)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key)?.ToList() ?? new();
+        values = groupedItems?.Select(x => x.Count())?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    private PlotlyChartBase<int> InitPlotlyChartSimple_byOperator()
+        => new PlotlyChartSimple<int>
+        {
+            ChartName = this.ChartsParameters.ObjectName,
+            DataValues = this.GetDataValues_ByOperator().values,
+            DataNames = this.GetDataValues_ByOperator().names
+        };
+
+    private (List<string> names, List<int> values) GetDataValues_ByOperator()
+    {
+        List<string> names = new();
+        List<int> values = new();
+
+        var groupedItems = this.SimCardsCascadingParameter?.SimCardsItems?.GroupBy(_ => _.CellularOperatorName)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key)?.ToList() ?? new();
+        values = groupedItems?.Select(x => x.Count())?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    protected override List<string> Init_ObjectsNames()
+        => new List<string> { "Количество Sim-карт" };
+
+    protected override List<string> Init_CategoriesNames()
+        => new List<string> { "Подразделение", "Оператор" };
+
+    protected override List<string> Init_SubCategoriesNames()
+        => new List<string> { "Подразделение", "Оператор" };
+}

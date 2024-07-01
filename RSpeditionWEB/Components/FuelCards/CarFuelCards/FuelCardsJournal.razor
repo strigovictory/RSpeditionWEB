@@ -1,0 +1,432 @@
+﻿@using RSpeditionWEB.Configs;
+@inject IApies api
+@inherits ScaffoldJCFiltersBase<FuelCardFullModel>
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        <div style="padding-top: 65px;">
+            <ScaffoldJCParent T="@FuelCardFullModel"
+                              @ref="@ScaffoldJCParentRef"
+                              MinHeight="74"
+                              MaxHeight="78"
+                              SendToParentSelectedItem="@((FuelCardFullModel item) => ReactOnSelectItem(item))" />
+        </div>
+
+        @*Блок кнопок в футере*@
+        <div class="stickyBottomContainer">
+            <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList" />
+        </div>
+        
+        if (this.IsRenderGroupAdding)
+        {
+            <ModalWindowWithEventCallback Title="Добавление новых топливных карт"
+                                          IsRenderCloseButton="false"
+                                          InvokeParentHandlerwithUpdParent="@(() => { this.IsRenderGroupAdding = false; })">
+                <CarFuelCardsGroupAddingFormParent InvokeParentHendlerCancel="@(() => { this.IsRenderGroupAdding = false; })"
+                                                     InvokeParentHendlerAfterGroupCreating="@(async (List<object> objects) => {this.IsRenderGroupAdding = false;
+                                                                                                                                await this.UpdateAfterAction();})">
+                </CarFuelCardsGroupAddingFormParent>
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.isRenderReportNotFoundFuelCards)
+        {
+            <ModalWindowWithEventCallback Title="Не обнаруженные топливные карты"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { this.isRenderReportNotFoundFuelCards = false; })">
+                <CarFuelCardsNotFoundCont />
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.isRenderMoveSelectedFuelCardsToArchive)
+        {
+            <ModalWindowWithEventCallback Title="Групповая отправка топливных карт в архив"
+                                  InvokeParentHandlerwithUpdParent="@(() => { this.isRenderMoveSelectedFuelCardsToArchive = false; })">
+                <GroupMovingToArchiveParent CarFuelCardsToArchiveParent="@(this.ItemsFilteredChecked ?? new())"
+                                             InvokeParentHendlerCancel="@(() => { this.isRenderMoveSelectedFuelCardsToArchive = false; })"
+                                             InvokeParentHendlerAfterGroupUpdating="@(async (List<object> obj) => {  this.isRenderMoveSelectedFuelCardsToArchive = false;
+                                                                                                                      await this.UpdateAfterAction(); })" />
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.IsRenderGroupDel)
+        {
+            <AuthorizeView>
+                <ModalWindowWithEventCallback Title="Групповое удаление топливных карт"
+                                              InvokeParentHandlerwithUpdParent="@(() => { IsRenderGroupDel = false;})">
+                    @{
+                        var isActive = (ItemsFilteredChecked?.Any() ?? false) ? true : false;
+                        List<ButtonBaseClass> btnBaseClassList = new();
+                        //
+                        ButtonBaseClass deleteCardsBtn = new();
+                        deleteCardsBtn.CallbackToParent = (async () =>
+                        {
+                            await DeleteFuelCards();
+                        });
+                        deleteCardsBtn.LabelForButton = "Удалить";
+                        deleteCardsBtn.IsActive = isActive;
+                        deleteCardsBtn.TitleIfIsActive = "Кликните для удаления топливных карт";
+                        deleteCardsBtn.TitleIfIsNonActive = "";
+                        if (IsUserHasMinimumFuelRole)
+                        {
+                            btnBaseClassList.AddRange(new List<ButtonBaseClass> { deleteCardsBtn });
+                        }
+                    }
+                    <div class="validation-message">
+                        @this.Title
+                    </div>
+                    <ButtonContainer ButtonBaseClassList="@btnBaseClassList"
+                                     WidthForButtonWrapper="15%" />
+                </ModalWindowWithEventCallback>
+            </AuthorizeView>
+        }
+
+        @if (IsRenderMenuActions)
+        {
+            <ScaffoldJCMenuActions T="@FuelCardFullModel"
+                                   InvokeParentHendlerCancel="@(() => { this.ItemSelected = null;
+                                                                         this.IsRenderMenuActions = false; })"
+                                   LableItemGenitive="топливной карты">
+                <ChildContentEditItem>
+                    <ModalWindowWithEventCallback Title="Редактирование топливной карты"
+                                                  InvokeParentHandlerwithUpdParent="@(async() => { this.IsRenderMenuActions = false; })">
+                        <CarFuelCardsEditForm TItemFromParent="@(Mapper.Map<FuelCardModel>(this.ItemSelected))"
+                                               InvokeParentHendlerCancel="@(async() => { this.IsRenderMenuActions = false; })"
+                                               InvokeParentHendlerAfterUpd="@(async(object card) => { await this.UpdateAfterAction();  
+                                                                                                       this.IsRenderMenuActions = false; })" />
+                    </ModalWindowWithEventCallback>
+                </ChildContentEditItem>
+                <ChildContentStatusHistory>
+                    <FuelCardHistory FuelCard="@this.ItemSelected"
+                                           InvokeParentHendlerCancel="@(async() => { this.IsRenderMenuActions = false; })"
+                                           InvokeParentHendlerAfterUpd="@(async(object card) => { await this.UpdateAfterAction(); })" />
+                </ChildContentStatusHistory>
+            </ScaffoldJCMenuActions>
+        }
+
+        @if (ShowMessage)
+        {
+            List<ButtonBaseClass> buttonsRemoveResultList = new();
+            //
+@*             ButtonBaseClass removedCardsBtn = new();
+            removedCardsBtn.CallbackToParent = (async () =>
+            {
+                IsRenderSuccessItems = IsRenderSuccessItems ? false: true;
+                this.StateHasChanged();
+            });
+            removedCardsBtn.LabelForButton = "Удаленные карты";
+            removedCardsBtn.IsActive = true;
+            removedCardsBtn.TitleIfIsActive = "Удаленные карты";
+            removedCardsBtn.TitleIfIsNonActive = "";
+ *@            //
+            ButtonBaseClass notRemovedCardsBtn = new();
+            notRemovedCardsBtn.CallbackToParent = (async () =>
+            {
+                IsRenderNotSuccessItems = IsRenderNotSuccessItems ? false : true;
+                this.StateHasChanged();
+            });
+            notRemovedCardsBtn.LabelForButton = "Не удаленные карты";
+            notRemovedCardsBtn.IsActive = true;
+            notRemovedCardsBtn.TitleIfIsActive = "Не удаленные карты";
+            notRemovedCardsBtn.TitleIfIsNonActive = "";
+
+@*             if (RemovedCards?.Any() ?? false)
+            {
+                buttonsRemoveResultList.AddRange(new List<ButtonBaseClass> { removedCardsBtn });
+            }
+ *@            if (NotRemovedCards?.Any() ?? false)
+            {
+                buttonsRemoveResultList.AddRange(new List<ButtonBaseClass> { notRemovedCardsBtn });
+            }
+
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { if (ShouldUpdateParent)
+                                                                                        await UpdateAfterAction();
+                                                                                    RemovedCards = new();
+                                                                                    NotRemovedCards = new();
+                                                                                    ShowMessage = false;})">
+                <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@Message" />
+                @if (buttonsRemoveResultList?.Count > 0)
+                {
+                    <div class="stickyBottomContainer" style="top: 0vh !important;">
+                        <ButtonContainer ButtonBaseClassList="@buttonsRemoveResultList"
+                                         WidthForButtonWrapper="20%" />
+                    </div>
+                }
+
+@*                 @if (IsRenderSuccessItems)
+                {
+                    <ItemsWithReasonList Items="@(GetTupleSuccess())"
+                                         NameItem="Удаленные карты"
+                                         IsDetailsHide="true" />
+                }
+ *@                @if (IsRenderNotSuccessItems)
+                {
+                    <ItemsWithReasonList Items="@(GetTupleNotSuccess())"
+                                         NameItem="Не удаленные карты"
+                                         IsDetailsHide="true" />
+                }
+            </ModalWindowWithEventCallback>
+        }
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка..." TopValue="40" />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    #region
+    [CascadingParameter]
+    public FuelCardsCont FuelCardsCascadingParameter { get; set; }
+
+    private List<FuelCardShortModel> RemovedCards { get; set; } = new();
+
+    private List<NotSuccessResponseItemDetailed<FuelCardModel>> NotRemovedCards { get; set; } = new();
+
+    protected bool IsRenderSuccessItems { get; set; } = false;
+    protected bool IsRenderNotSuccessItems { get; set; } = false;
+
+    private bool isRenderReportNotFoundFuelCards = false;
+    private bool isRenderMoveSelectedFuelCardsToArchive = false;
+
+    public override List<(PropertyInfo pi, SortOrder sortOrder)> DefaultSortByColumns
+        => new List<(PropertyInfo pi, SortOrder sortOrder)>
+        {
+            (this.ModelsType.GetProperty(nameof(this.Model.Number)), SortOrder.asc)
+        };
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+    => new List<PropertyInfo>
+    {
+        this.ModelsType.GetProperty(nameof(this.Model.ProviderName)),
+        this.ModelsType.GetProperty(nameof(this.Model.Number)),      
+        this.ModelsType.GetProperty(nameof(this.Model.Id)),
+        this.ModelsType.GetProperty(nameof(this.Model.FullNumber)),
+        this.ModelsType.GetProperty(nameof(this.Model.DivisionName)),
+        this.ModelsType.GetProperty(nameof(this.Model.CarName)),
+        this.ModelsType.GetProperty(nameof(this.Model.EmployeeName)),
+        this.ModelsType.GetProperty(nameof(this.Model.ReceiveDate)),
+        this.ModelsType.GetProperty(nameof(this.Model.ExpirationDate)),
+        this.ModelsType.GetProperty(nameof(this.Model.IsReserved)),
+        this.ModelsType.GetProperty(nameof(this.Model.IsArchived)),
+        this.ModelsType.GetProperty(nameof(this.Model.Note)),
+    };
+
+    public override List<PropertyInfo> InitPropertiesHidden()
+    => new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.Id)),
+        };
+    #endregion
+
+    #region // Overriden methods
+    protected override async Task OnInitializedAsync()
+    {
+        MinimumFuelRole = FuelRoles.Fuel_Provisioner;
+        await base.OnInitializedAsync();
+        this.ScaffoldJCMainBaseCascadingParameter.FinishUpdatingMainCollectionsEvent += this.UpdateGetMainCollectionTItemsFromDB;
+    }
+
+    protected override async Task<List<FuelCardFullModel>> GetCollectionTItemsFromParent()
+        => this.FuelCardsCascadingParameter?.Cards ?? new();
+
+    protected override async Task UpdateGetMainCollectionTItemsFromDB()
+    {
+        this.Items = new();
+        try
+        {
+            await this.FuelCardsCascadingParameter?.InitCards();
+            await this.UpdateCollectionTItemsFromParent();
+        }
+        catch (Exception exc)
+        {
+            exc?.LogError(logger, this.GetType()?.Name ?? string.Empty, nameof(UpdateGetMainCollectionTItemsFromDB));
+        }
+
+        await this.IsRenderTrueAsync();
+    }
+
+    public override async Task UpdateCollectionTItemsFromParent()
+    {
+        this.Items = (await this.GetCollectionTItemsFromParent()) ?? new();
+        this.StartFilteringTItemsInvoke();
+    }
+
+    protected override void InitButtons()
+    {
+        var isActive = this.IsRender;
+        this.ButtonBaseClassList = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (() =>
+        {
+            this.IsRenderGroupAdding = true;
+            this.StateHasChanged();
+        });
+        b1.LabelForButton = "Добавить новые топливные карты";
+        b1.IsActive = isActive;
+        b1.TitleIfIsActive = "Кликните для добавления новых топливных карт в базу данных";
+        b1.TitleIfIsNonActive = "Добавление новых топливных карт в базу данных станет возможным после загрузки журнала";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (() =>
+        {
+            this.isRenderMoveSelectedFuelCardsToArchive = true;
+            this.StateHasChanged();
+        });
+        b2.LabelForButton = "Переместить топливные карты в архив";
+        b2.IsActive = !this.ItemsFilteredChecked.All(_ => _.IsArchived) && (this.ItemsFilteredChecked?.Count ?? 0) > 0;
+        b2.TitleIfIsActive = "Кликните для перемещения выбранных топливных карт в архив";
+
+        if ((this.ItemsFilteredChecked?.Count ?? 0) == 0)
+            b2.TitleIfIsNonActive = "Для отправки топливных карт в архив, нужно отметить хотя бы одну топливную карту";
+        else if (this.ItemsFilteredChecked?.All(_ => _.IsArchived) ?? false)
+            b2.TitleIfIsNonActive = "Топливные карты уже находятся в архиве";
+        //
+        ButtonBaseClass b3 = new();
+        b3.CallbackToParent = (() =>
+        {
+            this.IsRenderGroupDel = true;
+            this.Title = $"Вы подтверждаете безвозвратное удаление топливных карт ({this.ItemsFilteredChecked?.Count ?? 0} шт.) из базы данных?";
+            this.StateHasChanged();
+        });
+        b3.LabelForButton = "Удалить выбранные топливные карты";
+        b3.IsActive = isActive
+                   && this.ItemsFilteredChecked?.Count > 0
+                   && this.IsUserIsAuthenticated();
+        b3.TitleIfIsActive = "Кликните для удаления выбранных топливных карт";
+
+        if (this.ItemsFilteredChecked?.Count == 0)
+        {
+            b3.TitleIfIsNonActive = "Для удаления топливных карт нужно отметить хотя бы одну топливную карту";
+        }
+        else
+        {
+            b3.TitleIfIsNonActive = "У Вас недостаточно прав для выполнения операции";
+        }
+        //
+        ButtonBaseClass b4 = new();
+        b4.CallbackToParent = (() =>
+        {
+            this.IsRenderSortWindow = true;
+            this.StateHasChanged();
+        });
+        b4.LabelForButton = "Сортировать топливные карты";
+        b4.IsActive = isActive;
+        b4.TitleIfIsActive = "Кликните для настройки групповой сортировки топливных карт";
+        b4.TitleIfIsNonActive = "Групповая сортировка топливных карт станет возможной после загрузки журнала";
+        //
+        ButtonBaseClass b5 = new();
+        b5.CallbackToParent = (() =>
+        {
+            this.isRenderReportNotFoundFuelCards = true;
+            this.StateHasChanged();
+        });
+        b5.LabelForButton = "Не обнаруженные топливные карты";
+        b5.IsActive = isActive;
+        b5.TitleIfIsActive = "Кликните для перехода к отчету по не обнаруженным топливным картам";
+        b5.TitleIfIsNonActive = "";
+        //
+        ButtonBaseClass b6 = new();
+        b6.CallbackToParent = (async () =>
+        {
+            var uri = HostUrl + ControllersNames.fuelprint + "/cards";
+            var resGenerate = await this.InitGeneratePrintForm(uri, this.ItemsFiltered);
+            if (!resGenerate.Item1)
+            {
+                this.Message = resGenerate.Item2;
+                this.Title = "Предупреждение";
+                this.ShowMessage = true;
+                this.StateHasChanged();
+            }
+        });
+        b6.LabelForButton = "Печатная форма";
+        b6.IsActive = isActive;
+        b6.TitleIfIsActive = "Кликните для формирования печатной формы отчета";
+        b6.TitleIfIsNonActive = "Печатная форма отчета по топливным топливным картам станет доступной после загрузки отчета";
+        //
+        this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { b1, b2, b3, b5, b6 });
+    }
+    #endregion
+
+    #region // Components methods
+    private async Task DeleteFuelCards()
+    {
+        Message = string.Empty;
+        RemovedCards = new();
+        NotRemovedCards = new();
+        var result = await api?.FuelCardAPI?.DeleteCards(ItemsFilteredChecked?.Select(card => Mapper.Map<FuelCardShortModel>(card))?.ToList() ?? new(), Token);
+        await ProccessingResponse(result);
+        IsRenderGroupDel = false;
+        RenderMessage();
+    }
+
+    private async Task ProccessingResponse(ResponseGroupActionDetailed<FuelCardShortModel, FuelCardModel> response)
+    {
+        if (response == null || response == default)
+        {
+            Message = api?.FuelCardAPI?.NotifyMessage ?? "Операция закончилась с ошибкой !";
+            Title = "Предупреждение";
+            ShouldUpdateParent = false;
+        }
+        else
+        {
+            Title = "Результат удаления топливных карт";
+            RemovedCards = response.SuccessItems ?? new();
+            NotRemovedCards = response.NotSuccessItems ?? new();
+            if (!RemovedCards.Any() && !NotRemovedCards.Any())
+            {
+                Message = string.IsNullOrEmpty(response?.Result ?? string.Empty)
+                ? (string.IsNullOrEmpty(api?.FuelCardAPI?.NotifyMessage ?? string.Empty) 
+                ? "Операция закончилась с ошибкой ! Карты не были удалены" 
+                : api.FuelCardAPI.NotifyMessage)
+                : response.Result;
+                Title = "Предупреждение";
+            }
+            if (RemovedCards.Any())
+            {
+                Message += $"Карты удалены в количестве {RemovedCards.Count} шт. !";
+                ShouldUpdateParent = true;
+            }
+            if (NotRemovedCards.Any())
+            {
+                Message += $"Карты не удалены в количестве {NotRemovedCards.Count} шт. !" + 
+                $"Удаление недоступно, пока в базе существуют загруженные транзакции по соответствующим картам. !" + 
+                "Необходимо удалить транзакции, после чего удалить карты. !";
+            }
+        }
+    }
+
+    protected virtual List<(int, string, string)> GetTupleNotSuccess()
+    {
+        List<(int, string, string)> res = new();
+        for (var i = 0; i < NotRemovedCards.Count; i++)
+        {
+            var item = NotRemovedCards[i];
+            var name = item.NotSuccessItem.ToString();
+            var reason = item.Reason;
+            res.Add((i+1, name, reason));
+        }
+        return res;
+    }
+
+    protected virtual List<(int, string, string)> GetTupleSuccess()
+    {
+        List<(int, string, string)> res = new();
+        for (var i = 0; i < RemovedCards.Count; i++)
+        {
+            var item = RemovedCards[i];
+            var name = item.ToString();
+            res.Add((i+1, name, string.Empty));
+        }
+        return res;
+    }
+    #endregion
+}

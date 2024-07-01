@@ -1,0 +1,455 @@
+﻿@inject IApies api
+@inherits EditFormBase<SimCardView>
+@inject IMapper mapper
+
+<CascadingValue Value="@this">
+@if (this.IsRender)
+{
+    var label_ReceiveDate = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.ReceiveDate)).Item1 ?? string.Empty;
+    var label_DiscardDate = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.DiscardDate)).Item1 ?? string.Empty;
+    var label_isDiscarded = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.Fdiscarded)).Item1 ?? string.Empty;
+    var label_SimCardNumber = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.SimCardNumber)).Item1 ?? string.Empty;
+
+    <div class="form_flex">
+        <EditForm EditContext=@this.EditContext>
+            <DataAnnotationsValidator />
+                <input type="hidden" @bind-value="@this.Model.Id" />
+                @*1-я строка*@
+                <div class="flexRow">
+                    <div class="flexColumn">
+                        <div>
+                            <label_small_black>@label_ReceiveDate</label_small_black>
+                        </div>
+                        <div>
+                            @if(this.IsCreate)
+                            {
+                                <InputDate TValue="DateTime"
+                                           @bind-Value="@this.Model.ReceiveDate"
+                                           @oninput="@((ChangeEventArgs arg) => { this.ReceiveDateWereChanged(arg); })" />
+                            }
+                            else
+                            {
+                                <input type="datetime"
+                                       disabled
+                                       class="non-active"
+                                       value="@this.Model.ReceiveDate" 
+                                       title="Для изменения даты, перейдите к событиям по карте"/>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="validation-message">
+                    @this.ManualValidationMessage_ReceiveDate
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.ReceiveDate))
+                </div>
+                @*2-я строка*@
+                <div class="flexRow">
+                    <div class="flexColumn">
+                    @{
+                        DivisionResponse divis = new();
+                        var type_divis = divis.GetType();
+                        var props_divis = new List<PropertyInfo> { type_divis.GetProperty(nameof(divis.Name)) };
+                        var textProp_divis = type_divis.GetProperty(nameof(divis.Name));
+                        var temp_divis = type_divis.GetCustomDisplayValues(nameof(divis.Name));
+                        var labelForSearch_divis = temp_divis.Item1 ?? string.Empty;
+                        var divCurrent = this.SimCardsFiltersCascadingVal?.SimCardsCascadingParameter?.Divisions?.FirstOrDefault(_ => _.Id == (this.Model?.FkDivisionId ?? 0)) ?? null;
+                        var initPar = divCurrent == null ? null : new List<DivisionResponse> { divCurrent };
+                        var placeholder_divis = this.IsCreate ? temp_divis.Item2 ?? string.Empty : divCurrent?.Name ?? temp_divis.Item1;
+                    }
+                    <div>
+                        <label_small_black>@labelForSearch_divis</label_small_black>
+                    </div>
+                    <div>
+                            <SearchSelectTItems Items="@(this.SimCardsFiltersCascadingVal?.SimCardsCascadingParameter?.Divisions?.OrderBy(_ => _.Name)?.ToList() ?? new())"
+                                                       T="@DivisionResponse"
+                                                       KeyPropInfo="@(type_divis.GetProperty(nameof(divis.Id)))"
+                                                       MaxSizeSelect="4"
+                                                       InitParameters="@initPar"
+                                                       LabelForSearch="@labelForSearch_divis"
+                                                       Placeholder="@placeholder_divis"
+                                                       IsMultiple="@false"
+                                                       PropertiesInfoForSearch="@props_divis"
+                                                       TextProperty="@textProp_divis"
+                                                       SendToParentFoundAndSelectedItems="@((List<DivisionResponse> selectedItems) 
+                                                                                             => {
+                                                                                                    if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                        this.Model.FkDivisionId = selectedItems?.FirstOrDefault()?.Id ?? 0;
+                                                                                                    else
+                                                                                                        this.Model.FkDivisionId = 0;
+                                                                                                })"/>
+                    </div>
+                </div>
+                    <div class="flexColumnLast">
+                        @{
+                            MobileOperator oper = new();
+                            var type_oper = oper.GetType();
+                            var props_oper = new List<PropertyInfo> { type_oper.GetProperty(nameof(oper.Name)) };
+                            var textProp_oper = type_oper.GetProperty(nameof(oper.Name));
+                            var labelForSearch_oper = type_oper.GetCustomDisplayValues(nameof(oper.Name)).Item1 ?? string.Empty;
+                            var operCurrent = MobileHelper.MobileOperators?.FirstOrDefault(_ => _.Abbrev.Equals(this.Model?.CellularOperator ?? string.Empty, StringComparison.InvariantCultureIgnoreCase)) ?? null;
+                            var initPar_oper = operCurrent == null ? null : new List<MobileOperator> { operCurrent };
+                            var placeholder_oper = this.IsCreate ? labelForSearch_oper ?? string.Empty : operCurrent?.Name ?? labelForSearch_oper;
+                        }
+                        <div>
+                            <label_small_black>@labelForSearch_oper</label_small_black>
+                        </div>
+                        <div>
+                            <SearchSelectTItems Items="@(MobileHelper.MobileOperators?.OrderBy(_ => _.Name).ToList() ?? new())"
+                                                           T="@MobileOperator"                                                       
+                                                           KeyPropInfo="@(type_oper.GetProperty(nameof(oper.Id)))"
+                                                           MaxSizeSelect="4"
+                                                           InitParameters="@initPar_oper"
+                                                           LabelForSearch="@labelForSearch_oper"
+                                                           Placeholder="@placeholder_oper"
+                                                           IsMultiple="@false"
+                                                           PropertiesInfoForSearch="@props_oper"
+                                                           TextProperty="@textProp_oper"
+                                                           SendToParentFoundAndSelectedItems="@((List<MobileOperator> selectedItems) 
+                                                                                                 => {
+                                                                                                        if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                            this.Model.CellularOperator = MobileHelper.MobileOperators?.FirstOrDefault(_ => _.Id == selectedItems.FirstOrDefault().Id)?.Abbrev ?? string.Empty;
+                                                                                                        else
+                                                                                                            this.Model.CellularOperator = string.Empty;
+                                                                                                    })"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.FkDivisionId))
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.CellularOperator))
+                </div>
+                @*3-я строка*@
+                <div class="flexRow">
+                    <div class="flexColumn">
+                        @{
+                            TelephoneView teleph = new();
+                            var type_teleph = teleph.GetType();
+                            var props_teleph = new List<PropertyInfo> { type_teleph.GetProperty(nameof(teleph.Nomber)) };
+                            var textProp_teleph = type_teleph.GetProperty(nameof(teleph.Nomber));
+                            var temp_teleph = type_teleph.GetCustomDisplayValues(nameof(teleph.Nomber));
+                            var labelForSearch_teleph = temp_teleph.Item1 ?? string.Empty;
+                            var telephCurrent = this.SimCardsFiltersCascadingVal?.SimCardsCascadingParameter?.Telephones?.FirstOrDefault(_ => _.Id == (this.Model?.FkTelephoneId ?? 0)) ?? null;
+                            var initPar_teleph = telephCurrent == null ? null : new List<TelephoneView> { telephCurrent };
+                            var placeholder_teleph = this.IsCreate ? temp_teleph.Item2 ?? string.Empty : telephCurrent?.Nomber ?? temp_divis.Item1;
+                        }
+                        <div>
+                            <label_small_black>@labelForSearch_teleph</label_small_black>
+                        </div>
+                        <div>
+                            <SearchSelectTItems Items="@(this.SimCardsFiltersCascadingVal?.SimCardsCascadingParameter?.Telephones?.OrderBy(_ => _.Nomber)?.ToList() ?? new())"
+                                                              T="@TelephoneView"                                                       
+                                                               KeyPropInfo="@(type_teleph.GetProperty(nameof(teleph.Id)))"
+                                                               MaxSizeSelect="4"
+                                                               InitParameters="@initPar_teleph"
+                                                               LabelForSearch="@labelForSearch_teleph"
+                                                               Placeholder="@placeholder_teleph"
+                                                               IsMultiple="@false"
+                                                               PropertiesInfoForSearch="@props_teleph"
+                                                               TextProperty="@textProp_teleph"
+                                                               SendToParentFoundAndSelectedItems="@((List<TelephoneView> selectedItems) 
+                                                                                                     => {
+                                                                                                            if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                            {
+                                                                                                                this.Model.FkTelephoneId = selectedItems?.FirstOrDefault()?.Id ?? 0;
+                                                                                                            }
+                                                                                                            else
+                                                                                                            {
+                                                                                                                this.Model.FkTelephoneId = 0;
+                                                                                                            }
+                                                                                                        })"/>
+                            </div>
+                        </div>
+                    <div class="flexColumnLast">
+                            <div>
+                                <label_small_black>@label_SimCardNumber</label_small_black>
+                            </div>
+                            <div>
+                                <InputTextArea @bind-Value="this.Model.SimCardNumber" 
+                                               @oninput="@((ChangeEventArgs arg) => {this.Model.SimCardNumber = arg.Value?.ToString() ?? string.Empty; })"
+                                               rows="1"
+                                               style="min-width: 210px !important; resize: vertical;"/>
+                            </div>
+                            <div class="flexColumn validation-message">      
+                                @this.GetPropsValidMessage(nameof(this.Model.SimCardNumber))
+                            </div>
+                        </div>
+                </div>
+                <div class="validation-message">
+                    @this.GetPropsValidMessage(nameof(this.Model.FkTelephoneId))
+                </div>
+                @*4-я строка*@
+                @if (!this.IsCreate)
+                    {
+                        <div class="flexRowSpaceBetweenCenter">
+                            <div class="flexColumn">
+                                <div>
+                                    <div class="squaredOne">
+                                        <label_small_black_margLeft>@label_isDiscarded</label_small_black_margLeft>
+                                        @if(this.Model.Fdiscarded)
+                                        {
+                                            <input type="checkbox"
+                                                   id="simCardEditF_id_1"
+                                                   checked
+                                                   @bind-value="@this.Model.Fdiscarded"
+                                                   @oninput="@((ChangeEventArgs arg) => { this.Model.Fdiscarded = (bool)arg.Value;
+                                                                                          this.Model.DiscardDate = null; } )" />
+                                        }
+                                        else
+                                        {
+                                            <input type="checkbox"
+                                                   id="simCardEditF_id_1"
+                                                   @bind-value="@this.Model.Fdiscarded"
+                                                   @oninput="@((ChangeEventArgs arg) => { this.Model.Fdiscarded = (bool)arg.Value;
+                                                                                          this.Model.DiscardDate = null; } )" />
+                                        }
+                                        <label for="simCardEditF_id_1"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flexColumnLast">
+                                <div>
+                                    <label_small_black_margRight>@label_DiscardDate</label_small_black_margRight>
+                                    @if (this.Model.Fdiscarded)
+                                    {
+                                        <InputDate TValue="DateTime?"
+                                                   @bind-Value="@this.Model.DiscardDate"
+                                                   @oninput="@((ChangeEventArgs arg) => { if(DateTime.TryParse(arg?.Value?.ToString(), out var res))
+                                                                                              this.Model.DiscardDate = res;
+                                                                                          else
+                                                                                              this.Model.DiscardDate = null; })" />
+                                    }
+                                    else
+                                    {
+                                        <input type = "date"
+                                               class="non-active"
+                                               title="@($"Чтобы установить дату списания, установите флаг «{label_isDiscarded}»")"
+                                               disabled/>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <div class="validation-message">
+                            @this.GetPropsValidMessage(nameof(this.Model.Fdiscarded))
+                        </div>                    
+                        <div class="validation-message">
+                            @this.GetPropsValidMessage(nameof(this.Model.DiscardDate))
+                        </div>
+                        <div class="validation-message">
+                            <ul>
+                                @if (!string.IsNullOrEmpty(this.ManualValidationMessage_DiscardDate))
+                                {
+                                    foreach(var error in this.ManualValidationMessage_DiscardDate.ConvertStringToList('!'))
+                                    {
+                                        <li>
+                                            @error
+                                        </li>
+                                    }
+                                }
+                            </ul>
+                        </div>
+                    }
+                <br />
+                <div>
+                    <ButtonDouble EventCallbackToParent="@(async () => { await this.ProgressBarOpenAsync();
+                                                                         await this.StartOperation(); 
+                                                                         await this.ProgressBarCloseAsync(); })"
+                                  EventCallbackToParentReset="@(async () => { await this.MedelsInitialization();
+                                                                              this.ManualValidationMessage_ReceiveDate = string.Empty; })"
+                                  LabelForButton="Сохранить"
+                                  LabelForButtonReset="Отмена"
+                                  IsActive="@this.IsModelValid"
+                                  TitleIfIsNonActive="Сохранение изменений возможно, если они валидны"
+                                  TitleIfIsActive="Кликните, чтобы сохранить изменения"
+                                  TitleReset="Кликните, чтобы отменить внесенные изменения">
+                    </ButtonDouble>
+                </div>
+        </EditForm>
+    </div>
+}
+else
+{
+    <ProgressBar />
+}
+
+@if (this.ShowMessage)
+{
+    <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { 
+                                                                                        if(this.IsCreate)
+                                                                                        {
+                                                                                            if (this.ShouldUpdateParent)
+                                                                                                await this.InvokeParentHendlerAfterCreating.InvokeAsync(this.Model);
+                                                                                            else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                                await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                                        }
+                                                                                        else
+                                                                                        {
+                                                                                            if (this.ShouldUpdateParent)
+                                                                                                await this.InvokeParentHendlerAfterUpd.InvokeAsync(this.Model);
+                                                                                            else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                                await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                                        }
+                                                                                  })">
+        <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@this.Message">
+        </ResultOperation>
+    </ModalWindowWithEventCallback>
+}
+     <div id="@this.IdForProgressBar" style="display: none;">
+         <ProgressBar />
+     </div>
+</CascadingValue>
+
+@code {
+    [CascadingParameter]
+    public SimCardsFilters SimCardsFiltersCascadingVal { get; set; }
+
+    protected override bool IsModelValid => this.ValidateModel().isValid 
+                                            && string.IsNullOrEmpty(this.ManualValidationMessage_ReceiveDate)
+                                            && string.IsNullOrEmpty(this.ManualValidationMessage_DiscardDate);
+
+    private string ManualValidationMessage_ReceiveDate{ get; set; }
+
+    private string ManualValidationMessage_DiscardDate => this.Validate_DiscardDate();
+
+    private Func<DateTime?, DateTime?, bool> IsDiscardDateLaterLastStartOperDate
+        = (DateTime? discardDate, DateTime? lastStartEventDate) 
+        => discardDate.HasValue && lastStartEventDate.HasValue
+        ? discardDate.Value.Date >= lastStartEventDate.Value.Date
+        : true
+        ;
+
+    private Func<DateTime?, DateTime?, bool> IsDiscardDateLaterReceiveDate
+        = (DateTime? discardDate, DateTime? receiveDate)
+        => discardDate.HasValue && receiveDate.HasValue
+        ? discardDate.Value.Date >= receiveDate.Value.Date
+        : true
+        ;
+
+    private string Validate_DiscardDate()
+    {
+        var res = string.Empty;
+        if (!IsDiscardDateLaterLastStartOperDate(this.Model?.DiscardDate ?? null,
+                                                 this.SimCardsFiltersCascadingVal?
+                                                                                  .EventHistoryItems?
+                                                                                  .OrderByDescending(_ => _.OperationDate.Date)?
+                                                                                  .ThenByDescending(_ => _.Id)?
+                                                                                  .FirstOrDefault()?
+                                                                                  .OperationDate
+                                                                                  ?? null))
+            res += $"Дата списания должна быть позже даты начала последнего события по sim-карте ! ";
+
+        if (!IsDiscardDateLaterReceiveDate(this.Model?.DiscardDate ?? null,
+                                           this.Model?.ReceiveDate ?? null))
+            res += $"Дата списания должна быть позже даты поступления sim-карты ! ";
+
+        if(this.Model.Fdiscarded && (this.Model.DiscardDate == null || this.Model.DiscardDate == default))
+            res += "Укажите дату списания ! ";
+
+        return res;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ReturnUrl = this.SimCardsFiltersCascadingVal?.ReturnUrl ?? "/";
+        this.IdForProgressBar = "simCardEditForm_idProgrBar";
+
+        if (this.IsCreate)
+            this.Model.ReceiveDate = DateTime.Today;
+
+        this.IsRender = true;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        this.TItemFromParent = this.SimCardsFiltersCascadingVal?.ItemSelected ?? null;
+    }
+
+    private void ReceiveDateWereChanged(ChangeEventArgs val)
+    {
+        DateTime res = default;
+
+        if (val == null ||
+           val?.Value == null ||
+           string.IsNullOrEmpty(val?.Value.ToString()) ||
+           string.IsNullOrWhiteSpace(val?.Value.ToString()) ||
+           !DateTime.TryParse(val?.Value?.ToString(), out res))
+        {
+            this.ManualValidationMessage_ReceiveDate = "Неверный формат даты";
+        }
+        else
+        {
+            this.Model.ReceiveDate = res;
+            this.ManualValidationMessage_ReceiveDate = string.Empty;
+        }
+    }
+
+    public override async Task StartOperation()
+    {
+        this.Message = string.Empty;
+
+        if (this.IsModelValid)
+        {
+            var putPostModel = this.mapper?.Map<SimCardView>(this.Model);
+
+            if(this.IsCreate)
+                this.OperationsResult = await this.api?.MobileApi?.PostSimCards(new List<SimCardView> { putPostModel }, this.Token);
+            else
+                this.OperationsResult = await this.api?.MobileApi?.PutSimCard(putPostModel, this.Token);
+
+            await this.ProccessingResponse();
+        }
+        else
+        {
+            this.Title = "Предупреждение";
+            this.Message = string.Concat("Сохранить изменения невозможно, пока введенные данные не будут валидны !", this.ValidErrors);
+        }
+
+        this.RenderMessage();
+    }
+
+    public override async Task ProccessingResponse()
+    {
+        if (this.IsCreate)
+        {
+            if (this.OperationsResult == null)
+            {
+                this.Message = $"{ this.OperationsResult?.Result ?? "Операция закончилась с ошибкой ! Ошибка на уровне сервера !"}";
+            }
+            else
+            {
+                this.Message = $"{this.OperationsResult?.Result ?? "Операция успешно завершена ! Изменения были зафиксированы !"}";
+                this.ShouldUpdateParent = true;
+            }
+
+            this.Title = "Результат добавления sim-карты";
+        }
+        else
+        {
+            var resUpd = (this.OperationsResult as ResponseSingleAction<SimCardView>)?.Item ?? null;
+
+            if (resUpd == null || resUpd.Id <= 0)
+            {
+                this.Message = "Операция закончилась с ошибкой ! Ошибка на уровне сервера !" + (this.OperationsResult?.Result ?? string.Empty);
+                this.Title = "Предупреждение";
+            }
+            else
+            {
+                this.ShouldUpdateParent = true;
+                this.Message = string.IsNullOrEmpty(this.OperationsResult?.Result ?? string.Empty)
+                               ? "Операция успешно завершена ! Изменения были зафиксированы !"
+                               : this.OperationsResult?.Result ?? string.Empty
+                               ;
+            }
+
+            this.Title = "Результат редактирования sim-карты";
+        }
+    }
+}

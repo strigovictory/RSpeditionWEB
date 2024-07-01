@@ -1,0 +1,127 @@
+﻿@inject IApies api
+@inherits ScaffoldJCFiltersBase<MobComCost_ByPhone_View>
+@inject IMapper mapper
+@inject IConfiguration config
+@inject Serilog.ILogger logger
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        @*Табличная часть*@
+        <ScaffoldJCParent T="@MobComCost_ByPhone_View"
+                          @ref="@ScaffoldJCParentRef"
+                          SendToParentSelectedItem="@(async(MobComCost_ByPhone_View item) => { this.ItemSelected = item;
+                                                                                          this.Title = $"Список коммуникаций по телефону «{item?.phoneNumber ?? string.Empty}»";
+                                                                                          this.IsRender_MobComBySelectedItem = true; })" />
+        <div class="stickyBottomContainer">
+            <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList" />
+        </div>
+
+        @*Все коммуникации по выбранному телефонному номеру*@
+        @if (this.IsRender_MobComBySelectedItem)
+        {
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { this.IsRender_MobComBySelectedItem = false;})">
+                <MobileComByPhonePeriod />
+            </ModalWindowWithEventCallback>
+        }
+
+        <div id="@this.IdForProgressBar" style="display: none;">
+            <ProgressBar />
+        </div>
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Подождите..." />
+    }
+</CascadingValue>
+
+@code {
+    #region
+    [CascadingParameter]
+    public MobileCom MobileComCascadingParameter { get; set; }
+
+    private bool IsRender_MobComBySelectedItem { get; set; }
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+    => new List<PropertyInfo>
+        {
+        this.ModelsType.GetProperty(nameof(this.Model.phoneNumber)),
+        this.ModelsType.GetProperty(nameof(this.Model.truckNumber)),
+        this.ModelsType.GetProperty(nameof(this.Model.forwarder)),
+        this.ModelsType.GetProperty(nameof(this.Model.callsCost)),
+        this.ModelsType.GetProperty(nameof(this.Model.periodicCharge)),
+        this.ModelsType.GetProperty(nameof(this.Model.onceCharge)),
+        this.ModelsType.GetProperty(nameof(this.Model.divisionName))
+        };
+    #endregion
+
+    #region // Overriden Methods
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ScaffoldJCMainBaseCascadingParameter = this.MobileComCascadingParameter;
+    }
+
+    public override async Task UpdateCollectionTItemsFromParent()
+    {
+        this.Items = new(await this.GetCollectionTItemsFromParent() ?? new());
+        this.StartFilteringTItemsInvoke(); // запускается метод UpdateFilteredTItems
+        await this.IsRenderTrueAsync();
+    }
+
+    protected override void InitGroupBySelector()
+    {
+        this.GroupByKeySelector = (MobComCost_ByPhone_View item) => item.divisionName;
+        this.GroupBySumProps = new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.callsCost))
+        };
+        this.TotalSumProps = new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.callsCost))
+        };
+    }
+
+    protected override async Task<List<MobComCost_ByPhone_View>> GetCollectionTItemsFromParent()
+        => this.MobileComCascadingParameter?.Communications_ByPhone ?? new();
+
+    protected override void InitButtons()
+    {
+        this.ButtonBaseClassList = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (() =>
+        {
+            this.IsRenderSortWindow = true;
+            this.StateHasChanged();
+        });
+        b1.LabelForButton = "Сортировать записи";
+        b1.IsActive = this.IsRender;
+        b1.TitleIfIsActive = "Кликните для настройки групповой сортировки";
+        b1.TitleIfIsNonActive = "Групповая сортировка станет возможной после загрузки журнала";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (async () =>
+        {
+            await this.ProgressBarOpenAsync();
+            var uri = GateWayConfigs.Value.BaseUrl + "/mobilecommunicationsprint" + "/phone";
+            var resGenerate = await this.InitGeneratePrintForm(uri, this.ItemsFiltered);
+            if (!resGenerate.Item1)
+            {
+                this.Message = resGenerate.Item2;
+                this.Title = "Предупреждение";
+                this.ShowMessage = true;
+                this.StateHasChanged();
+            }
+            await this.ProgressBarCloseAsync();
+        });
+        b2.LabelForButton = "Печатная форма";
+        b2.IsActive = this.IsRender;
+        b2.TitleIfIsActive = "Кликните для формирования печатной формы отчета";
+        b2.TitleIfIsNonActive = "Печатная форма отчета станет доступной после полной загрузки страницы";
+        //
+        this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { b2 });
+    }
+    #endregion
+}

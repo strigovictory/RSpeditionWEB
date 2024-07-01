@@ -1,0 +1,323 @@
+﻿carousel {
+    width: 100%;
+    height: 100vh;
+    text-align: center;
+    display: block;
+    font-size: 6vmin;
+    margin-left: 0px !important;
+    margin-right: 0px !important;
+    background-size: cover;
+    opacity: 0.4;
+}
+carousel:hover {
+    opacity:1;
+}
+    carousel page {
+        position: absolute;
+        top: 2em;
+        left: 0;
+        width: 100%;
+        height: 100vh;
+        transition: transform 0.5s;
+        transform: scale(0);
+    }
+
+        carousel page div {
+            height: 80vh;
+        }
+        carousel page label {
+            position: -webkit-sticky;
+            position: sticky;
+            bottom: 10px;
+            color: white; 
+        }
+            carousel page label :hover {
+                color: #09bd70; /* #536953;*/
+                cursor: pointer;
+            }
+
+    carousel #slider-1:checked ~ #page1 {
+        transform: scale(1);
+    }
+
+    carousel #slider-2:checked ~ #page2 {
+        transform: scale(1);
+    }
+
+    carousel #slider-3:checked ~ #page3 {
+        transform: scale(1);
+    }
+
+    carousel #slider-4:checked ~ #page4 {
+        transform: scale(1);
+    }
+
+    carousel #slider-5:checked ~ #page5 {
+        transform: scale(1);
+    }
+
+    carousel #slider-6:checked ~ #page6 {
+        transform: scale(1);
+    }
+
+    /****************************************************************************************************************************************************************************************/
+[type="radio"]:checked,
+[type="radio"]:not(:checked) {
+    position: absolute;
+    left: -9999px;
+}
+
+.checkbox:checked + label:hover,
+.checkbox:not(:checked) + label:hover {
+    border: 3px solid #09bd70;
+}
+
+.checkbox:checked + label,
+.checkbox:not(:checked) + label {
+    position: relative;
+    cursor: pointer;
+    margin: 0 auto;
+    text-align: center;
+    margin-right: 6px;
+    margin-left: 6px;
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    border: 3px solid #bdc3c7;
+    background-size: cover;
+    background-position: center;
+    box-sizing: border-box;
+    -webkit-transition: all 0.2s ease;
+    transition: all 0.2s ease;
+    animation: border-transform 6s linear infinite alternate forwards;
+    -webkit-animation-play-state: paused;
+    -moz-animation-play-state: paused;
+    animation-play-state: paused;
+}
+
+.checkbox.frst + label {
+    background-image: url('/css/open-iconic/img/gas_station.png');
+}
+
+.checkbox.scnd + label {
+    background-image: url('/css/open-iconic/img/sim.jpg');
+}
+
+.checkbox.thrd + label {
+    background-image: url('/css/open-iconic/img/phone.jpg');
+}
+
+.checkbox.foth + label {
+    background-image: url('/css/open-iconic/img/gps.jpg');
+}
+
+.checkbox.fifth + label {
+    background-image: url('/css/open-iconic/img/coins.jpg');
+}
+
+.checkbox.sixth + label {
+    background-image: url('/css/open-iconic/img/microcircuit.jpg');
+}
+
+.checkbox:checked + label {
+    box-shadow: 0 8px 25px 0 rgba(16,39,112,.3);
+    transform: scale(1.3);
+    -webkit-animation-play-state: running;
+    -moz-animation-play-state: running;
+    animation-play-state: running;
+}
+
+@keyframes border-transform {
+    0%,100% {
+        border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%;
+    }
+
+    14% {
+        border-radius: 40% 60% 54% 46% / 49% 60% 40% 51%;
+    }
+
+    28% {
+        border-radius: 54% 46% 38% 62% / 49% 70% 30% 51%;
+    }
+
+    42% {
+        border-radius: 61% 39% 55% 45% / 61% 38% 62% 39%;
+    }
+
+    56% {
+        border-radius: 61% 39% 67% 33% / 70% 50% 50% 30%;
+    }
+
+    70% {
+        border-radius: 50% 50% 34% 66% / 56% 68% 32% 44%;
+    }
+
+    84% {
+        border-radius: 46% 54% 50% 50% / 35% 61% 39% 65%;
+    }
+}
+
+.checkbox.frst:checked ~ ul li:nth-child(1) {
+    opacity: 1;
+    pointer-events: auto;
+    border-radius: 16px;
+}
+
+.checkbox.scnd:checked ~ ul li:nth-child(2) {
+    opacity: 1;
+    pointer-events: auto;
+    border-radius: 16px;
+}
+
+.checkbox.thrd:checked ~ ul li:nth-child(3) {
+    opacity: 1;
+    pointer-events: auto;
+    border-radius: 16px;
+}
+
+.checkbox.foth:checked ~ ul li:nth-child(4) {
+    opacity: 1;
+    pointer-events: auto;
+    border-radius: 16px;
+}
+
+.checkbox.fifth:checked ~ ul li:nth-child(5) {
+    opacity: 1;
+    pointer-events: auto;
+    border-radius: 16px;
+}
+
+.checkbox.sixth:checked ~ ul li:nth-child(6) {
+    opacity: 1;
+    pointer-events: auto;
+    border-radius: 16px;
+}
+
+/*************************************************************************************************************************************************************************************/
+
+[type="radio"]:checked,
+[type="radio"]:not(:checked) {
+    position: absolute;
+    left: -9999px;
+}
+
+.checkbox:checked + label,
+.checkbox:not(:checked) + label {
+    position: relative;
+    cursor: pointer;
+    margin: 0 auto;
+    text-align: center;
+    margin-right: 6px;
+    margin-left: 6px;
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    border: 3px solid #bdc3c7;
+    background-size: cover;
+    background-position: center;
+    box-sizing: border-box;
+    -webkit-transition: all 0.2s ease;
+    transition: all 0.2s ease;
+    animation: border-transform 6s linear infinite alternate forwards;
+    -webkit-animation-play-state: paused;
+    -moz-animation-play-state: paused;
+    animation-play-state: paused;
+}
+
+.checkbox.frst + label {
+    background-image: url('/css/open-iconic/img/gas_station.png');
+}
+
+.checkbox.scnd + label {
+    background-image: url('/css/open-iconic/img/sim.jpg');
+}
+
+.checkbox.thrd + label {
+    background-image: url('/css/open-iconic/img/phone.jpg');
+}
+
+.checkbox.foth + label {
+    background-image: url('/css/open-iconic/img/gps.jpg');
+}
+
+.checkbox.fifth + label {
+    background-image: url('/css/open-iconic/img/coins.jpg');
+}
+
+.checkbox.sixth + label {
+    background-image: url('/css/open-iconic/img/microcircuit.jpg');
+}
+
+.checkbox:checked + label {
+    box-shadow: 0 8px 25px 0 rgba(16,39,112,.3);
+    transform: scale(1.3);
+    -webkit-animation-play-state: running;
+    -moz-animation-play-state: running;
+    animation-play-state: running;
+}
+
+@keyframes border-transform {
+    0%,100% {
+        border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%;
+    }
+
+    14% {
+        border-radius: 40% 60% 54% 46% / 49% 60% 40% 51%;
+    }
+
+    28% {
+        border-radius: 54% 46% 38% 62% / 49% 70% 30% 51%;
+    }
+
+    42% {
+        border-radius: 61% 39% 55% 45% / 61% 38% 62% 39%;
+    }
+
+    56% {
+        border-radius: 61% 39% 67% 33% / 70% 50% 50% 30%;
+    }
+
+    70% {
+        border-radius: 50% 50% 34% 66% / 56% 68% 32% 44%;
+    }
+
+    84% {
+        border-radius: 46% 54% 50% 50% / 35% 61% 39% 65%;
+    }
+}
+
+.checkbox.frst:checked ~ ul li:nth-child(1) {
+    opacity: 1;
+    pointer-events: auto;
+    border-radius: 16px;
+}
+
+.checkbox.scnd:checked ~ ul li:nth-child(2) {
+    opacity: 1;
+    pointer-events: auto;
+    border-radius: 16px;
+}
+
+.checkbox.thrd:checked ~ ul li:nth-child(3) {
+    opacity: 1;
+    pointer-events: auto;
+    border-radius: 16px;
+}
+
+.checkbox.foth:checked ~ ul li:nth-child(4) {
+    opacity: 1;
+    pointer-events: auto;
+    border-radius: 16px;
+}
+
+.checkbox.fifth:checked ~ ul li:nth-child(5) {
+    opacity: 1;
+    pointer-events: auto;
+    border-radius: 16px;
+}
+
+.checkbox.sixth:checked ~ ul li:nth-child(6) {
+    opacity: 1;
+    pointer-events: auto;
+    border-radius: 16px;
+}

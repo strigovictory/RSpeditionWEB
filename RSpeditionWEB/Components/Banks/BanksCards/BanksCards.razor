@@ -1,0 +1,88 @@
+﻿@*@page "/BanksCards"
+@page "/BanksCards/{ActiveTabNum}"
+*@
+@using RSpeditionWEB.Enums.Roles;
+@attribute [Authorize]
+@inject IApies api
+@inject IMapper mapper
+@inherits ScaffoldJCMainBase
+
+<AuthorizeView>
+    <Authorized>
+        @if (!context?.User?.IsInRole(Enum.GetName(RolesNames.BanksCards)) ?? false)
+        {
+            <ForbiddenAccess />
+        }
+        else
+        {
+            <CascadingValue Value="@this">
+                <button class="tablink" id="defaultOpen" @ref="@this.TabsRef0" @onclick="@(async() => {await this.TabClickHandler(0, nameof(BanksCardsOperReportsUpload), DotNetObjectReference.Create(ChildElemRef0), this.TabsRef0);})">@this.LabelsForTabs?.ElementAt(0)</button>
+                <button class="tablink" @ref="@this.TabsRef1" @onclick="@(async() => {await this.TabClickHandler(1, nameof(BanksCardsOperationsFilters), DotNetObjectReference.Create(ChildElemRef1), this.TabsRef1);})">@this.LabelsForTabs?.ElementAt(1)</button>
+                <button class="tablink" @ref="@this.TabsRef2" @onclick="@(async() => {await this.TabClickHandler(2, nameof(BanksCardsFilters), DotNetObjectReference.Create(ChildElemRef2), this.TabsRef2);})">@this.LabelsForTabs?.ElementAt(2)</button>
+                <button class="tablink" @ref="@this.TabsRef3" @onclick="@(async() => {await this.TabClickHandler(3, nameof(BanksCardsCharts), DotNetObjectReference.Create(ChildElemRef3), this.TabsRef3);})">@this.LabelsForTabs?.ElementAt(3)</button>
+                <div id="@(nameof(BanksCardsOperReportsUpload))" class="tabcontent">
+                    <BanksCardsOperReportsUpload @ref="@this.ChildElemRef0" />
+                    </div>
+                <div id="@(nameof(BanksCardsOperationsFilters))" class="tabcontent">
+                    <BanksCardsOperationsFilters @ref="@this.ChildElemRef1" />
+                    </div>
+                <div id="@(nameof(BanksCardsFilters))" class="tabcontent">
+                    <BanksCardsFilters @ref="@this.ChildElemRef2"/>
+                    </div>
+                <div id="@(nameof(BanksCardsCharts))" class="tabcontent">
+                    <BanksCardsCharts @ref="@this.ChildElemRef3" />
+                    </div>
+            </CascadingValue>
+        }
+    </Authorized>
+</AuthorizeView>
+
+
+@code {
+    #region
+    private BanksCardsOperReportsUpload ChildElemRef0 { get; set; }
+    private BanksCardsOperationsFilters ChildElemRef1 { get; set; }
+    private BanksCardsFilters ChildElemRef2 { get; set; }
+    private BanksCardsCharts ChildElemRef3 { get; set; }
+
+    public List<EmployeeCreditCardView> CreditCards { get; set; } = new();
+
+    public List<BanksCardsOperation_iew> BanksCardsOperations { get; set; } = new();
+
+    public List<CurrencyResponse> Currencies { get; set; } = new();
+
+    public List<CurrencyRateView> CurrancyRates { get; set; } = new();
+
+    public List<BankView> Banks { get; set; } = new();
+
+    private List<BanksCardsOperationKindView> BanksCardsOperationKinds { get; set; } = new();
+
+    public List<EmployeeView> Employees { get; set; } = new();
+    #endregion
+
+    #region
+    protected override async Task InitializeTabs() => await Task.FromResult(this.LabelsForTabs = new List<string> { "Загрузка отчета", "Операции", "Карты", "Статистика" });
+
+    public async Task Init_BanksCardsOperation() => this.BanksCardsOperations = (await this.api?.FinanceApi?.GetBanksCardsOperations(this.Token)) ?? new();
+    public async Task Init_CreditCard() => this.CreditCards = (await this.api?.FinanceApi?.GetEmployeeCreditCards(this.Token)) ?? new();
+    private async Task Init_Currencies() => this.Currencies = (await this.api?.CurrencyApi?.GetCurrencies(this.Token)) ?? new();
+    private async Task Init_CurrenciesRates() => this.CurrancyRates = (await this.api?.CurrencyApi?.GetCurrencyRates(this.Token)) ?? new();
+    private async Task Init_Bank() => this.Banks = (await this.api?.FinanceApi?.GetBanks(this.Token)) ?? new();
+    private async Task Init_BanksCardsOperationsKinds() => this.BanksCardsOperationKinds = (await this.api?.FinanceApi?.GetBanksCardsOperationKinds(this.Token)) ?? new();
+    private async Task Init_Employees() => this.Employees = (await this.api?.PersonApi?.GetEmployees(this.Token)) ?? new();
+
+    public override async Task UpdateMainCollections()
+        => await this.Init_BanksCardsOperation();
+
+    public override async Task UpdateSecondCollections()
+    {
+        var task1 = Task.Run(async () => await this.Init_Currencies());
+        var task2 = Task.Run(async () => await this.Init_CurrenciesRates());
+        var task3 = Task.Run(async () => await this.Init_Bank());
+        var task4 = Task.Run(async () => await this.Init_BanksCardsOperationsKinds());
+        var task5 = Task.Run(async () => await this.Init_Employees());
+
+        await Task.WhenAll(task1, task2, task3, task4, task5);
+    }
+    #endregion
+}

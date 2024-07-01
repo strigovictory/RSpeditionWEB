@@ -1,0 +1,586 @@
+﻿@inject AdminApi reflService
+@inherits ComponentBaseClass
+@inject GenericApi genericApi
+@implements IDisposable
+
+    @if (this.IsRender)
+    {
+        <CascadingValue Value="@this">
+                @if (this.TableSetting == null || (this.TableSetting?.Id ?? 0) == 0)
+                {
+                    <p class="my-h1 inner-light-shadow">Выберите подкатегорию для просмотра</p>
+                }
+                else
+                {
+                    @if (this.TablesColumns != null && this.Data != null && this.FK_Values != null && this.Filters != null)
+                    {
+                        var iIdFilters = this.Filters?.Where(_ => _.Value.valuesType != null)?.ToList() ?? new();
+                        <p class="my-h1 inner-light-shadow">@(this.TableSetting?.DisplayName ?? string.Empty)</p>
+                        <div class="pressed">
+                            <div class="tablePreviewFilters">
+                                @*1 - Фильтры*@
+                                    @if(iIdFilters.Count > 0)
+                                    {
+                                        @foreach(var pare in iIdFilters)
+                                        {
+                                            var typeItem = this.reflService?.GetTypeByClassName(pare.Value.valuesType);
+                                            var item = Activator.CreateInstance(typeItem);
+                                            List<PropertyInfo> propsItem = new();
+                                            propsItem.AddRange(typeItem.GetProperties()); // поиск внутри всех свойств
+                                            var textProp = typeItem.GetProperty(pare.Value.displayProp);
+                                            var tempAttr = typeItem.GetCustomDisplayValues(textProp.Name);
+                                            var labelForSearch = tempAttr.Item1 ?? string.Empty;
+                                            var placeholder = tempAttr.Item2 ?? string.Empty;
+                                            var iidItems = pare.Value.values?.ConvertObjToIIdItems(typeItem);
+                                            <div>
+                                                <SearchTItem IIdItems="@iidItems"
+                                                             PropertiesInfoForSearch="@propsItem"
+                                                             TextProperty="@textProp"
+                                                             LabelForSearch="@labelForSearch"
+                                                             Placeholder="@placeholder"
+                                                             MaxSizeSelect="7"
+                                                             ShowSelecteditems="false"
+                                                             SendToParent_FoundAndSelectedIIdItems="@(async (List<IId> selectedIIdItems) =>
+                                                                                                                        {
+                                                                                                                            this.UpdateFilters(pare.Key, typeItem, pare.Value.displayProp, selectedIIdItems);
+                                                                                                                        })"
+                                                             CallParentToReceiveIIdItems="@(async() => {
+                                                                                                           this.UpdateFilters(pare.Key, typeItem, pare.Value.displayProp, null);
+                                                                                                       })">
+                                                </SearchTItem>
+                                            </div>
+                                        }
+                                    }
+                            </div>
+                        </div>
+                        if (this.TablesColumns != null && !this.Token.IsCancellationRequested)
+                        {
+                            var visibleColumns = this.TablesColumns?.Where(_ => _.IsVisible)?.ToList() ?? new();
+                            var numVisibleColumns = visibleColumns?.Count() ?? 0;
+                            <div class="adapt_table scroll font-journal">
+                                <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+                                    <thead class="adapt_table_inner_thead">
+                                        <tr>
+                                            @for(var i = 0; i < this.TablesColumnsVisible?.Count; i++)
+                                            {
+                                                var ind = i;
+                                                var thItem = this.TablesColumnsVisible[i];
+                                                <th data-label="@(thItem?.DisplayName ?? string.Empty)">
+                                                    <div class="relative">
+                                                        <div id="element">
+                                                            @(thItem?.DisplayName ?? string.Empty)
+                                                            <button type="button"
+                                                                    title="Кликните, чтобы изменить направление сортировки"
+                                                                    @onclick="@((MouseEventArgs arg) => {this.ClickByContextMenu(ind);})">
+                                                                <img src="@this.ContextMenuClasses.ElementAt(i).img">
+                                                           </button>
+                                                        </div>
+                                                        <ul id="menu" class="@this.ContextMenuClasses.ElementAt(i).className"><li>1</li><li>2</li><li>3</li></ul>
+                                                    </div>
+                                                </th>
+                                            }
+                                            <th data-label="Действия" colspan="2">
+                                                Действия
+                                            </th>        
+                                        </tr>
+                                    </thead>
+                                    <tbody style="width: 100%;">
+                                        <Virtualize Items="@(this.DataFiltered ?? new())" ItemSize="25">
+                                            <ItemContent>
+                                                <TablePreviewInner 
+                                                                    ItemData="@context"
+                                                                    ColumnsCount="@((this.TablesColumns?.Count() ?? 0) + 2)"
+                                                                    SendToParentSelectedItem="@(((Dictionary<TablesColumn, string>, OperationsType) selectedItem)
+                                                                                                => {this.SelectedItemData = selectedItem.Item1;
+                                                                                                    if(selectedItem.Item2 == OperationsType.update)
+                                                                                                        this.ShowEditForm = true;
+                                                                                                    else if(selectedItem.Item2 == OperationsType.delete)
+                                                                                                        this.ShowDeleteWindow = true;
+                                                                                                    })">
+                                                </TablePreviewInner>
+                                            </ItemContent>
+                                            <Placeholder>
+                                                <tr>
+                                                    <td colspan="@numVisibleColumns">
+                                                        Идет отрисовка табличной части ...
+                                                    </td>
+                                                </tr>
+                                            </Placeholder>
+                                        </Virtualize>
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="validation-message">Данных не обнаружено</div>
+                        }
+                    }
+                    else
+                    {
+                        <ProgressBar />
+                    }
+                }
+
+                @if(this.ShowEditForm)
+                {
+                    <ModalWindowWithEventCallback Title="Редактирование выбранного экземпляра"
+                                                  InvokeParentHandlerwithUpdParent="@(() => {  this.SelectedItemData = null;
+                                                                                               this.ShowEditForm = false; })">
+                        <EditFormIIdItem ItemData = "@this.SelectedItemData"
+                                         TableSetting = "@this.TableSetting"
+                                         IIdItems="@this.IIdItems"
+                                         SendToParent_OperationsResult="@(async(string mess) => { this.ShowMessage = true;
+                                                                                                  this.Title = "Результат редактирования выбранного экземпляра";
+                                                                                                  this.Message = mess ?? string.Empty;
+                                                                                                  await this.InitData();
+                                                                                                  this.ApplyFilters(); })">
+                        </EditFormIIdItem>
+                    </ModalWindowWithEventCallback>
+                }
+                @if(this.ShowDeleteWindow)
+                {
+                    <ModalWindowWithEventCallback Title="Удаление выбранного экземпляра"
+                                                  InvokeParentHandlerwithUpdParent="@(() => {  this.SelectedItemData = null;
+                                                                                               this.ShowDeleteWindow = false; })">
+                               @{
+                                var isActive = true;
+                                List<ButtonBaseClass> buttonBaseClassList = new();
+                                //
+                                ButtonBaseClass b1 = new();
+                                b1.CallbackToParent = (async () =>
+                                {
+                                    await this.DeleteItem();
+                                    this.ShowMessage = true;
+                                    this.Title = "Результат удаления выбранного экземпляра из базы данных";
+                                    this.StateHasChanged();
+                                });
+                                b1.LabelForButton = "Удалить";
+                                b1.IsActive = isActive;
+                                b1.TitleIfIsActive = "Кликните для удаления выбранного экземпляра из базы данных";
+                                b1.TitleIfIsNonActive = "";
+                                buttonBaseClassList.AddRange(new List<ButtonBaseClass> { b1 });
+                            }
+                            <div class="validation-message">
+                                Вы подтверждаете удаление выбранного экземпляра «@(this.TableSetting?.DisplayName ?? string.Empty)» из базы данных?
+                            </div>
+                            <ButtonContainer ButtonBaseClassList="@buttonBaseClassList"
+                                             WidthForButtonWrapper="15%">
+                            </ButtonContainer>
+                    </ModalWindowWithEventCallback>
+                }
+        </CascadingValue>
+
+        @*Важно, чтобы это окно шло в конце - по причине того, чтобы оно лежало поверх других окон с операциями, которые еще открыты*@
+        @if (this.ShowMessage)
+        {
+            <ModalWindowWithEventCallback Title=@this.Title
+                                          InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false; 
+                                                                                            this.ShowDeleteWindow = false;
+                                                                                            this.ShowEditForm = false;
+                                                                                            this.SelectedItemData = null;})">
+                <ResultOperation Devider="'!'"
+                                 ResList="null"
+                                 ResMessage="@this.Message">
+                </ResultOperation>
+            </ModalWindowWithEventCallback>
+        }
+    }
+    else
+    {
+        <ProgressBar />
+    }
+
+@code {
+    [CascadingParameter]
+    public NodePreview NodePreviewCascadingParameter { get; set; }
+
+    private Dictionary<TablesColumn, string> SelectedItemData { get; set; }
+
+    private bool ShowEditForm { get; set; }
+
+    private bool ShowDeleteWindow { get; set; }
+
+    private bool ContextMenuIsShow { get; set; } = false;
+
+    private List<(bool isShow, string className, string img)> ContextMenuClasses { get; set; }
+
+    public Type ItemsType{ get; set; }
+
+    public List<object> ObjItems{ get; set; }
+
+    public List<IId> IIdItems { get; set; }
+
+    public TableSettingView TableSetting { get; set; }
+
+    // Набор настроек столбцов таблицы
+    private List<TablesColumn> TablesColumns { get; set; }
+
+    // Набор настроек столбцов таблицы
+    private List<TablesColumn> TablesColumnsVisible { get; set; }
+
+    // Набор данных, отображаемых внутри таблицы
+    private List<Dictionary<TablesColumn, string>> Data { get; set; }
+
+    // Набор данных, отображаемых внутри таблицы  с учетом установленных фильтров
+    public List<Dictionary<TablesColumn, string>> DataFiltered { get; set; }
+
+    // Коллекция-словарь, где ключ - наименование свойства, значение - кортеж: наименование типа(ссылочный или значимый тип) + св-во строкового представления + коллекция значений
+    private Dictionary<string, (string valuesType, string displayProp, List<object> values)> Filters { get; set; }
+
+    // Коллекция-словарь отмеченных значений фильтров, где ключ - наименование свойства, значение - кортеж: наименование типа(ссылочный или значимый тип) + св-во строкового представления + коллекция значений
+    private Dictionary<string, (string valuesType, string displayProp, List<object> values)> FiltersSelected { get; set; }
+
+    // Коллекция-словарь название класса - коллекция значений
+    public Dictionary<string, List<IId>> FK_Values{ get; set; }
+
+    private void ClickByContextMenu(int index)
+        => this.ContextMenuClasses[index] = this.ContextMenuClasses[index].isShow
+                                                                                ?
+                                                                                (false, "absolute hidden", "/css/open-iconic/icon/sort-down-arrow.png")
+                                                                                :
+                                                                                (true, "absolute", "/css/open-iconic/icon/sort-up-arrow.png")
+                                                                                ;
+
+    /// <summary>
+    /// Метод для первоначальной инициализации компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.Message = string.Empty;
+    }
+
+    /// <summary>
+    /// Метод срабатывает каждый раз, когда родительский компонент обновляется и заново предоставляет каскадные параметры
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        await this.InitCollections();
+    }
+
+    /// <summary>
+    /// Метод для инициализации значений текущего компонента значениями из родительского
+    /// </summary>
+    private async Task InitCollections()
+    {
+        this.IsRender = false;
+        this.InitTableSettings();
+
+        if(this.TableSetting != null && !string.IsNullOrEmpty(this.TableSetting?.DBName))
+        {
+            this.InitItemsType();
+            this.InitColumns();
+            this.InitContextMenuClasses();
+            await this.Init_FK_Values();
+            await this.InitData();
+            this.InitIIdItems();
+            this.InitFilters();
+            this.ApplyFilters();
+            this.IsRender = true;
+        }
+
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    private void InitTableSettings() => this.TableSetting = this.NodePreviewCascadingParameter?.TableSetting ?? new();
+
+    /// <summary>
+    /// 
+    /// </summary>
+    private void InitItemsType() => this.ItemsType = this.reflService?.GetTypeByClassName(this.TableSetting.ClassName);
+
+    /// <summary>
+    /// 
+    /// </summary>
+    private void InitIIdItems() => this.IIdItems = this.ObjItems.ConvertObjToIIdItems(this.ItemsType);
+
+    /// <summary>
+    /// Метод для инициализации колонок табличной части компонента
+    /// </summary>
+    private void InitColumns()
+    {
+        if (!string.IsNullOrEmpty(this.TableSetting?.ColumnsSettings ?? string.Empty))
+        {
+            this.TablesColumns = JsonSerializer.Deserialize<List<TablesColumn>>(this.TableSetting?.ColumnsSettings ?? string.Empty) ?? new();
+            this.TablesColumnsVisible  = this.TablesColumns?.Where(_ => _.IsVisible)?.OrderBy(_ => _.SortOrder)?.ToList() ?? new();
+        }
+    }
+
+    /// <summary>
+    /// Метод для инициализации стилей контекстного  меню
+    /// </summary>
+    private void InitContextMenuClasses()
+    {
+        var num = 1;
+        this.ContextMenuClasses = new();
+        var countCol = this.TablesColumns?.Count;
+        while( num <= countCol)
+        {
+            this.ContextMenuClasses.Add((false, "absolute hidden", "/css/open-iconic/icon/sort-down-arrow.png"));
+            num++;
+        }
+    }
+
+    /// <summary>
+    /// Метод для инициализации коллекции вложенных классов (FK)
+    /// </summary>
+    /// <returns></returns>
+    private async Task Init_FK_Values()
+    {
+        this.FK_Values = new();
+        var fkTableCol = this.TablesColumns?.Where(_ => !string.IsNullOrEmpty(_.FK_ClassName))?.ToList() ?? new();
+
+        foreach(var fk in fkTableCol)
+        {
+            var classType = this.reflService?.GetTypeByClassName(fk.FK_ClassName) ?? null;
+            var classObjItems = await this.genericApi?.GetListObjItems(classType, this.Token);
+            var classIIdItems = classObjItems.ConvertObjToIIdItems(classType);
+            this.FK_Values.Add(fk.FK_ClassName, classIIdItems);
+        }
+    }
+
+    /// <summary>
+    /// Метод для инициализации коллекции данных, отображаемых внутри табличной части компонента
+    /// </summary>
+    /// <returns></returns>
+    private async Task InitData()
+    {
+        this.Data = new();
+
+        if (this.TableSetting != null && (this.TableSetting?.Id ?? 0) > 0)
+        {
+            this.ObjItems = (await this.genericApi?.GetListObjItems(this.ItemsType, this.Token)) ?? new();
+            if (this.ObjItems?.Count > 0 && this.TablesColumns?.Count > 0)
+            {
+                try
+                {
+                    foreach (var item in this.ObjItems)
+                    {
+                        var jsonItem = (JsonElement)item;
+                        Dictionary<TablesColumn, string> dataTr = new();
+                        foreach (var column in this.TablesColumns)
+                        {
+                            var proType = this.ItemsType.GetProperty(column.DBName).GetMethod.ReturnType;
+                            var prop = jsonItem.GetProperty(column.DBName);
+                            var dataProp = prop.GetStringValue(proType);
+                            dataTr.Add(column, dataProp);
+                        }
+
+                        this.Data.Add(dataTr);
+                    }
+                }
+                catch(Exception exc)
+                {
+                    var error = exc?.Message ?? string.Empty + exc?.InnerException?.Message ?? string.Empty;
+                    throw new Exception(error);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Метод для инициализации коллекции фильтров
+    /// </summary>
+    /// <returns></returns>
+    private void InitFilters()
+    {
+        this.Filters = new();
+
+        var filters = this.TablesColumns?.Where(_ => _.IsNeedFilter)?.ToList() ?? new();
+
+        if(filters.Count >  0)
+        {
+            foreach(var filter in filters)
+            {
+                // Если столбец - ссылка на экземпляр другого класса (внешний ключ)
+                if(!string.IsNullOrEmpty(filter.FK_ClassName))
+                {
+                    var classIIdItems = this.FK_Values[filter.FK_ClassName];
+
+                    if (classIIdItems != null)
+                    {
+                        var classObjItems = classIIdItems.ConvertIIdToObjItems();
+                        this.Filters.Add(filter.DBName, (filter.FK_ClassName, filter.FK_PropNameSelected, classObjItems));
+                    }
+                }
+                else
+                {
+                    List<string> values = new();
+                    this.Data.ForEach(x => values.Add(x.Keys.FirstOrDefault(y => y.FK_ClassName.Equals(filter.DBName)).DBName));
+                    List<object> valuesObj = new();
+                    values.ForEach(_ => valuesObj.Add((object)_));
+                    this.Filters.Add(filter.DBName, (null, filter.FK_PropNameSelected, valuesObj));
+                }
+            }
+        }
+
+        this.FiltersSelected = new(this.Filters);
+    }
+
+    /// <summary>
+    /// Метод для применения фильтров к коллекции с данными
+    /// </summary>
+    private void ApplyFilters()
+    {
+        this.DataFiltered = new();
+
+        // Если фильтры не установлены
+        if( this.FiltersSelected == null || this.FiltersSelected?.Count == 0)
+        {
+            this.DataFiltered = new List<Dictionary<TablesColumn, string>>(this.Data);
+            return;
+        }
+
+        foreach(var row in this.Data)
+        {
+            var isConditionDone = true;
+
+            foreach(var column in row)
+            {
+                if(!isConditionDone)
+                {
+                    continue;
+                }
+
+                var tablesColumn = column.Key;
+                if(tablesColumn.IsNeedFilter)
+                {
+                    foreach(var filter in this.FiltersSelected)
+                    {
+                        if(tablesColumn.DBName.Equals(filter.Key, StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            List<string> ids = new();
+                            foreach(var innerItem in filter.Value.values)
+                            {
+                                if (innerItem != null && innerItem.GetType().Equals(typeof(JsonElement)))
+                                {
+                                    var jsonElement = (JsonElement)innerItem;
+                                    var prop_Id = jsonElement.GetProperty("Id");
+                                    if(prop_Id.TryGetInt32(out var val_Id))
+                                    {
+                                        ids.Add(val_Id.ToString());
+                                    }
+                                }
+                                else
+                                {
+                                    var classType = this.reflService?.GetTypeByClassName(filter.Value.valuesType);
+                                    var itemStr = innerItem?.ToString() ?? String.Empty;
+                                    var item = JsonSerializer.Deserialize(itemStr, classType);
+                                    var prop_Id = ((IId)item).Id;
+                                    if(prop_Id > 0)
+                                    {
+                                        ids.Add(prop_Id.ToString());
+                                    }
+                                }
+                            }
+
+                            if(!CheckIsConditionDone(column.Value, ids))
+                            {
+                                isConditionDone = false;
+                                continue; // перейти к проверке след. строки
+                            }
+                        }
+                        else if(tablesColumn.DBName.Equals(filter.Key, StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            if(!CheckIsConditionDone(column.Value, filter.Value.values?.Select(_ => _.ToString())?.ToList() ?? new()))
+                            {
+                                isConditionDone = false;
+                                continue; // перейти к проверке след. строки
+                            }
+                        }
+                        else
+                        {
+                            continue; // перейти к след. фильтру
+                        }
+                    }
+                }
+                else
+                {
+                    continue; // перейти к проверке след.колонки
+                }
+            }
+
+            // Если все условия проверены - добавить строку в результирующую коллекцию
+            if(isConditionDone)
+            {
+                this.DataFiltered.Add(row);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Метод для выполнения проверки, выполняется ли условие
+    /// </summary>
+    /// <param name="val"></param>
+    /// <param name="filters"></param>
+    /// <returns></returns>
+    private bool CheckIsConditionDone(string val, List<string> filters) => filters?.Any(_ => _.Equals(val, StringComparison.InvariantCultureIgnoreCase)) ?? false;
+
+    /// <summary>
+    /// Метод для обновления коллекции - словаря с установленными фильтрами
+    /// </summary>
+    /// <param name="propName"></param>
+    /// <param name="items"></param>
+    /// <returns></returns>
+    private void UpdateFilters(string propName, Type typeName, string displayProp, List<IId> items)
+    {
+        this.FiltersSelected.Remove(propName);
+        List<object> objItems = new();
+
+        if(items != null)
+        {
+            objItems = items.ConvertIIdToObjItems();
+        }
+        else
+        {
+            objItems = this.FK_Values[typeName.Name].ConvertIIdToObjItems();
+        }
+
+        this.FiltersSelected.Add(propName, (valuesType: typeName.Name, displayProp: displayProp, values: objItems));
+
+        this.ApplyFilters();
+        this.StateHasChanged();
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    private async Task DeleteItem()
+    {
+        this.Message = string.Empty;
+        var idStr = this.SelectedItemData.FirstOrDefault(_ => _.Key.DBName.Equals("Id", StringComparison.InvariantCultureIgnoreCase)).Value;
+
+        if(Int32.TryParse(idStr, out int id))
+        {
+            var itemToDel = this.IIdItems.FirstOrDefault(_ => _.Id == id) ;
+            var resResp = await this.genericApi?.DelTItem<IId, ResponseBase>(itemToDel, this.Token);
+            this.Title = $"Результат удаления экземпляра типа «{this.TableSetting?.DisplayName ?? string.Empty}» из системы";
+
+            if(resResp != null)
+            {
+                this.Message = $"Операция успешно завершена! Экземпляр типа «{this.TableSetting?.DisplayName ?? string.Empty}» был успешно удален из системы! {resResp?.Result ?? string.Empty} ";
+                await this.InitData();
+                this.ApplyFilters();
+            }
+            else
+            {
+                this.Message = $"Возникла ошибка при попытке удаления экземпляра типа «{this.TableSetting?.DisplayName ?? string.Empty}» из системы. "+
+                               $"Подробности: {resResp.Result ?? string.Empty}";
+            }
+        }
+        else
+        {
+            this.Message = $"Возникла ошибка на уровне клиента при попытке удаления экземпляра типа «{this.TableSetting?.DisplayName ?? string.Empty}» из системы.";
+        }
+
+        this.ShowMessage = true; 
+    }
+ }
+

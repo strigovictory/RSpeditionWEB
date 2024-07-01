@@ -1,0 +1,269 @@
+﻿@inject AdminApi reflService
+@inherits ChildComponentBaseClass
+@inject NavigationManager navMan
+
+<h6>Настройки столбцов</h6>
+@if (this.IsRender)
+{
+    var column = (TablesColumn)Activator.CreateInstance(type: typeof(TablesColumn));
+    var label_DisplayName = column.GetType().GetDisplayAttributeValues(nameof(column.DisplayName)) ?? string.Empty;
+    var label_DBName = column.GetType().GetDisplayAttributeValues(nameof(column.DBName)) ?? string.Empty;
+    var label_FK_ClassName = column.GetType().GetDisplayAttributeValues(nameof(column.FK_ClassName)) ?? string.Empty;
+    var label_IsIdentity = column.GetType().GetDisplayAttributeValues(nameof(column.IsIdentity)) ?? string.Empty;
+    var label_IsVisible = column.GetType().GetDisplayAttributeValues(nameof(column.IsVisible)) ?? string.Empty;
+    var label_IsReadOnly = column.GetType().GetDisplayAttributeValues(nameof(column.IsReadOnly)) ?? string.Empty;
+    var label_IsNeedFilter = column.GetType().GetDisplayAttributeValues(nameof(column.IsNeedFilter)) ?? string.Empty;
+    var label_Index = column.GetType().GetDisplayAttributeValues(nameof(column.SortOrder)) ?? string.Empty;
+    var label_FK_PropNameSelected = column.GetType().GetDisplayAttributeValues(nameof(column.FK_PropNameSelected)) ?? string.Empty;
+
+            <div class="adapt_table scroll font-journal">
+                <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+                    <thead class="adapt_table_inner_thead">
+                <tr>
+                    <th data-label="№">
+                        №
+                    </th>
+                    <th data-label="@label_DisplayName">
+                        @label_DisplayName
+                    </th>
+                    <th data-label="@label_DBName">
+                        @label_DBName
+                    </th>
+                    <th data-label="@label_IsIdentity">
+                        @label_IsIdentity
+                    </th>
+                    <th data-label="@label_IsVisible">
+                        @label_IsVisible
+                    </th>
+                    <th data-label="@label_IsReadOnly">
+                        @label_IsReadOnly
+                    </th>
+                    <th data-label="@label_IsNeedFilter">
+                        @label_IsNeedFilter
+                    </th>
+                    <th data-label="@label_Index">
+                        @label_Index
+                    </th>
+                    <th data-label="@label_FK_ClassName">
+                        @label_FK_ClassName
+                    </th>
+                    <th data-label="@label_FK_PropNameSelected">
+                        @label_FK_PropNameSelected
+                    </th>
+                    <th data-label="Действия">
+                        Действия
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (this.TablesColumns != null && this.TablesColumns?.Count > 0)
+                {
+                    @for(var i = 0; i < this.TablesColumns.Count; i++)
+                    {
+                        var index = i + 1;
+                        var item = this.TablesColumns.ElementAt(i);
+                <tr>
+                    <td data-label="№">
+                        @index
+                    </td>
+                    <td data-label="@label_DisplayName">
+                        @(item?.DisplayName ?? string.Empty)
+                    </td>
+                    <td data-label="@label_DBName">
+                        @(item?.DBName ?? string.Empty)
+                    </td>
+                    <td data-label="@label_IsIdentity">
+                        @if (item?.IsIdentity ?? false)
+                        {
+                            <input type="checkbox" disabled checked />
+                        }
+                        else
+                        {
+                            <input type="checkbox" disabled />
+                        }
+                    </td>
+                    <td data-label="@label_IsVisible">
+                        @if (item?.IsVisible ?? false)
+                        {
+                            <input type="checkbox" disabled checked />
+                        }
+                        else
+                        {
+                            <input type="checkbox" disabled />
+                        }
+                    </td>
+                    <td data-label="@label_IsReadOnly">
+                        @if (item?.IsReadOnly ?? false)
+                        {
+                            <input type="checkbox" disabled checked />
+                        }
+                        else
+                        {
+                            <input type="checkbox" disabled />
+                        }
+                    </td>
+                    <td data-label="@label_IsNeedFilter">
+                        @if (item?.IsNeedFilter ?? false)
+                        {
+                            <input type="checkbox" disabled checked />
+                        }
+                        else
+                        {
+                            <input type="checkbox" disabled />
+                        }
+                    </td>
+                    <td data-label="@label_Index">
+                        @(item?.SortOrder ?? 0)
+                    </td>
+                    <td data-label="@label_FK_ClassName">
+                        @(item?.FK_ClassName ?? string.Empty)
+                    </td>
+                    <td data-label="@label_FK_PropNameSelected">
+                        @(item?.FK_PropNameSelected ?? string.Empty)
+                    </td>
+                    <td data-label="Действия">
+                        <button class="table-button"
+                                type="button"
+                                @onclick="@(() => { this.TablesColumnSelected = item;
+                                                                this.Show_Edit = true;
+                                                                this.StateHasChanged();
+                                                              })">
+                            Редактировать
+                        </button>
+                    </td>
+                </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="11">У таблицы @(this.TableSetting?.DBName ?? string.Empty) нет ни одной настройки столбцов</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (this.Show_Edit)
+    {
+        <ModalWindowWithEventCallback InvokeParentHandlerwithUpdParent="@(() => { this.Show_Edit = false; })"
+                                      Title="@($"Редактирование настроек столбца «{this.TablesColumnSelected?.DBName ?? string.Empty}» у таблицы «{this.TableSetting?.DBName ?? string.Empty}»")">
+            <ColumnsSettingsEdit InvokeParentHendlerAfterUpd="@(async(object item) => { this.Show_Edit = false;
+                                                                                         await this.ReactOnUpdatingInChild_TablesColumnsSettings(item);
+                                                                                       })"
+                                 InvokeParentHendlerCancel="@(() => { this.Show_Edit = false; })"
+                                 TablesColumnFromParent="@this.TablesColumnSelected">
+            </ColumnsSettingsEdit>
+        </ModalWindowWithEventCallback>
+    }
+}
+else
+{
+    <ProgressBar />
+}
+
+@code {
+    // Модель табличных настроек
+    [CascadingParameter]
+    public TableEdit TableEditCascadingParameter { get; set; }
+
+    private TableSettingView TableSetting { get; set; }
+
+    // Набор настроек столбцов таблицы
+    private List<TablesColumn> TablesColumns { get; set; }
+
+    private TablesColumn TablesColumnSelected { get; set; } = new();
+
+    private bool Show_Edit { get; set; } = false;
+
+    /// <summary>
+    /// Метод для первоначальной инициализации компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        this.InitModel();
+
+        this.IsRender = true;
+    }
+
+    /// <summary>
+    /// Метод для инициализации модели компонента
+    /// </summary>
+    private void InitModel()
+    {
+        this.TableSetting = this.TableEditCascadingParameter.TableSetting;
+
+        if (!string.IsNullOrEmpty(this.TableSetting?.ColumnsSettings ?? string.Empty))
+        {
+            this.ConvertJsonTextToTablesColumn();
+        }
+        else
+        {
+            this.TablesColumns = new();
+        }
+    }
+
+    /// <summary>
+    /// Метод срабатывает каждый раз, когда родительский компонент обновляется и заново предоставляет каскадные параметры
+    /// </summary>
+    /// <returns></returns>
+    protected async override Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        this.InitModel();
+    }
+
+    // Main methods
+    #region
+    /// <summary>
+    /// Метод для конвертации json в коллекцию экземпляров типа TablesColumn
+    /// </summary>
+    private void ConvertJsonTextToTablesColumn()
+    => this.TablesColumns = JsonSerializer.Deserialize<List<TablesColumn>>(this.TableSetting?.ColumnsSettings ?? string.Empty) ?? new();
+
+    /// <summary>
+    /// Метод для конвертации коллекции экземпляров типа TablesColumn в json
+    /// </summary>
+    private void ConvertTablesColumnToJsonText()
+        => this.TableSetting.ColumnsSettings = JsonSerializer.Serialize(this.TablesColumns.OrderBy(_ => _.SortOrder)) ?? string.Empty;
+
+    /// <summary>
+    /// Метод для выполнения операции над моделью в случае ее валидности
+    /// </summary>
+    private async Task ReactOnUpdatingInChild_TablesColumnsSettings(object column)
+    {
+        if (column != null && column is TablesColumn)
+        {
+            var updatedColumn = (TablesColumn)column;
+
+            // Заменить настройки обновленного столбца в коллекции на актуальные
+            var columnIndex = this.TablesColumns.FindIndex(_ => _.DBName.Equals(updatedColumn.DBName, StringComparison.InvariantCultureIgnoreCase));
+            this.TablesColumns[columnIndex] = updatedColumn;
+            this.ConvertTablesColumnToJsonText();
+
+            // Редактирование настроек таблицы в БД
+            var res = await this.reflService?.UpdateTableSetting(this.TableSetting, this.Token);
+
+            if (res != null)
+            {
+                if (this.InvokeParentHendlerAfterUpd.HasDelegate)
+                {
+                    await this.InvokeParentHendlerAfterUpd.InvokeAsync(res?.Item ?? new());
+                }
+            }
+            else
+            {
+                if (this.InvokeParentHendlerCancel.HasDelegate)
+                {
+                    await this.InvokeParentHendlerCancel.InvokeAsync();
+                }
+            }
+        }
+    }
+
+    #endregion
+}
+

@@ -1,0 +1,132 @@
+﻿@inherits ComponentBaseClass
+
+<label_small_black>
+    @(LabelForYear ?? string.Empty)
+</label_small_black>
+<select @bind="@this.YearInt"
+        size="@this.SizeSelect">
+    @if (this.IsNeedSelectNull.HasValue)
+    {
+        <option value="-1">
+            Год
+        </option>
+    }
+    @foreach (var year in this.YearList)
+    {
+        string name = year.ToString();
+        if (year == this.yearInt)
+        {
+            <option value="@year" selected>
+                @name
+            </option>
+        }
+        else
+        {
+            <option value="@year">
+                @name
+            </option>
+        }
+    }
+</select>
+
+@code {
+    [CascadingParameter]
+    public ComponentBaseClass ComponentBaseClassCascadingParameter { get; set; }
+
+    [Parameter]
+    public bool? IsNeedSelectNull { get; set; }
+
+    // Делегат обратного вызова для передачи в родительский компонент выбранного года
+    [Parameter]
+    public EventCallback<int> InvokeParentHendler { get; set; }
+
+    [Parameter]
+    public string LabelForYear { get; set; }
+
+    [Parameter]
+    public List<int> YearList { get; set; } = new();
+
+    [Parameter]
+    public int YearDefault
+    {
+        get => yearInt;
+        set => yearInt = value;
+    }
+
+    public delegate int GetIntDelegate();
+
+    [Parameter]
+    public GetIntDelegate GetYear { get; set; }
+
+    // Текущее значение атрибута Size тега Select
+    private int SizeSelect { get; set; }
+
+    // Порядковый номер месяца в рамках года
+    private int yearInt;
+    public int YearInt
+    {
+        get
+        {
+            return yearInt;
+        }
+        set
+        {
+            yearInt = value;
+            Func<Task> f = async () =>
+            {
+                await this.ProgressBarOpen();
+                await this.InvokeParentHendler.InvokeAsync(value);
+                await this.ProgressBarClose();
+            };
+            f();
+        }
+    }
+
+    // Переопределенные события жизненного цикла компонента
+    #region
+    /// <summary>
+    /// Метод задает параметры, предоставляемые родительским элементом компонента в дереве отрисовки или из параметров маршрута.
+    /// </summary>
+    /// <param name="parameters">Параметры, предоставляемые родительским элементом компонента в дереве отрисовки или из параметров маршрута</param>
+    /// <returns></returns>
+    public override async Task SetParametersAsync(ParameterView parameters)
+    {
+        if (parameters.TryGetValue<int>(nameof(this.SizeSelect), out var valueSizeSelect))
+        {
+            if (valueSizeSelect == 0)
+            {
+                this.SizeSelect = 1;
+            }
+        }
+
+        if (parameters.TryGetValue<string>(nameof(this.LabelForYear), out var valueLabelForYear))
+        {
+            if (valueLabelForYear == null)
+            {
+                this.LabelForYear = "Год";
+            }
+        }
+
+        await base.SetParametersAsync(parameters);
+    }
+
+    /// <summary>
+    /// Асинхронный метод срабатывает при первоначальной отрисовке компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        yearInt = GetYear?.Invoke() ?? YearDefault;
+    }
+
+    new private async Task ProgressBarOpen() => await this.ComponentBaseClassCascadingParameter.ProgressBarOpenAsync();
+
+    new private async Task ProgressBarClose() => await this.ComponentBaseClassCascadingParameter.ProgressBarCloseAsync();
+    #endregion
+}

@@ -1,0 +1,448 @@
+﻿@inject AdminApi reflService
+@inherits ComponentBaseClass
+@inject NavigationManager navMan
+
+
+@if (this.IsRender)
+{
+    var label = this.OperationsType == OperationsType.create ? "Регистрация новых табличных натсроек" : "Редактирование выбранных табличных натроек";
+    var label_DisplayName = this.TableSetting.GetType().GetCustomDisplayValues(nameof(this.TableSetting.DisplayName)).Item2 ?? string.Empty;
+    var label_SortOrder = this.TableSetting.GetType().GetCustomDisplayValues(nameof(this.TableSetting.SortOrder)).Item2 ?? string.Empty;
+    var label_ModuleId = this.TableSetting.GetType().GetCustomDisplayValues(nameof(this.TableSetting.ModuleContainerId)).Item2 ?? string.Empty;
+    var label_DBName = this.TableSetting.GetType().GetCustomDisplayValues(nameof(this.TableSetting.DBName)).Item2 ?? string.Empty;
+    var label_DBSchemaName = this.TableSetting.GetType().GetCustomDisplayValues(nameof(this.TableSetting.DBSchemaName)).Item2 ?? string.Empty;
+
+    <p class="my-h1 inner-light-shadow">@label</p>
+    @*Форма для создания/редактирования модуля-контейнера*@
+    <div class="form">
+        <EditForm Model="@this.TableSetting"
+                  OnValidSubmit="@this.HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <input type="hidden" @bind-value="this.TableSetting.Id" />
+            <input type="hidden" @bind-value="this.TableSetting.ChangedDate" />
+            <input type="hidden" @bind-value="this.TableSetting.ChangedUsername" />
+            @*Порядок следования*@
+            <div class="form_label">
+                <label>@label_SortOrder</label>
+            </div>
+            <div class="form-group">
+                <InputNumber @bind-Value="@this.TableSetting.SortOrder" />
+                <ValidationMessage For="() => this.TableSetting.SortOrder" />
+            </div>
+            @* Выбор модуля*@
+            @{
+                ModuleContainerView moduleItem = new();
+                var typemoduleItem = moduleItem.GetType();
+                var propsModuleItem = new List<PropertyInfo> { typemoduleItem.GetProperty(nameof(moduleItem.Name)) };
+                var textPropModuleItem = typemoduleItem.GetProperty(nameof(moduleItem.Name));
+            }
+            <div class="form_label">
+                <label>@label_ModuleId</label>
+            </div>
+            <div class="filters_center">
+                <div>
+                    <SearchSingleTItem IIdItems="@(this.ModuleContainers?.Cast<IId>()?.ToList() ?? new())"
+                                       PropertiesInfoForSearch="@propsModuleItem"
+                                       ShowLabel="false"
+                                       TextProperty="@textPropModuleItem"
+                                       LabelForSearch="@label_ModuleId"
+                                       Placeholder="@label_ModuleId"
+                                       MinSizeSelect="2"
+                                       MaxSizeSelect="7"
+                                       IIdOuterInitParameter="@(this.ModuleContainers?.FirstOrDefault(_ => _.Id == (this.TableSetting?.ModuleContainerId ?? 0)))"
+                                       SendToParentSelectedIIdItem="@((IId item)
+                                                                                => {
+                                                                                        if(item != null && item is ModuleContainerView)
+                                                                                        {
+                                                                                            this.TableSetting.ModuleContainerId = item?.Id ?? 0;
+                                                                                        }
+                                                                                        else
+                                                                                        {
+                                                                                            this.TableSetting.ModuleContainerId = 0;
+                                                                                        }
+                                                                                })">
+                    </SearchSingleTItem>
+                    <ValidationMessage For="() => this.TableSetting.ModuleContainerId" />
+                </div>
+            </div>
+            @* Выбор схемы*@
+            @{
+                var schemaItem = new SchemaItem();
+                var typeSchemaItem = schemaItem.GetType();
+                var propsSchemaItem = new List<PropertyInfo> { typeSchemaItem?.GetProperty(nameof(schemaItem.Id)) };
+                var textPropSchemaItem = typeSchemaItem.GetProperty(nameof(schemaItem.Id));
+                var schemaFound = this.Schemas?.FirstOrDefault(_ => _.Id.Equals(this.TableSetting?.DBSchemaName ?? string.Empty, StringComparison.InvariantCultureIgnoreCase));
+                var initParamSchema = schemaFound is not null ? schemaFound as IIdString : null;
+            }
+            <div class="form_label">
+                <label>@label_DBSchemaName</label>
+            </div>
+            <div class="filters_center">
+                <div>
+                    <SearchIIDStringItem @ref="this.SearchIIDStringItem_ref_schema"
+                                         IIdInitParameter="@initParamSchema"
+                                         IIdItems="@(this.Schemas?.Cast<IIdString>()?.ToList() ?? new())"
+                                         PropertiesInfoForSearch="@propsSchemaItem"
+                                         TextProperty="@textPropSchemaItem"
+                                         LabelForSearch=""
+                                         Placeholder="@label_DBSchemaName"
+                                         MaxSizeSelect="3"
+                                         ShowSelecteditems="false"
+                                         IsMultiple="false"
+                                         SendToParent_FoundAndSelectedIIdItems="@(async (List<IIdString> items)
+                                                                                                           => {
+                                                                                                               if (items == null || items?.Count == 0)
+                                                                                                               {
+                                                                                                                   this.TableSetting.DBSchemaName = string.Empty;
+                                                                                                               }
+                                                                                                               else if (items?.Count > 0)
+                                                                                                               {
+                                                                                                                   var item = items?.FirstOrDefault() as SchemaItem;
+                                                                                                                   this.TableSetting.DBSchemaName = item?.Id ?? string.Empty;
+                                                                                                                   this.InitTables();
+                                                                                                                   // когда пользователь выбирают новую схему - нужно обновить список с таблицами
+                                                                                                                   this.SearchIIDStringItem_ref_table.IIdItems = this.Tables?.Cast<IIdString>()?.ToList() ?? new();
+                                                                                                                   this.SearchIIDStringItem_ref_table.FirstInitializeCollection();
+                                                                                                               }
+                                                                                                           })"
+                                         CallParentToReceiveIIdItems="@(async () => { await this.InitSchemasTables(); })">
+                    </SearchIIDStringItem>
+                    <ValidationMessage For="() => this.TableSetting.DBSchemaName" />
+                </div>
+            </div>
+            @* Выбор таблицы*@
+            @{
+                var tableItem = new TableItem();
+                var typeTableItem = tableItem.GetType();
+                var propsTableItem = new List<PropertyInfo> { typeTableItem?.GetProperty(nameof(tableItem.Id)) };
+                var textPropTableItem = typeTableItem.GetProperty(nameof(tableItem.Id));
+                var tableFound = this.Tables?.FirstOrDefault(_ => _.DbName.Equals(this.TableSetting?.DBName ?? string.Empty, StringComparison.InvariantCultureIgnoreCase));
+                var initParamTable = tableFound is not null ? tableFound as IIdString : null;
+            }
+            <div class="form_label">
+                <label>@label_DBName</label>
+            </div>
+            <div class="filters_center">
+                <div>
+                    <SearchIIDStringItem @ref="this.SearchIIDStringItem_ref_table"
+                                         IIdInitParameter="@initParamTable"
+                                         IIdItems="@(this.Tables?.Cast<IIdString>()?.ToList() ?? new())"
+                                         PropertiesInfoForSearch="@propsTableItem"
+                                         TextProperty="@textPropTableItem"
+                                         LabelForSearch=""
+                                         Placeholder="@label_DBName"
+                                         MaxSizeSelect="10"
+                                         ShowSelecteditems="false"
+                                         IsMultiple="false"
+                                         SendToParent_FoundAndSelectedIIdItems="@(async (List<IIdString> items)
+                                                                                                           => {
+                                                                                                               if (items == null || items?.Count == 0)
+                                                                                                               {
+                                                                                                                   this.TableSetting.ClassName = string.Empty;
+                                                                                                                   this.TableSetting.DBName = string.Empty;
+                                                                                                               }
+                                                                                                               else if (items?.Count > 0)
+                                                                                                               {
+                                                                                                                   var item = items?.FirstOrDefault() as TableItem;
+                                                                                                                   this.TableSetting.ClassName = item?.ClassName ?? string.Empty;
+                                                                                                                   this.TableSetting.DBName = item?.DbName ?? string.Empty;
+                                                                                                                   this.TableSetting.DisplayName = Activator
+                                                                                                                                                                        .CreateInstance(typeof(TableSettingView)
+                                                                                                                                                                                                            .Assembly
+                                                                                                                                                                                                            .GetTypes()?
+                                                                                                                                                                                                            .ToList()?
+                                                                                                                                                                                                            .FirstOrDefault(_ => _.Name.Equals(item?.ClassName ?? string.Empty)))?
+                                                                                                                                                                                                            .GetType()
+                                                                                                                                                                                                            .GetCustomDisplayValues()
+                                                                                                                                                                                                            .FirstOrDefault()
+                                                                                                                                                                                                            ??
+                                                                                                                                                                                                            string.Empty
+                                                                                                                                                                                                            ;
+                                                                                                               }
+                                                                                                           })"
+                                         CallParentToReceiveIIdItems="@(async () => { this.InitTables(); })">
+                    </SearchIIDStringItem>
+                    <ValidationMessage For="() => this.TableSetting.DBName" />
+                </div>
+            </div>
+            @*Наименование*@
+            <div class="form_label">
+                <label>@label_DisplayName</label>
+            </div>
+            <div class="form-group">
+                <InputTextArea @bind-Value="@this.TableSetting.DisplayName" />
+                <ValidationMessage For="() => this.TableSetting.DisplayName" />
+            </div>
+            <div class="form-group">
+                <div class="validation-message">@this.Message</div>
+                <div class="form-group">
+                    <button type="submit" class="my-btn">Сохранить</button>
+                    <button type="button" class="my-btn" @onclick="@(() => {this.InitModel(); })">Отменить</button>
+                </div>
+            </div>
+            @if(this.OperationsType == OperationsType.update)
+            {
+                <div class="form-group">
+                    <button type="button" class="my-btn" @onclick="@(async() => { await this.DeleteTableSettings(); })">Удалить табличные настройки</button>
+                </div>
+            }
+        </EditForm>
+    </div>
+
+    @if (this.OperationsType != OperationsType.create)
+    {
+        @*Табличная часть документа*@
+        <CascadingValue Value="this">
+            <TablesColumnsSettings>
+            </TablesColumnsSettings>
+        </CascadingValue>
+    }
+
+    @*Модальное окно для отображения результата операции или отображения предупреждения об ошибке*@
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                      InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false;
+                                                                                    if (this.NeedNavigateToReturnUrl)
+                                                                                        this.navMan?.NavigateTo(this.ReturnUrl, true);})">
+            <ResultOperation Devider="'!'"
+                             ResList="null"
+                             ResMessage="@this.Message">
+            </ResultOperation>
+        </ModalWindowWithEventCallback>
+    }
+}
+else
+{
+    <ProgressBar />
+}
+
+@code {
+    // Proprties
+    #region
+    [CascadingParameter]
+    public NodeEdit NodeEditCascadingParameter { get; set; }
+
+    class SchemaItem : IIdString
+    {
+        public string Id { get; set; }
+    }
+
+    // Модель табличных настроек
+    public TableSettingView TableSetting => this.NodeEditCascadingParameter?.TableSetting ?? new();
+
+    // Коллекция всех типов классов из заданной сборки, к которым применен табличный атрибут, значение схемы которого равно заданному
+    private List<Type> TablesTypes { get; set; }
+
+    // Коллекция всех наименований классов из заданной сборки, к которым применен табличный атрибут, значение схемы которого равно заданному
+    private List<TableItem> Tables { get; set; }
+
+    // Коллекция модулей-контейнеров из БД
+    private List<ModuleContainerView> ModuleContainers { get; set; }
+
+    // Коллекция схем таблиц в БД
+    private List<SchemaItem> Schemas { get; set; }
+
+    private SearchIIDStringItem SearchIIDStringItem_ref_schema { get; set; }
+    private SearchIIDStringItem SearchIIDStringItem_ref_table { get; set; }
+
+    // Показывает, компонент используется для создания новой модели или редактирования старой
+    private OperationsType OperationsType { get; set; }
+    #endregion
+
+    // Initializing methods
+    #region
+    /// <summary>
+    /// Метод для первоначальной инициализации компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.Message = string.Empty;
+        await this.InitCollections();
+        this.InitModel(); // метод должен вызываться после инициализации коллекций
+        this.IsRender = true;
+    }
+    
+        /// <summary>
+    /// Метод срабатывает каждый раз, когда родительский компонент обновляется и заново предоставляет каскадные параметры
+    /// </summary>
+    /// <returns></returns>
+    protected async override Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        this.InitModel();
+    }
+
+    /// <summary>
+    /// Метод для иницализации коллекций компонента
+    /// </summary>
+    private async Task InitCollections()
+    {
+        await this.InitSchemasTables();
+        this.InitTables();
+        this.InitModules();
+    }
+
+    /// <summary>
+    /// Метод для инициализации модели компонента
+    /// </summary>
+    private void InitModel()
+    {
+        this.OperationsType = this.TableSetting?.Id == 0 ? OperationsType.create : OperationsType.update;
+        this.FillEditFormFirstData();
+    }
+
+    /// <summary>
+    /// Метод для заполнения формы первоначальными данными
+    /// </summary>
+    private void FillEditFormFirstData()
+    {
+        this.TableSetting.ChangedDate = DateTime.Now;
+        this.TableSetting.ChangedUsername = this.User ?? string.Empty;
+
+        if (this.OperationsType == OperationsType.create)
+        {
+            this.TableSetting.DBName = string.Empty;
+            this.TableSetting.ClassName = string.Empty;
+            this.TableSetting.DBSchemaName = this.Schemas?.FirstOrDefault(_ => _.Id.Equals(Enum.GetName(SchemaName.dbo), StringComparison.InvariantCultureIgnoreCase))?.Id ?? string.Empty;
+            this.TableSetting.SortOrder = 1;
+        }
+    }
+
+    /// <summary>
+    /// Метод для инициализации коллекции схем в БД
+    /// </summary>
+    private async Task InitSchemasTables()
+    {
+        this.Schemas = new();
+        (await this.reflService?.GetSchemaNames(this.Token))?
+                                                            .ForEach(_ => this.Schemas?.Add(
+                                                                                                    new SchemaItem
+                                                                                                    {
+                                                                                                        Id = _?.Trim() ?? string.Empty
+                                                                                                    }
+                                                                                                 )
+                                                                    );
+    }
+
+    /// <summary>
+    /// Метод для инициализации типов  для выбора таблицы в БД
+    /// </summary>
+    private void InitTables()
+    {
+        this.Tables = new();
+        this.TablesTypes = this.reflService?
+                                              .GetAllTypesWithTableAttr(Assembly.GetAssembly(typeof(TableSettingView)),
+                                                                        this.TableSetting?.DBSchemaName ?? Enum.GetName(SchemaName.dbo))
+                                              ??
+                                              new()
+                                              ;
+
+        this.TablesTypes?
+                           .ForEach(_ => this.Tables.Add(
+                                                            new TableItem
+                                                            {
+                                                                Id = _?.Name ?? string.Empty,
+                                                                ClassName = _?.Name,
+                                                                DbName = ((TableAttribute)_?.GetCustomAttribute(typeof(TableAttribute)))?.Name ?? string.Empty,
+                                                                DBSchemaName = ((TableAttribute)_?.GetCustomAttribute(typeof(TableAttribute)))?.Schema ?? string.Empty
+                                                            }
+                                                        )
+                           );
+    }
+
+    /// <summary>
+    /// Метод для инициализации модулей-контейнеров
+    /// </summary>
+    private void InitModules() => this.ModuleContainers = this.NodeEditCascadingParameter?.Modules ?? new();
+    #endregion
+
+    // Main methods
+    #region
+    /// <summary>
+    /// Метод для выполнеия операции над моделью в случае еге валидности
+    /// </summary>
+    private async void HandleValidSubmit()
+    {
+        // 1 - Проверить, валидна модель или нет
+        var isValid = this.TableSetting?.CheckModelIsValid();
+        var resValid = isValid?.Item1 ?? false;
+        if(!resValid)
+        {
+            this.Message = $"Внесены некорректные данные. {(isValid?.Item2 ?? new()).ItemsToString("! ")}";
+            Title = "Предупреждение";
+            this.ShowMessage = true;
+            this.StateHasChanged();
+            return;
+        }
+
+        if (this.OperationsType == OperationsType.create)
+        {
+            var res = await this.reflService?.CreateTableSetting(this.TableSetting, this.Token);
+
+            this.Message = res?.Result;
+
+            if (res == null)
+            {
+                this.Title = "Результат выполнения операции";
+                this.NeedNavigateToReturnUrl = true;
+            }
+            else
+            {
+                this.Title = "Ошибка при выполнении операции";
+            }
+        }
+        else if (this.OperationsType == OperationsType.update)
+        {
+            var res = await this.reflService?.UpdateTableSetting(this.TableSetting, this.Token);
+
+            this.Message = res?.Result;
+
+            if (res == null)
+            {
+                this.Title = "Результат выполнения операции";
+                this.NeedNavigateToReturnUrl = true;
+            }
+            else
+            {
+                this.Title = "Ошибка при выполнении операции";
+            }
+        }
+        else if (this.OperationsType == OperationsType.delete)
+        {
+
+        }
+
+        this.ShowMessage = true;
+        this.StateHasChanged();
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    private async Task DeleteTableSettings()
+    {
+        var res = await this.reflService?.DeleteTableSetting(this.TableSetting?.Id ?? 0, this.Token);
+        this.Message = res?.Result ?? String.Empty;
+
+        if (res == null)
+        {
+            this.Title = "Результат выполнения операции";
+            this.ReturnUrl = $"{Path.Combine(this.navMan?.BaseUri, "NodePreview")}";
+            this.NeedNavigateToReturnUrl = true;
+        }
+        else
+        {
+            this.Title = "Ошибка при выполнении операции";
+        }
+
+        this.ShowMessage = true;
+        this.StateHasChanged();
+    }
+
+    #endregion
+}

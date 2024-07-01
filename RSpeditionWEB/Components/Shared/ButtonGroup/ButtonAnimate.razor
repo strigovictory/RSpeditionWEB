@@ -1,0 +1,20 @@
+﻿<div class="container" id="container">
+    <div class="buttons">
+        <div style="clear:both"></div>
+        <div class="but2">
+            <span class="title">@TitleButton</span>
+            <span class="extra"><span> @TextOnButton</span></span>
+            <span class="icon"></span>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public string TitleButton { get; set; }
+
+    [Parameter]
+    public string TextOnButton { get; set; }
+}
+

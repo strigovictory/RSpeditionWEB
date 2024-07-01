@@ -1,0 +1,143 @@
+﻿@page "/GPSTrackersCharts"
+@inject IJSRuntime js
+@inherits ScaffoldChartBase<int>
+
+<CascadingValue Value="@this">
+    <div style="text-align: center;">
+        <p class="my-h1 inner-light-shadow">@this.Title</p>
+    </div>
+    <br /> 
+    @if (this.IsRender)
+    {
+        <ScaffoldChart T="int" 
+                       @ref="@this.ScaffoldChartRef" />
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка ..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    [CascadingParameter]
+    public GPSTrackers GPSTrackersCascadingParameter { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.Title = "Статистика по GPS-трекерам";
+    }
+
+    protected override async Task InitChartModel()
+    => this.ChartModel = this.ChartKind switch
+    {
+        ChartKindPlotly.funnel or ChartKindPlotly.area => this.InitPlotlyChartGroup(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line 
+        when this.ChartsParameters.CategoryName == "Подразделение" => this.InitPlotlyChartSimple_ByDivision(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line 
+        when this.ChartsParameters.CategoryName == "Местонахождение" => this.InitPlotlyChartSimple_ByLocation(),
+        _ => this.InitPlotlyChartGroup()
+    };
+
+    private PlotlyChartBase<int> InitPlotlyChartGroup()
+    {
+        var temp = GetDataValues_ByLocationByDivisionByLocation();
+        var res = new PlotlyChartGroup<int>
+        {
+            ChartName = this.ChartsParameters.ObjectName,
+            GroupsNames = temp.groupsNames,
+            DataValues = temp.values,
+            DataNames = temp.names
+        };
+
+        return res;
+    }
+
+    private (List<string> groupsNames, List<string> names, List<List<int>> values) GetDataValues_ByLocationByDivisionByLocation()
+    {
+        List<string> groupsNames = new();
+        List<string> dataNames = new();
+        List<List<int>> values = new();
+
+        var groupedItems_byDiv = this.GPSTrackersCascadingParameter?
+                                                                  .GpsTrackers?
+                                                                  .GroupBy(_ => _.DivisionName)?
+                                                                  .OrderBy(_ => _.Key)?
+                                                                  .Select(_ => new
+                                                                  {
+                                                                      divisionName = _.Key,
+                                                                      simCards = _.ToList()
+                                                                  })
+                                                                  ;
+
+        groupsNames = groupedItems_byDiv?.Select(_ => _.divisionName)?.ToList() ?? new();
+        dataNames = this.GPSTrackersCascadingParameter?
+                                                    .GpsTrackers?
+                                                                  .GroupBy(_ => _.LocationName)?
+                                                                  .OrderByDescending(_ => _.Count())?
+                                                                  .Select(_ => _.Key)?
+                                                                  .ToList()
+                                                                  ??
+                                                                  new()
+                                                                  ;
+
+        var groupedItems_byDivByLoc = groupedItems_byDiv?.Select(x => x.simCards?.GroupBy(y => y.LocationName)?.OrderByDescending(_ => _.Count()));
+
+        values = groupedItems_byDivByLoc?.Select(_ => _.Select(y => (y.Count()))?.ToList())?.ToList();
+
+        return (groupsNames, dataNames, values);
+    }
+
+    private PlotlyChartBase<int> InitPlotlyChartSimple_ByLocation()
+        => new PlotlyChartSimple<int>
+        {
+            ChartName = this.ChartsParameters.ObjectName,
+            DataValues = this.GetDataValues_ByLocation().values ?? new(),
+            DataNames = this.GetDataValues_ByLocation().names ?? new()
+        };
+
+    private (List<string> names, List<int> values) GetDataValues_ByLocation()
+    {
+        List<string> names = new();
+        List<int> values = new();
+
+        var groupedItems = this.GPSTrackersCascadingParameter?.GpsTrackers?.GroupBy(_ => _.LocationName)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key)?.ToList() ?? new();
+        values = groupedItems?.Select(x => x.Count())?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    private PlotlyChartBase<int> InitPlotlyChartSimple_ByDivision()
+        => new PlotlyChartSimple<int>
+        {
+            ChartName = this.ChartsParameters.ObjectName,
+            DataValues = this.GetDataValues_ByDivision().values ?? new(),
+            DataNames = this.GetDataValues_ByDivision().names ?? new()
+        };
+
+    private (List<string> names, List<int> values) GetDataValues_ByDivision()
+    {
+        List<string> names = new();
+        List<int> values = new();
+
+        var groupedItems = this.GPSTrackersCascadingParameter?.GpsTrackers?.GroupBy(_ => _.DivisionName)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key)?.ToList() ?? new();
+        values = groupedItems?.Select(x => x.Count())?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    protected override List<string> Init_ObjectsNames()
+        => new List<string> { "Количество GPS-трекеров" };
+
+    protected override List<string> Init_CategoriesNames()
+        => new List<string> { "Местонахождение", "Подразделение" };
+
+    protected override List<string> Init_SubCategoriesNames()
+        => new List<string> { "Местонахождение", "Подразделение" };
+
+}

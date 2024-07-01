@@ -1,0 +1,246 @@
+﻿@*Компонент для загрузки файлов*@
+@inherits CSSClassFromParent 
+@inject IJSRuntime js
+
+<CascadingValue Value="@this">
+    @{
+        var fileNameSelected = !string.IsNullOrEmpty(this.FileName) ? this.FileName : "Файл";
+        var fileNameLenth = fileNameSelected.Length;
+        var trimmedFileName = fileNameLenth > 20 ? 20 : fileNameLenth;
+        var btnLabel = !string.IsNullOrEmpty(this.ICSSClassFromParent.ClassForUploadForm) || string.IsNullOrEmpty(this.FileName)
+        ?
+        "Данные не валидны"
+        :
+        "Обработать файл: «" + (this.FileName?.Substring(0, trimmedFileName) ?? string.Empty) + "...»"
+        ;
+    }
+    <div @ref="this.DropZoneRef"
+         class="drop-zone">
+        <p>Перетащите файл в эту область или выберите его из дерева каталогов</p>
+    </div>
+    <div class="InputFileContainer">
+        <div class="InputFileWrapper">
+            <div class="InputFileLabel">
+                <p>@fileNameSelected</p>
+            </div>
+            <InputFile OnChange="@((InputFileChangeEventArgs e) => this.OnChangeInputFile(e))"
+                       @ref="this.InputFileElement"
+                       multiple
+                       style="position: absolute;
+                       left: 0;
+                       top: 0;
+                       height: 50px;
+                       width: 100%;
+                       opacity: 0;
+                       cursor: pointer;
+                       top: -30px;
+                       height: calc(100% + 30px);" />
+        </div>
+    </div>
+    <div class="uploud_form_parent">
+        <div class="uploud_form_holder">
+            @if(IsUserHasFuelRoleInHierarchy(FuelRoles.Fuel_Provisioner))
+            {
+                <input class="@this.ICSSClassFromParent.ClassForUploadForm"
+                       type="image"
+                       src="/css/open-iconic/icon/upload_data.png"
+                       title="@btnLabel"
+                @onclick="@(async() => { if(string.IsNullOrEmpty(this.ICSSClassFromParent.ClassForUploadForm) && this.CallParentToStartOperation.HasDelegate)
+                                                await this.CallParentToStartOperation.InvokeAsync(); })" />
+            }
+        </div>
+        <div class="uploud_form_holder">
+            <input type="image"
+                   src="/css/open-iconic/icon/cancel_data.png"
+                   title="Очистить файл"
+                   @onclick="@(async() => {if(this.SendToParentSelectedFile.HasDelegate)
+                                           {
+                                                this.FilePath = string.Empty;
+                                                await this.SendToParentSelectedFile.InvokeAsync(null); 
+                                           }
+                                          })" />
+        </div>
+    </div>
+
+    @if (this.ShowModalProgressBar)
+    {
+        <ProgressBar />
+    }
+</CascadingValue>
+
+
+@code {
+    #region // Props
+    [Parameter]
+    public int MaxAllowedFiles { get; set; } = 1;
+
+    // Максимальный размер загружаемого файла в bytes
+    [Parameter]
+    public long MaxFilesSize { get; set; } = 5242880;
+
+    [Parameter]
+    public EventCallback<string> SendToParentSelectedFile { get; set; }
+
+    [Parameter]
+    public EventCallback CallParentToStartOperation { get; set; }
+
+    [Parameter]
+    public EventCallback<string> SendWarningMessageToParent { get; set; }
+
+    private ElementReference DropZoneRef { get; set; }
+
+    private InputFile InputFileElement { get; set; }
+
+    private string FilePath { get; set; }
+
+    private string FileName => string.IsNullOrEmpty(this.FilePath) ? string.Empty : $"{Path.GetFileName(this.FilePath)}";
+    #endregion
+
+    public override async Task SetParametersAsync(ParameterView parameters)
+    {
+        if (parameters.TryGetValue<int>(nameof(this.MaxAllowedFiles), out var value_MaxAllowedFiles))
+        {
+            if (value_MaxAllowedFiles == 0)
+            {
+                this.MaxAllowedFiles = 1;
+            }
+        }
+
+        if (parameters.TryGetValue<long>(nameof(this.MaxFilesSize), out var value_MaxFilesSize))
+        {
+            if (this.MaxFilesSize == 0)
+            {
+                this.MaxAllowedFiles = 5242880; // 5Мб
+            }
+        }
+        await base.SetParametersAsync(parameters);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.CleanFileStorage();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await this.js.InvokeVoidAsync("initializeFileDropZone", this.DropZoneRef, this.InputFileElement.Element);
+    }
+
+    private async Task OnChangeInputFile(InputFileChangeEventArgs e)
+    {
+        var upload = false;
+        if (e?.FileCount <= this.MaxAllowedFiles)
+        {
+            // Файлы прикрепленные к форме
+            var fileslist = e.GetMultipleFiles(this.MaxAllowedFiles) ?? new List<IBrowserFile>();
+            var file = fileslist?.FirstOrDefault(_ => _ is not null);
+
+            if (file.Size > this.MaxFilesSize)
+            {
+                this.FilePath = string.Empty;
+                if (this.SendWarningMessageToParent.HasDelegate)
+                    await this.SendWarningMessageToParent.InvokeAsync($"Размер загруженного файла {file.Name} превышает допустимый размер {String.Format("{0:N}", this.MaxFilesSize / 1024)} " +
+                                                                      $"на {String.Format("{0:N}", ((file.Size - this.MaxFilesSize) / 1024))} КБ!");
+                if (this.SendToParentSelectedFile.HasDelegate)
+                    await this.SendToParentSelectedFile.InvokeAsync(null);
+            }
+            else
+            {
+                this.FilePath = Path.Combine("./wwwroot/TempFilesUpload", file.Name);
+                using var fileContent = new StreamContent(file.OpenReadStream(this.MaxFilesSize));
+                if (fileContent != null)
+                {
+                    if (Directory.Exists(Path.Combine("./wwwroot/TempFilesUpload")))
+                    {
+                        // Копирование файла во временную папку
+                        try
+                        {
+                            using FileStream fs = new(this.FilePath, FileMode.Create);
+                            await fileContent.CopyToAsync(fs);
+                        }
+                        catch (Exception ex)
+                        {
+                            if (this.SendWarningMessageToParent.HasDelegate)
+                                await this.SendWarningMessageToParent.InvokeAsync($"Файл {this.FilePath} не удалось загрузить! " +
+                                                                                  $"{ex?.Message ?? string.Empty}! {ex?.InnerException?.Message ?? string.Empty}!");
+                            else throw (ex);
+                        }
+
+                        if (File.Exists(this.FilePath))
+                        {
+                            upload = true;
+                        }
+                        else if (this.SendWarningMessageToParent.HasDelegate)
+                            await this.SendWarningMessageToParent.InvokeAsync($"Файл {this.FilePath} не удалось загрузить!");
+
+                        if (upload && this.SendToParentSelectedFile.HasDelegate)
+                            await this.SendToParentSelectedFile.InvokeAsync(this.FilePath);
+                    }
+                    else
+                    {
+                        Serilog.Log.Error($"Возникла ошибка при выполнении метода «{nameof(OnChangeInputFile)}» в компоненте «{nameof(UploadFiles)}»! " +
+                                          $"Причина: дирректория «{Path.Combine("./wwwroot/TempFilesUpload")}» не была обнаружена ! ");
+                        if (this.SendWarningMessageToParent.HasDelegate)
+                            await this.SendWarningMessageToParent.InvokeAsync($"Файл {this.FilePath} не удалось загрузить ! Обратитесь в службу поддержки !");
+                        if (this.SendToParentSelectedFile.HasDelegate)
+                            await this.SendToParentSelectedFile.InvokeAsync(null);
+                    }
+                }
+                else
+                {
+                    Serilog.Log.Error($"Возникла ошибка при выполнении метода «{nameof(OnChangeInputFile)}» в компоненте «{nameof(UploadFiles)}»! " +
+                                      $"Причина: {this.Message} ! ");
+                    if (this.SendWarningMessageToParent.HasDelegate)
+                        await this.SendWarningMessageToParent.InvokeAsync($"Файл {this.FilePath} пустой !");
+                    if (this.SendToParentSelectedFile.HasDelegate)
+                        await this.SendToParentSelectedFile.InvokeAsync(null);
+                }
+            }
+        }
+        else
+        {
+            this.FilePath = string.Empty;
+            if (this.SendWarningMessageToParent.HasDelegate)
+                await this.SendWarningMessageToParent.InvokeAsync( $"Количество загруженных файлов «{e?.FileCount ?? 0}» " +
+                                                                   $"превышает допустимый размер «{this.MaxAllowedFiles}» " +
+                                                                   $"на «{(e?.FileCount ?? 0) - (this?.MaxAllowedFiles ?? 0)}» шт.! ");
+            if (this.SendToParentSelectedFile.HasDelegate)
+                await this.SendToParentSelectedFile.InvokeAsync(null);
+        }
+    }
+
+    private void CleanFileStorage()
+    {
+        // Файлы, оставшиеся в хранилище, если пользователь не загрузил файл
+        var filePathes = Directory.GetFiles(Path.Combine("./wwwroot/TempFilesUpload")) ?? new string[0];
+
+        if (filePathes?.Length > 0)
+        {
+            if (filePathes?.Length > 0)
+            {
+                foreach (var filePath in filePathes)
+                {
+                    if (File.Exists(filePath))
+                    {
+                        try
+                        {
+                            // этот файл должен быть в папке потому что иначе и папка удалится
+                            if (!Path.GetFileNameWithoutExtension(filePath).Equals("test"))
+                                File.Delete(filePath);
+                        }
+                        catch (Exception exc)
+                        {
+                            Serilog.Log.Error($"Исключительная ситуация при выполнении метода «{nameof(CleanFileStorage)}» в компоненте «{nameof(UploadFiles)}». " +
+                            $"Подробности: {exc.Message ?? string.Empty}");
+                        }
+                    }
+                    else
+                        continue;
+                }
+            }
+        }
+    }
+}
+

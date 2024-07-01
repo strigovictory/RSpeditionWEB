@@ -1,0 +1,16 @@
+﻿.adapt_table table tbody tr td {
+    vertical-align: middle !important;
+}
+
+select{
+    min-width: fit-content !important;
+}
+
+input{
+    border-radius: 0 !important;
+}
+
+button {
+    margin: 0 !important;
+    border-radius: 0 !important;
+}

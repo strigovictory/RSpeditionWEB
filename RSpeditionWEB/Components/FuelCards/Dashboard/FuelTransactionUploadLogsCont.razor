@@ -1,0 +1,44 @@
+﻿@attribute [Authorize]
+@inject IApies api
+@inject IMapper mapper
+@inherits ScaffoldJCMainBase
+
+<CascadingValue Value="@this">
+    <div>
+        <FuelTransactionUploadLogsJournal @ref="@this.ChildElemRefLogsJournal" />
+    </div>
+</CascadingValue>
+
+@code {
+    [Parameter]
+    public int Year { get; set; }
+
+    [Parameter]
+    public int? Month { get; set; }
+
+    [Parameter]
+    public int? ProviderId { get; set; }
+
+    public List<FuelTransactionUploadLogResponse> TranzactionUploadLogs { get; set; }
+
+    private FuelTransactionUploadLogsJournal ChildElemRefLogsJournal { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender)
+            await this.js.InvokeVoidAsync("GLOBAL.SetDotnetReference", DotNetObjectReference.Create(this.ChildElemRefLogsJournal));
+    }
+
+    protected override async Task InitializeTabs()
+    => await Task.FromResult(true);
+
+    public override async Task UpdateMainCollections() => await this.InitTranzactionUploadLogs();
+
+    public override async Task UpdateSecondCollections()
+        => await Task.FromResult(true);
+
+    public async Task InitTranzactionUploadLogs() =>
+        this.TranzactionUploadLogs = await this.api?.FuelUploadLogApi?.GetFuelTransactionUploadLogs(Year, Month, ProviderId, Token) ?? new();
+
+}

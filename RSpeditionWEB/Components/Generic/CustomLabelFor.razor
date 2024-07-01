@@ -1,0 +1,25 @@
+﻿@typeparam TItem
+
+<label for="@fortag">@label</label>
+@code {
+    [Parameter]
+    public string aspfor { get; set; }
+
+    private string label => GetDisplayName(aspfor);
+
+    private string fortag => aspfor;
+
+    private string GetDisplayName(string propertyname)
+    {
+        MemberInfo myprop = typeof(TItem).GetProperty(propertyname) as MemberInfo;
+        if (myprop != null)
+        {
+            var displayAttr = myprop.GetCustomAttribute(typeof(CustomDisplayAttribute)) as CustomDisplayAttribute;
+            return displayAttr?.DisplayName ?? "";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+}

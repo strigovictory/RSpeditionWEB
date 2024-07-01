@@ -1,0 +1,57 @@
+﻿@page "/Error"
+@inherits ComponentBaseClass
+@inject NavigationManager nav
+@*Компонент для логгирования исключительных ситуации во всем WEB-приложении*@
+
+
+<CascadingValue Value="@this">
+    @try
+    {
+        @ChildContent
+    }
+    catch (Exception ex)
+    {
+        this.ProcessError(ex, this.GetType()?.FullName ?? string.Empty);
+    }
+</CascadingValue>
+@if (this.ShowMessage)
+{
+    <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { this.nav?.NavigateTo(this.ReturnUrl, true); })">
+        <ResultOperation Devider="'!'"
+                     ResList="null"
+                     ResMessage="@this.Message">
+        </ResultOperation>
+    </ModalWindowWithEventCallback>
+}
+
+@code {
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ReturnUrl = nav.BaseUri ?? "/";
+    }
+
+    public void ProcessError(Exception ex)
+    {
+        Serilog.Log.Logger.Error($"Исключительная ситуация при отрисовке компонента - " +
+                                 $"тип: «{ex.GetType()?.FullName ?? string.Empty}», " +
+                                 $"подробности: {ex?.Message ?? string.Empty}");
+        this.Message = $"Возникла ошибка ! Обратитесь в техподдержку !";
+        this.Title = "Предупреждение";
+        this.RenderMessage(); 
+    }
+
+    public void ProcessError(Exception ex, string componentName)
+    {
+        Serilog.Log.Logger.Error($"Исключительная ситуация при отрисовке компонента {componentName ?? string.Empty}- " +
+                                 $"тип исключения: «{ex.GetType()?.FullName ?? string.Empty}», " +
+                                 $"подробности: {ex?.Message ?? string.Empty}");
+        this.Message = $"Возникла ошибка ! Обратитесь в техподдержку !"; 
+        this.Title = "Предупреждение";
+        this.RenderMessage();
+    }
+}

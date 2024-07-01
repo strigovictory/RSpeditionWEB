@@ -1,0 +1,102 @@
+﻿@inherits ChildComponentBaseClass
+
+            <div class="adapt_table scroll font-journal">
+                <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+                    <thead class="adapt_table_inner_thead">
+            <tr>
+                <th>
+                    <div class="squaredOne">
+                        <input type="checkbox"
+                               id="tranz_Del_Child1"
+                               checked
+                               @oninput="@(async (ChangeEventArgs arg) => {var isChecked = (bool)(arg?.Value ?? false);
+                                                                           this.TranzactionsToDelChecked = isChecked ? new(this.TranzactionsToDel) : new();
+                                                                           if (this.InvokeParentHendlerCheckedItems.HasDelegate)
+                                                                               await this.InvokeParentHendlerCheckedItems.InvokeAsync(this.TranzactionsToDelChecked.Cast<object>()?.ToList());})" />
+                        <label for="tranz_Del_Child1"></label>
+                    </div>
+                </th>
+                <th>
+                    №
+                </th>
+                <th>
+                    Транзакция
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (this.TranzactionsToDel != null && this.TranzactionsToDel?.Count > 0)
+            {
+                foreach (var tranz in this.TranzactionsToDel)
+                {
+                    var ind = this.TranzactionsToDel.IndexOf(tranz);
+                    var num = ind + 1;
+                    var id_checkbox = $"tranz_Del_Child2{ind}";
+                    var labelFoTanz = $"№ {tranz?.TransactionID ?? string.Empty} от {tranz?.OperationDate.ToShortDateString()}г." +
+                                      $" - количество {tranz?.Quantity ?? 0} л., сумма {tranz?.TotalCost ?? 0} {tranz?.CurrencyName ?? string.Empty}";
+                    var id = tranz?.Id ?? 0;
+                    var isChecked = this.TranzactionsToDelChecked.Contains(tranz) ? true : false;
+                    <tr>
+                        @if (isChecked)
+                                       {
+                            <td>
+                                <div class="squaredOne">
+                                    <input type="checkbox"
+                                          id="@id_checkbox"
+                                          checked
+                                          @oninput="@(async () => { this.TranzactionsToDelChecked.Remove(tranz);
+                                                                    if (this.InvokeParentHendlerCheckedItems.HasDelegate)
+                                                                        await this.InvokeParentHendlerCheckedItems.InvokeAsync(this.TranzactionsToDelChecked.Cast<object>()?.ToList());
+                                                                  })" />
+                                    <label for="@id_checkbox"></label>
+                                </div>
+                            </td>
+                        }
+                        else
+                        {
+                            <td>
+                                <div class="squaredOne">
+                                    <input type="checkbox"
+                                           id="@id_checkbox"
+                                           @oninput="@(async () => { this.TranzactionsToDelChecked.Add(tranz);
+                                                                     if (this.InvokeParentHendlerCheckedItems.HasDelegate)
+                                                                         await this.InvokeParentHendlerCheckedItems.InvokeAsync(this.TranzactionsToDelChecked.Cast<object>()?.ToList());
+                                                                   })" />
+                                    <label for="@id_checkbox"></label>
+                                </div>
+                            </td>
+                        }
+                        <td>
+                            @num
+                        </td>
+                        <td>
+                            @labelFoTanz
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="3">
+                        Нет ни одной транзакции, помеченной на удаление
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+
+    @code {
+        [Parameter]
+    public List<FuelTransactionFullResponse> TranzactionsToDel { get; set; }
+
+    private List<FuelTransactionFullResponse> TranzactionsToDelChecked { get; set; }
+
+        protected override async Task OnInitializedAsync()
+        {
+            await base.OnInitializedAsync();
+            this.TranzactionsToDelChecked = new(this.TranzactionsToDel ?? new());
+        }
+    }

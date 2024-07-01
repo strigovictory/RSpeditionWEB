@@ -1,0 +1,58 @@
+﻿@inject IConfiguration config
+@inject NavigationManager navManager
+@inject ProtectedSessionStorage sessionStore
+@inherits ComponentBaseClass
+@implements IDisposable
+
+<CascadingAuthenticationState>
+    <AuthorizeView>
+        <Authorized>
+            <a class="navbar-brand">
+                <img src="/css/open-iconic/icon/r_logo.png"
+                     class="img_logo" />
+                <span style="font-size: small; font-weight: bold; color: white;">
+                    @{
+                        var labelRGroup = "R-Group";
+                    }
+                    @if (!string.IsNullOrEmpty(this.User) && !string.IsNullOrWhiteSpace(this.User))
+                    {
+                        @this.User
+                    }
+                    else
+                    {
+                        @labelRGroup
+                    }
+                </span>
+            </a>
+        </Authorized>
+        <NotAuthorized>
+            <a class="navbar-brand">
+                <img src="/css/open-iconic/icon/r_logo.png" class="img_logo" />
+                <span style="font-size: small; font-weight: bold; color: white;">
+                    R Group
+                </span>
+            </a>
+        </NotAuthorized>
+    </AuthorizeView>
+    <nav class="vukasgetulpon">
+        <a href="@(this.navManager?.BaseUri ?? "/")">Главная</a>
+        <AuthorizeView>
+            <Authorized>
+                <a @onclick="@(() => { this.navManager.NavigateTo("/FuelCardsCont", true); })">Топливные карты</a>
+                @if (this.IsRenderReferenceBook)
+                {
+                    <RefBook_Parent />
+                }
+            </Authorized>
+            <NotAuthorized>
+                <a @onclick="@(() => { this.navManager.NavigateTo(this.ReturnUrl ?? this.navManager?.BaseUri ?? "/", true); })">Топливные карты</a>
+                <a @onclick="@(() => { this.navManager.NavigateTo(this.ReturnUrl ?? this.navManager?.BaseUri ?? "/", true); })">Вход</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </nav>
+</CascadingAuthenticationState>
+
+
+@code {
+    private bool IsRenderReferenceBook { get; set; } = false;
+}

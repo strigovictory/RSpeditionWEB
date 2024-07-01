@@ -1,0 +1,129 @@
+﻿@inherits ComponentBaseClass
+
+<CascadingValue Value="@this">
+    @if(this.IsRender)
+    {
+        TelephoneView teleph = new();
+        var type_teleph = teleph.GetType();
+        var props_teleph = new List<PropertyInfo> { type_teleph.GetProperty(nameof(teleph.Nomber)) };
+        var textProp_teleph = type_teleph.GetProperty(nameof(teleph.Nomber));
+        var temp_teleph = type_teleph.GetCustomDisplayValues(nameof(teleph.Nomber));
+        var labelForSearch_teleph = temp_teleph.Item1 ?? string.Empty;
+        var initTeleph = this.SimCardsEditGroupFormCascadingParameter?.SimCardsFilters_CascadingVal?.SimCardsCascadingParameter?.Telephones?.FirstOrDefault(_ => _.Id == this.Item.FkTelephoneId) ?? null;
+        var initTeleph_list = initTeleph == null ? null : new List<TelephoneView> { initTeleph };
+        var validMess_simNum = this.SimCardsEditGroupFormCascadingParameter?.ValidationMessage_SimCardNumber(this.Item);
+        var validMess_teleph = this.SimCardsEditGroupFormCascadingParameter?.ValidationMessage_Telephone(this.Item);
+        //
+        var label_SimCardNumber = this.ItemsType?.GetCustomDisplayValues(nameof(this.Item.SimCardNumber)).Item1 ?? string.Empty;
+        var label_TelephoneNumber = this.ItemsType?.GetCustomDisplayValues(nameof(this.Item.TelephoneNumber)).Item1 ?? string.Empty;
+        var colspan = this.SimCardsEditGroupFormCascadingParameter?.IsCreate ?? false ? 4 : 3;
+
+        <tr>
+            <td data-label="№">
+                @(this.Index + 1)
+            </td>
+            <td data-label="@label_TelephoneNumber">
+                <SearchSelectTItems @ref="@this.SearchSelectIIdItems_ref"
+                                Items="@(this.SimCardsEditGroupFormCascadingParameter?.SimCardsFilters_CascadingVal?.SimCardsCascadingParameter?.Telephones?.OrderBy(_ => _.Nomber)?.ToList() ?? new())"
+                                GetObjItems="@(() => this.SimCardsEditGroupFormCascadingParameter?.SimCardsFilters_CascadingVal?.SimCardsCascadingParameter?.Telephones?.OrderBy(_ => _.Nomber)?.Cast<object>()?.ToList() ?? new())"
+                                  T="@TelephoneView"
+                                  KeyPropInfo="@(type_teleph.GetProperty(nameof(teleph.Id)))"
+                                  MaxSizeSelect="4"
+                                  InitParameters="@initTeleph_list"
+                                  LabelForSearch="@labelForSearch_teleph"
+                                  Placeholder="@labelForSearch_teleph"
+                                  IsMultiple="@false"
+                                  PropertiesInfoForSearch="@props_teleph"
+                                  TextProperty="@textProp_teleph"
+                                  SendToParentFoundAndSelectedItems="@(async(List<TelephoneView> selectedItems)
+                                                                                                                     => {
+                                                                                                                            if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                                            {
+                                                                                                                                var telephoneItem = this.SimCardsEditGroupFormCascadingParameter?.SimCardsFilters_CascadingVal?.SimCardsCascadingParameter?.Telephones?.FirstOrDefault(_ => _.Id ==  selectedItems?.FirstOrDefault()?.Id);
+                                                                                                                                this.Item.TelephoneNumber = telephoneItem?.Nomber ?? string.Empty;
+                                                                                                                                this.Item.FkTelephoneId = telephoneItem?.Id ?? 0;
+                                                                                                                            }
+                                                                                                                            else
+                                                                                                                            {
+                                                                                                                                this.Item.TelephoneNumber = string.Empty;
+                                                                                                                                this.Item.FkTelephoneId = 0;
+                                                                                                                            }
+                                                                                                                            if(this.InvokeParentHandler_DataChanges.HasDelegate)
+                                                                                                                                await this.InvokeParentHandler_DataChanges.InvokeAsync(this.Item);
+                                                                                                                        })" />
+            </td>
+            <td data-label="@label_SimCardNumber">
+                <input type="text"
+                       @oninput="@(async(ChangeEventArgs arg) => { this.Item.SimCardNumber = arg.Value?.ToString() ?? string.Empty;
+                                                                   if(this.InvokeParentHandler_DataChanges.HasDelegate)
+                                                                       await this.InvokeParentHandler_DataChanges.InvokeAsync(this.Item); })"
+                       value="@(this.Item.SimCardNumber ?? string.Empty)"
+                       rows="1"
+                       style="min-width: 210px !important; resize: vertical;" />
+            </td>
+            @if (this.SimCardsEditGroupFormCascadingParameter?.IsCreate ?? false)
+            {
+                <td data-label="Удалить"
+                    @onclick="@(async () => { if(this.InvokeParentHandler_RemoveRow.HasDelegate)
+                                              {
+                                                  await this.InvokeParentHandler_RemoveRow.InvokeAsync(this.Item.GuideId);
+                                              }
+                                            })"
+                    style="cursor: pointer; font-size: xx-large !important;"
+                    title="Кликните для удаления sim-карты из партии">
+                    -
+                </td>
+            }
+        </tr>
+        @if (!string.IsNullOrEmpty(validMess_simNum)
+          || !string.IsNullOrEmpty(validMess_teleph))
+        {
+            <tr>
+                <td colspan="@colspan" style="text-align: left;">
+                    <ul class="validation-message">
+                        @if (!string.IsNullOrEmpty(validMess_simNum))
+                        {
+                            <li>
+                                @validMess_simNum
+                            </li>
+                        }
+                        @if (!string.IsNullOrEmpty(validMess_teleph))
+                        {
+                            <li>
+                                @validMess_teleph
+                            </li>
+                        }
+                    </ul>
+                </td>
+            </tr>
+        }
+    }
+</CascadingValue>
+
+
+@code {
+    [CascadingParameter]
+    public SimCardsEditGroupForm SimCardsEditGroupFormCascadingParameter{ get; set; }
+
+    [Parameter]
+    public EventCallback<SimCard_View_GroupModel_Child> InvokeParentHandler_DataChanges { get; set; }
+
+    [Parameter]
+    public EventCallback<string> InvokeParentHandler_RemoveRow { get; set; }
+
+    [Parameter]
+    public SimCard_View_GroupModel_Child Item { get; set; }
+
+    [Parameter]
+    public int Index { get; set; }
+
+    private Type ItemsType => this.Item?.GetType() ?? null;
+
+    private SearchSelectTItems<TelephoneView> SearchSelectIIdItems_ref { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IsRender = true;
+    }
+}

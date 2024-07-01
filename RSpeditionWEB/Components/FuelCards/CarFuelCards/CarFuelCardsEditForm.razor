@@ -1,0 +1,237 @@
+﻿@using RSpeditionWEB.Models.RequestModels;
+@inject IApies api
+@inherits FuelCardBase
+@inject NavigationManager navMan
+@attribute [Authorize]
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        FuelCardModel fuelCard = new();
+        var typeFuelCard = fuelCard.GetType();
+        var labelFuelCardNumber = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.Number)).Item1 ?? string.Empty;
+        var labelFuelCardFullNumber = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.FullNumber)).Item1 ?? string.Empty;
+        var labelFuelCardExpirationDate = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.ExpirationDate)).Item1 ?? string.Empty;
+        var labelFuelCardReceiveDate = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.ReceiveDate)).Item1 ?? string.Empty;
+        var labelFuelCardIsReserve = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.IsReserved)).Item1 ?? string.Empty;
+        var labelFuelCardNote = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.Note)).Item1 ?? string.Empty;
+        var labelFuelCardFuelProvider = typeFuelCard.GetCustomDisplayValues(nameof(fuelCard.ProviderId)).Item1 ?? string.Empty;
+        <div class="form">
+            <EditForm Model="@this.Model">
+                <DataAnnotationsValidator />
+                <input type="hidden" @bind-value="@this.Model.Id" />
+                        <div>
+                            <div class="form_label">@labelFuelCardNumber</div>
+                                <div>
+                        <InputText class="form-control" @bind-Value="this.Model.Number" />
+                                </div>
+                           @*<div>
+                                    <Button LabelForButton="Альтернативные номера карты"
+                                            IsActive="@this.IsRender"
+                                            Width="30%"
+                                            TitleIfIsNonActive="Идет загрузка..."
+                                            TitleIfIsActive="Кликните для перехода к перечню альтернативных номеров карты"
+                                            EventCallbackToParent="@(() => { this.Title = $"Альтернативные номера топливной карты №{this.Model?.Number ?? "б/н"}";
+                                                                             this.ShowAlterCardsNums = true;})"/>
+                                </div>*@                    
+                        <ValidationMessage For="@(() => this.Model.Number)" class="validation-message" />
+                            </div>
+                <div>
+                    <div class="form_label">@labelFuelCardFullNumber</div>
+                    <div>
+                        <InputText class="form-control" @bind-Value="this.Model.FullNumber" />
+                    </div>
+                    <ValidationMessage For="@(() => this.Model.FullNumber)" class="validation-message" />
+                </div>
+
+                            <div>
+                                <div class="form_label">@labelFuelCardReceiveDate</div>
+                                <div>
+                                    <InputDate TValue="DateTime?"
+                                               class="form-control"
+                                               ParsingErrorMessage="@this.ValidationMessageReceiveDate"
+                                              @bind-Value="@this.Model.ReceiveDate"
+                                              @oninput="@((ChangeEventArgs arg) => { if (DateTime.TryParse(arg?.Value?.ToString(), out DateTime res))
+                                                                                         this.Model.ReceiveDate = res;
+                                                                                     else
+                                                                                         this.Model.ReceiveDate = null;
+                                                                                         this.CheckDatesProp();})" />
+                                </div>
+                                <div class="validation-message">@(this.ValidationMessageReceiveDate ?? string.Empty)</div>
+                            </div>
+                            <div>
+                                <div class="form_label">@labelFuelCardExpirationDate</div>
+                                <div>
+                                    <InputDate TValue="DateTime?"
+                                               class="form-control"
+                                               ParsingErrorMessage="@this.ValidationMessageExpirationDate"
+                                               @bind-Value="@this.Model.ExpirationDate"
+                                               @oninput="@((ChangeEventArgs arg) => { if (DateTime.TryParse(arg?.Value?.ToString(), out DateTime res))
+                                                                                         this.Model.ExpirationDate = res;
+                                                                                     else
+                                                                                         this.Model.ExpirationDate = null;
+                                                                                         this.CheckDatesProp();})" />
+                                </div>
+                                <div class="validation-message">@(this.ValidationMessageExpirationDate ?? string.Empty)</div>
+                            </div>
+                            <div>
+                                <div class="form_label">@labelFuelCardNote</div>
+                                <div>
+                                    <InputTextArea class="form-control" @bind-Value="this.Model.Note" />
+                                </div>
+                                <div class="validation-message">@(this.ValidationMessageNote ?? string.Empty)</div>
+                                <ValidationMessage For="@(() => this.Model.Note)" class="validation-message" />
+                            </div>
+                            <div>
+                                <div class="form_label">@labelFuelCardIsReserve</div>
+                                    <div class="squaredOne">
+                                        @if (this.Model.IsReserved)
+                                        {
+                                            <input type="checkbox"
+                                                           checked
+                                                           id="carFuelCardsEditForm_IsReserve"
+                                            @bind-value="@this.Model.IsReserved"
+                                            @bind-value:event="oninput" />
+                                                            <label for="carFuelCardsEditForm_IsReserve"></label>
+                                        }
+                                        else
+                                        {
+                                            <input type="checkbox"
+                                                           id="carFuelCardsEditForm_IsReserve"
+                                            @bind-value="@this.Model.IsReserved"
+                                            @bind-value:event="oninput" />
+                                                            <label for="carFuelCardsEditForm_IsReserve"></label>
+                                        }
+                                    </div>
+                                <ValidationMessage For="@(() => this.Model.IsReserved)" class="validation-message" />
+                            </div>
+                <div>
+                    <div class="form_label">@labelFuelCardFuelProvider</div>
+                    <div>
+                        @{
+                            FuelProviderResponse fuelProvider = new();
+                            var typeFuelProvider = fuelProvider.GetType();
+                            var propsFuelProvider = new List<PropertyInfo> { typeFuelProvider.GetProperty(nameof(fuelProvider.Name)) };
+                            var textPropFuelProvider = typeFuelProvider.GetProperty(nameof(fuelProvider.Name));
+                            var tempAttrFuelProvider = typeFuelProvider.GetCustomDisplayValues(nameof(fuelProvider.Name));
+                            var labelForSearchFuelProvider = tempAttrFuelProvider.Item1 ?? string.Empty;
+                            var placeholderFuelProvider = tempAttrFuelProvider.Item2 ?? string.Empty;
+                            var provSelected = this.FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.FuelProviders?.FirstOrDefault(_ => _.Id == this.Model?.ProviderId) ?? null;
+                        }
+                        <SearchSelectTItems Items="@(this.FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.FuelProviders ?? new())"
+                                            T="@FuelProviderResponse"
+                                            GetObjItems="@(() => this.FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.FuelProviders?.Cast<object>()?.ToList() ?? new())"
+                                            KeyPropInfo="@(typeof(FuelProviderResponse).GetProperty(nameof(FuelProviderResponse.Id)))"
+                                            MaxSizeSelect="5"
+                                            InitParameters="@(new List<FuelProviderResponse>{provSelected})"
+                                            LabelForSearch="@labelForSearchFuelProvider"
+                                            Placeholder="@placeholderFuelProvider"
+                                            IsMultiple="@false"
+                                            PropertiesInfoForSearch="@propsFuelProvider"
+                                            TextProperty="@textPropFuelProvider"
+                                            SendToParentFoundAndSelectedItems="@(async(List<FuelProviderResponse> selectedItems) => {this.Model.ProviderId = selectedItems?.FirstOrDefault()?.Id ?? 0;})" />
+                                </div>
+                                <div class="validation-message">@(this.ValidationMessageFuelProvider ?? string.Empty)</div>
+                </div>
+                            <div>
+                                <ButtonDouble EventCallbackToParent="@(async () => {await this.ProgressBarOpenAsync();
+                                                                                    await this.EditItem();
+                                                                                    await this.ProgressBarCloseAsync(); })"
+                                  EventCallbackToParentReset="@(async() => { await this.ResetValues(); })"
+                                              LabelForButton="Сохранить"
+                                              LabelForButtonReset="Отмена"
+                                              IsActive="@IsModelValid"
+                                              TitleIfIsNonActive="Сохранение возможно, если данные валидны"
+                                              TitleIfIsActive="Кликните, чтобы сохранить изменения"
+                                              TitleReset="Кликните, чтобы отменить внесенные изменения" 
+                                              IsRenderActionButton="@IsUserHasMinimumFuelRole"/>
+                                </div>
+                        </EditForm>
+                    </div>
+    }
+    else
+    {
+        <ProgressBar />
+    }
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="Результат редактирования топливной карты"
+                                      InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false;
+                                          if (this.ShouldUpdateParent) await this.InvokeParentHendlerAfterUpd.InvokeAsync(this.Model);
+                                                                                    else await this.InvokeParentHendlerCancel.InvokeAsync();})">
+            <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@this.Message">
+            </ResultOperation>
+        </ModalWindowWithEventCallback>
+    }
+@*    @if (this.ShowAlterCardsNums)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { this.ShowAlterCardsNums = false;})">
+            <AlterCardNums Card="@this.Model"/>
+        </ModalWindowWithEventCallback>
+    }
+*@    
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    [CascadingParameter]
+    public FuelCardsJournal FuelCardsJournalCascadingParameter { get; set; }
+
+    //private bool ShowAlterCardsNums { get; set; }
+
+    private FuelCardsEventResponse LastCardsEvent { get; set; }
+
+    protected override async Task<List<TrucksLicensePlatesStatusesModel>> GetTrucksLicensePlatesStatuses()
+        => await FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.GetTrucksLicensePlatesStatuses();
+
+    protected override async Task<List<EmployeesAssignmentsResponse>> GetEmployeesAssignmentsDrivers()
+        => await FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.GetEmployeesAssignmentsDrivers();
+
+    protected override List<TruckResponse> Trucks
+        => FuelCardsJournalCascadingParameter?.FuelCardsCascadingParameter?.Trucks ?? new();
+
+    protected override bool IsModelValid
+        => ValidateModel().isValid
+        && string.IsNullOrEmpty(ValidationMessageReceiveDate)
+        && string.IsNullOrEmpty(ValidationMessageExpirationDate)
+        && string.IsNullOrEmpty(ValidationMessageFuelProvider)
+        && string.IsNullOrEmpty(ValidationMessageNumber)
+        && string.IsNullOrEmpty(ValidationMessageFullNumber)
+        && string.IsNullOrEmpty(ValidationMessageNote);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.SetInitialCard();
+        this.IsRender = true;
+    }
+
+    protected override async Task ResetValues() => SetInitialCard();
+
+    private void SetInitialCard()
+    {
+        Model = this.TItemFromParent.CloneCarFuelCard();
+        CheckDatesProp();
+    }
+
+    private async Task EditItem()
+    {
+        var res = await this.api?.FuelCardAPI?.PutCard(new RequestSingleAction<FuelCardModel>(User, Model), this.Token);
+
+        if (res != null && res.Item != default)
+        {
+            this.ShouldUpdateParent = true;
+            this.Message += "Операция успешно завершена ! Изменения были зафиксированы ! ";
+        }
+        else
+            this.Message += $"{res?.Result ?? string.Empty} Операция закончилась с ошибкой ! Попробуйте снова ! ";
+
+        this.RenderMessage();
+    }
+}

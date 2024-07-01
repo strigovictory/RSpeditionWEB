@@ -1,0 +1,46 @@
+﻿@*Прогресс бар, сигнализирующий о начале и окончании обработки отчета*@
+@{
+    var styleValue = $"padding-top: {TopValue}vh;";
+}
+<div style="@styleValue">
+    <div id="floatingCirclesG">
+        <div class="f_circleG" id="frotateG_01"></div>
+        <div class="f_circleG" id="frotateG_02"></div>
+        <div class="f_circleG" id="frotateG_03"></div>
+        <div class="f_circleG" id="frotateG_04"></div>
+        <div class="f_circleG" id="frotateG_05"></div>
+        <div class="f_circleG" id="frotateG_06"></div>
+        <div class="f_circleG" id="frotateG_07"></div>
+        <div class="f_circleG" id="frotateG_08"></div>
+    </div>
+    <div class="titleProcess">
+        @this.TitleProcess
+    </div>
+</div>
+
+@code {
+    // Строка, отображаемая во время выполнения процесса
+    [Parameter]
+    public string TitleProcess { get; set; } = "Идет загрузка...";
+
+    [Parameter]
+    public int TopValue { get; set; } = 0;
+
+    /// <summary>
+    /// Метод задает параметры, предоставляемые родительским элементом компонента в дереве отрисовки или из параметров маршрута.
+    /// </summary>
+    /// <param name="parameters">Параметры, предоставляемые родительским элементом компонента</param>
+    /// <returns></returns>
+    public override async Task SetParametersAsync(ParameterView parameters)
+    {
+        if (parameters.TryGetValue<string>(nameof(this.TitleProcess), out var value))
+        {
+            if (value is null)
+            {
+                this.TitleProcess = string.Empty;
+            }
+        }
+
+        await base.SetParametersAsync(parameters);
+    }
+}

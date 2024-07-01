@@ -1,0 +1,48 @@
+﻿.tablink {
+    background-color: #878787;
+    color: black;
+    float: left;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 14px 16px;
+    font-size: 17px;
+    width: 16.6666%;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+    .tablink:hover {
+        background-color: #565656;
+        color: black;
+    }
+
+.tabcontent {
+    color: black;
+    display: none;
+    height: 100%;
+}
+
+#UploadReport {
+    background-color: #565656;
+}
+
+#FuelTranzJournal {
+    background-color: #565656;
+}
+
+#FuelCardsJournal {
+    background-color: #565656;
+}
+
+#ObjectFuelCardHistoryCont {
+    background-color: #565656;
+}
+
+#ChartsFuelParent {
+    background-color: #565656;
+}
+
+#FuelTransactionsDashBoard {
+    background-color: #565656;
+}

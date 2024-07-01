@@ -1,0 +1,39 @@
+﻿@page "/NodePreview"
+@page "/NodePreview/{NodeId}"
+@inherits NodeBase
+@inject NavigationManager navMan
+
+@if(this.IsRender)
+{
+      <CascadingValue Value="this">
+          @if (this.IsModule || this.IsNew)
+          {
+              <br />
+              <p class="validation-message">&nbsp;&nbsp;Выберите подкатегорию для просмотра</p>
+          }
+          else
+          {
+              <TablePreview ReturnUrl="@this.ReturnUrl">
+              </TablePreview>
+          }
+     </CascadingValue>  
+}    
+else
+{
+    <ProgressBar />
+}
+
+
+@code {
+    /// <summary>
+    /// Метод для первоначальной инициализации компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.InitMembers();
+        this.ReturnUrl = Path.Combine(this.navMan?.BaseUri, "NodePreview", this.NodeId ?? string.Empty);
+        this.IsRender = true;
+    }
+}

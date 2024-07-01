@@ -1,0 +1,16 @@
+﻿table td{
+    padding-left: 3px;
+    padding-right: 3px;
+}
+
+thead > tr > th {
+    vertical-align: middle;
+}
+
+thead{
+    height: 30px;
+}
+
+.adapt_table table thead tr:first-child th:first-child {
+    border-right: thin solid !important;
+}

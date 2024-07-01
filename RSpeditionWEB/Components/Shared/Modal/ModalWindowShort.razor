@@ -1,0 +1,24 @@
+﻿<div class="dm-overlay">
+    <div class="dm-table">
+        <div class="dm-cell">
+            <div class="dm-modal-narrow">
+                <div class="top-modal-right">
+                    <a class="close-narrow" @onclick="@(async () => { if(this.InvokeParentHandlerwithUpdParent.HasDelegate)
+                                                                   await this.InvokeParentHandlerwithUpdParent.InvokeAsync(); })"></a>
+                </div>
+                @this.ChildContent
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; }
+
+    [Parameter]
+    public EventCallback InvokeParentHandlerwithUpdParent { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+}

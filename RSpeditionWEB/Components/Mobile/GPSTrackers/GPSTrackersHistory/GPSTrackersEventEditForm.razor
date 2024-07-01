@@ -1,0 +1,458 @@
+﻿@implements IDisposable
+@inherits GPSTrackersEventBase
+@inject IApies api
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        var label_OperationTypeName = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.OperationTypeName)).Item1 ?? string.Empty;
+        var label_OperationDate = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.OperationDate)).Item1 ?? string.Empty;
+        var label_OperationFinishDate = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.OperationFinishDate)).Item1 ?? string.Empty;
+        var label_Comment = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.Comment)).Item1 ?? string.Empty;
+        var label_SimCardName = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.SimcardName)).Item1 ?? string.Empty;
+        var label_TruckName = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.TruckName)).Item1 ?? string.Empty;
+        var label_TrailerName = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.TrailerName)).Item1 ?? string.Empty;
+        //
+        var truckSelected = this.Model?.FkTruckId.HasValue ?? false ? this.Cars?.FirstOrDefault(_ => _.Id == (this.Model?.FkTruckId.Value ?? 0)) : null;
+        var trailerSelected = this.Model?.FkTrailerId.HasValue ?? false ? this.Trailers?.FirstOrDefault(_ => _.Id == (this.Model?.FkTrailerId.Value ?? 0)) : null;
+        var simSelected = this.Model?.FkSimcardId.HasValue ?? false ? this.SimCards?.FirstOrDefault(_ => _.Id == (this.Model?.FkSimcardId.Value ?? 0)) : null;
+        //
+        var user = this.AuthenticationState.Result?.User?.Identity?.Name ?? string.Empty;
+        if (this.IsCreate)
+        {
+            this.Model.UserNameInsert = user;
+            this.Model.UserInsertDate = DateTime.Now;
+        }
+        else
+        {
+            this.Model.UserNameUpdate = user;
+            this.Model.UserUpdateDate = DateTime.Now;
+        }
+        <div class="form">
+            <EditForm Model="@this.Model">
+                <DataAnnotationsValidator />
+                @*Тип события - смена типа события недоступна в режиме редактирования события*@
+                <div>
+                    <div class="form_label">@label_OperationTypeName:</div>
+                    @if (this.IsCreate)
+                    {
+                            <div>
+                            @{
+                                var eventTypeSelected = OperationTypeHelper.OperationTypes_GpsTracker?.TryGetValue(this.Model.OperationType, out var val) ?? false ? val : EventType.Склад;
+                                // Разновидность последнего события в цепочке событий
+                                var typesAvailable = (OperationTypeHelper.OperationTypes_GpsTracker?.TryGetValue(this.TEventLast?.OperationType ?? 0, out var typeLastEvent) ?? false)
+                                && (typeLastEvent.Equals(EventType.Склад)
+                                || typeLastEvent.Equals(EventType.Ремонт)
+                                || typeLastEvent.Equals(EventType.Архив)
+                                || typeLastEvent.Equals(EventType.Поломка)
+                                || typeLastEvent.Equals(EventType.Списание))
+                                ?
+                                OperationTypeHelper.OperationTypes_GpsTracker?.Except(new Dictionary<int, EventType> { { this.TEventLast?.OperationType ?? 0, typeLastEvent } })?.ToDictionary(x => x.Key, y => y.Value) ?? new()
+                                :
+                                OperationTypeHelper.OperationTypes_GpsTracker ?? new()
+                                ;
+                            }
+                                <InputSelect @bind-Value="@this.Model.OperationType"
+                             @oninput="@((ChangeEventArgs arg) => { if (Int32.TryParse(arg?.Value?.ToString(), out int res))
+                                                                                   this.Model.OperationType = res;
+                                                                                else
+                                                                                   this.Model.OperationType = OperationTypeHelper.OperationTypesReversed_GpsTracker[EventType.Склад];
+                                                                                this.ResetFKInModel(); })">
+                                @if ((this.Model?.OperationType ?? 0) == 0)
+                                {
+                                            <option value="0" selected disabled>
+                                        @label_OperationTypeName
+                                            </option>
+                                }
+                                else
+                                {
+                                            <option value="0">
+                                        @label_OperationTypeName
+                                            </option>
+                                }
+                                @if (typesAvailable != null && typesAvailable?.Count > 0)
+                                {
+                                    @foreach (var item in typesAvailable ?? new())
+                                    {
+                                        var val = (int)item.Key;
+                                        string label = item.Value.ToString() ?? string.Empty;
+                                                    <option value="@val">
+                                            @label
+                                                    </option>
+                                    }
+                                }
+                                else
+                                {
+                                            <option disabled selected>Список пуст</option>
+                                }
+                                </InputSelect>
+                            </div>
+                            <div class="validation-message">@(this.ValidationMessage_TypeEvent ?? string.Empty)</div>
+                    }
+                    else
+                    {
+                            <div>
+                                <input type="text"
+                       disabled
+                       class="non-active"
+                       value="@(this.Model?.OperationTypeName ?? string.Empty)"
+                       title="Разновидность события не подлежит редактированию" />
+                            </div>
+                    }
+                </div>
+
+                @*Тягач*@
+                @if (this.Model.OperationType == OperationTypeHelper.OperationTypesReversed_GpsTracker[EventType.Тягач])
+                {
+                        <div>
+                            <div class="form_label">@label_TruckName:</div>
+                            <div>
+                            @{
+                                TruckResponse car = new();
+                                var typeCar = car.GetType();
+                                var propsCar = new List<PropertyInfo> { typeCar.GetProperty(nameof(car.CarNumber)) };
+                                var textPropCar = typeCar.GetProperty(nameof(car.CarNumber));
+                                var tempAttrCar = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.TruckName));
+                                var labelForSearchCar = tempAttrCar.Item1 ?? string.Empty;
+                                var placeholderCar = this.Model?.FkTruckId.HasValue ?? false
+                                ? this.Cars?.FirstOrDefault(_ => _.Id == this.Model?.FkTruckId.Value)?.CarNumber ?? string.Empty
+                                : tempAttrCar.Item2 ?? string.Empty;
+                                var carSelected = (this.Model?.FkTruckId.HasValue ?? false) ? this.Cars?.FirstOrDefault(_ => _.Id == (this.Model?.FkTruckId.Value ?? 0)) ?? null : null;
+                                var init_car = carSelected != null ? new List<TruckResponse> { carSelected } : null;
+                            }
+                                <SearchSelectTItems Items="@(this.Cars?.OrderBy(_ => _.CarNumber).ToList() ?? new())"
+                                    T="@TruckResponse"
+                                    KeyPropInfo="@(typeCar.GetProperty(nameof(car.Id)))"
+                                    MaxSizeSelect="4"
+                                    InitParameters="@init_car"
+                                    LabelForSearch="@labelForSearchCar"
+                                    Placeholder="@placeholderCar"
+                                    IsMultiple="@false"
+                                    PropertiesInfoForSearch="@propsCar"
+                                    TextProperty="@textPropCar"
+                                    SendToParentFoundAndSelectedItems="@((List<TruckResponse> selectedItems)
+                                                                                                                     => {
+                                                                                                                            if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                                                this.Model.FkTruckId = selectedItems?.FirstOrDefault()?.Id ?? null;
+                                                                                                                            else
+                                                                                                                                this.Model.FkTruckId = null;
+                                                                                                                        })" />
+                            </div>
+                            <div class="validation-message">@(this.ValidationMessage_Truck ?? string.Empty)</div>
+                        </div>
+                }
+
+                @*Прицеп*@
+                @if (this.Model.OperationType == OperationTypeHelper.OperationTypesReversed_GpsTracker[EventType.Прицеп])
+                {
+                        <div>
+                            <div class="form_label">@label_TrailerName:</div>
+                            <div>
+                            @{
+                                TrailerView trailer = new();
+                                var type_trailer = trailer.GetType();
+                                var props_trailer = new List<PropertyInfo> { type_trailer.GetProperty(nameof(trailer.TrailerNumber)) };
+                                var tempAttr_trailer = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.TrailerName));
+                                var labelForSearch_trailer = tempAttr_trailer.Item1 ?? string.Empty;
+                                var placeholder_trailer = this.Model?.FkTrailerId.HasValue ?? false
+                                ? this.Trailers?.FirstOrDefault(_ => _.Id == this.Model?.FkTrailerId.Value)?.ToString() ?? string.Empty
+                                : tempAttr_trailer.Item2 ?? string.Empty;
+                                var selected_trailer = (this.Model?.FkTrailerId.HasValue ?? false) ? this.Trailers?.FirstOrDefault(_ => _.Id == (this.Model?.FkTrailerId.Value ?? 0)) ?? null : null;
+                                var init_trailer = selected_trailer != null ? new List<TrailerView> { selected_trailer } : null;
+                            }
+                                <SearchSelectTItems Items="@(this.Trailers?.OrderBy(_ => _.TrailerNumber).ToList() ?? new())"
+                                    T="@TrailerView"
+                                    KeyPropInfo="@(type_trailer.GetProperty(nameof(trailer.Id)))"
+                                    MaxSizeSelect="4"
+                                    InitParameters="@init_trailer"
+                                    LabelForSearch="@labelForSearch_trailer"
+                                    Placeholder="@placeholder_trailer"
+                                    IsMultiple="@false"
+                                    PropertiesInfoForSearch="@props_trailer"
+                                    TextProperty="@null"
+                                    SendToParentFoundAndSelectedItems="@((List<TrailerView> selectedItems)
+                                                                                                                                 => {
+                                                                                                                                        if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                                                            this.Model.FkTrailerId = selectedItems?.FirstOrDefault()?.Id ?? null;
+                                                                                                                                        else
+                                                                                                                                            this.Model.FkTrailerId = null;
+                                                                                                                                    })" />
+                            </div>
+                            <div class="validation-message">@(this.ValidationMessage_Trailer ?? string.Empty)</div>
+                        </div>
+                }
+
+                @*Sim-карта*@
+                @if (this.Model.OperationType == OperationTypeHelper.OperationTypesReversed_GpsTracker[EventType.Sim])
+                {
+                        <div>
+                            <div class="form_label">@label_SimCardName:</div>
+                            <div>
+                            @{
+                                SimCardView sim = new();
+                                var type_sim = sim.GetType();
+                                var props_sim = new List<PropertyInfo> { type_sim.GetProperty(nameof(sim.SimCardNumber)) };
+                                var tempAttr_sim = this.ModelsType.GetCustomDisplayValues(nameof(this.Model.SimcardName));
+                                var labelForSearch_sim = tempAttr_sim.Item1 ?? string.Empty;
+                                var placeholder_sim = this.Model?.FkSimcardId.HasValue ?? false
+                                ? this.SimCards?.FirstOrDefault(_ => _.Id == this.Model?.FkSimcardId.Value)?.ToString() ?? string.Empty
+                                : tempAttr_sim.Item2 ?? string.Empty;
+                                var selected_sim = (this.Model?.FkSimcardId.HasValue ?? false) ? this.SimCards?.FirstOrDefault(_ => _.Id == (this.Model?.FkSimcardId.Value ?? 0)) ?? null : null;
+                                var init_sim = selected_sim != null ? new List<SimCardView> { selected_sim } : null;
+                            }
+                                <SearchSelectTItems Items="@(this.SimCards?.OrderBy(_ => _.SimCardNumber).ToList() ?? new())"
+                                    T="@SimCardView"
+                                    KeyPropInfo="@(type_sim.GetProperty(nameof(sim.Id)))"
+                                    MaxSizeSelect="4"
+                                    InitParameters="@init_sim"
+                                    LabelForSearch="@labelForSearch_sim"
+                                    Placeholder="@placeholder_sim"
+                                    IsMultiple="@false"
+                                    PropertiesInfoForSearch="@props_sim"
+                                    TextProperty="@null"
+                                    SendToParentFoundAndSelectedItems="@((List<SimCardView> selectedItems)
+                                                                                                                                 => {
+                                                                                                                                        if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                                                            this.Model.FkSimcardId = selectedItems?.FirstOrDefault()?.Id ?? null;
+                                                                                                                                        else
+                                                                                                                                            this.Model.FkSimcardId = null;
+                                                                                                                                    })" />
+                            </div>
+                            <div class="validation-message">@(this.ValidationMessage_Sim ?? string.Empty)</div>
+                        </div>
+                }
+
+                @*Дата начала события*@
+                <div>
+                    <div class="form_label">@label_OperationDate:</div>
+                    <div>
+                        @if (this.isFirstEvent)
+                        {
+                                <input type="datetime"
+                       disabled
+                       value="@this.EventsStartDate"
+                       class="non-active"
+                       title="Дата наступления ПЕРВОГО события не подлежит редактированию" />
+                        }
+                        else
+                        {
+                                <InputDate TValue="DateTime?"
+                           class="form-control"
+                           ParsingErrorMessage="@this.ValidationMessageStartDate"
+                           @bind-Value="@this.EventsStartDate"
+                           @oninput="@((ChangeEventArgs arg) => {
+                                                                               if (DateTime.TryParse(arg?.Value?.ToString(), out DateTime res))
+                                                                               {
+                                                                                   this.EventsStartDate = res.Date;
+                                                                                   this.Model.OperationDate = res.Date;
+                                                                               }
+                                                                                else
+                                                                                    this.EventsStartDate = null;
+
+                                                                                this.CheckPropDates();
+                                                                            })" />
+                        }
+                    </div>
+                    <div class="validation-message">
+                        <ul>
+                            @foreach (var mess in this.ValidationMessageStartDate?.ConvertStringToList('!') ?? new())
+                            {
+                                    <li>@mess</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+
+                @*Дата окончания события - для нового события является открытой / незаполненной (null)*@
+                @if (!this.IsCreate)
+                {
+                        <div>
+                            <div class="form_label">@label_OperationFinishDate:</div>
+                            <div>
+                                <InputDate TValue="DateTime?"
+                           class="form-control"
+                           ParsingErrorMessage="@this.ValidationMessageFinishDate"
+                           @bind-Value="@this.EventsFinishDate"
+                           @oninput="@((ChangeEventArgs arg) => { if (DateTime.TryParse(arg?.Value?.ToString(), out DateTime res))
+                                                                              {
+                                                                                  this.EventsFinishDate = res.Date;
+                                                                                  this.Model.OperationFinishDate = res.Date;
+                                                                              }
+                                                                              else
+                                                                              {
+                                                                                  this.EventsFinishDate = null;
+                                                                                  this.Model.OperationFinishDate = null;
+                                                                              }
+
+                                                                              this.CheckPropDates(); })" />
+                            </div>
+                            <div class="validation-message">
+                                <ul>
+                                @foreach (var mess in this.ValidationMessageFinishDate?.ConvertStringToList('!') ?? new())
+                                {
+                                            <li>@mess</li>
+                                }
+                                </ul>
+                            </div>
+                        </div>
+                }
+
+                @*Комментарий*@
+                <div>
+                    <div class="form_label">@label_Comment:</div>
+                    <div>
+                        <InputTextArea class="form-control"
+                               @bind-Value="@this.Model.Comment"
+                               @oninput="@((ChangeEventArgs arg) => { this.Model.Comment = arg?.Value?.ToString() ?? string.Empty; })" />
+                    </div>
+                    <div class="validation-message">@(this.ValidationMessage_Comment ?? string.Empty)</div>
+                </div>
+                <div>
+                    <ButtonDouble EventCallbackToParent="@(async () => { await this.StartOperation(); })"
+                          EventCallbackToParentReset="@(async () => { await this.ResetValues(); })"
+                          LabelForButton="Сохранить"
+                          LabelForButtonReset="Отмена"
+                          IsActive="@this.IsModelValid"
+                          TitleIfIsNonActive="Сохранение изменений возможно, если они валидны"
+                          TitleIfIsActive="Кликните, чтобы сохранить изменения"
+                          TitleReset="Кликните, чтобы отменить внесенные изменения">
+                    </ButtonDouble>
+                </div>
+            </EditForm>
+        </div>
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка ..." />
+    }
+<div id="@this.IdForProgressBar" style="display: none;">
+    <ProgressBar />
+</div>
+</CascadingValue>
+
+
+@code {
+    [Parameter]
+    public List<TruckResponse> Cars { get; set; }
+
+    [Parameter]
+    public List<TrailerView> Trailers { get; set; }
+
+    [Parameter]
+    public List<SimCardView> SimCards { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await this.MedelsInitialization();
+        this.IsRender = true;
+    }
+
+    protected override async Task MedelsInitialization()
+    {
+        this.InitLastEvent();
+        this.InitPreviousEvent();
+        this.InitNextEvent();
+        await this.ResetValues();
+    }
+
+    protected override async Task ResetValues()
+    {
+        if (!this.IsCreate)
+        {
+            this.Model = (this.TItemFromParent?.Clone()) as GpsTrackerOperationView;
+            this.EventsStartDate = this.Model?.OperationDate ?? null;
+            this.EventsFinishDate = this.Model?.OperationFinishDate ?? null;
+        }
+        else
+        {
+            this.Model = new();
+            this.Model.OperationDate = DateTime.Today;
+            this.EventsStartDate = DateTime.Today;
+            this.Model.OperationFinishDate = null;
+            this.EventsFinishDate = null;
+            this.Model.FkGpstrackerId = this.EventSource?.Id ?? 0;
+            this.Model.OperationType = 0;
+        }
+
+        this.CheckPropDates();
+    }
+
+    private void ResetFKInModel()
+    {
+        this.Model.FkSimcardId = null;
+        this.Model.FkTrailerId = null;
+        this.Model.FkTruckId = null;
+    }
+
+    private void InitLastEvent()
+        => this.TEventLast = this.HistoryEvents?
+                                               .OrderByDescending(_ => _.OperationDate.Date)?
+                                               .ThenByDescending(_ => _.Id)?
+                                               .First()
+                                               ??
+                                               null
+                                               ;
+
+    private void InitNextEvent()
+    {
+        var allEvents = this.HistoryEvents?
+                                          .OrderBy(_ => _.OperationDate.Date)?
+                                          .ThenBy(_ => _.Id)?
+                                          .ToList()
+                                          ??
+                                          new()
+                                          ;
+
+        var indexCurrEvent = allEvents?.FindIndex(_ => _.Id == this.TItemFromParent.Id) ?? -1;
+
+        if (indexCurrEvent != -1 && indexCurrEvent != allEvents.Count - 1) // not equel last element
+            this.TEventNext = allEvents.ElementAt(indexCurrEvent + 1);
+        else
+            this.TEventNext = null;
+    }
+
+    private void InitPreviousEvent()
+    {
+        if(this.IsCreate)
+        {
+            this.TEventPrevious = this.TEventLast;
+            return;
+        }
+
+        // все события по карте, отсортированные по возрастанию по дате, а затем по идентификатору(ВАЖНО!)
+        var allEvents = this.HistoryEvents?
+                                                            .OrderBy(_ => _.OperationDate.Date)?
+                                                            .ThenBy(_ => _.Id)?
+                                                            .ToList()
+                                                            ??
+                                                            new()
+                                                            ;
+
+        var indexCurrEvent = allEvents?.FindIndex(_ => _.Id == this.TItemFromParent.Id) ?? -1;
+        if (indexCurrEvent > 0) // 0 - first element, -1 - not found
+            this.TEventPrevious = allEvents.ElementAt(indexCurrEvent - 1);
+        else
+            this.TEventPrevious = null;
+    }
+
+    public override async Task StartOperation()
+    {
+        await this.ProgressBarOpenAsync();
+        var mappedSimCardOper = this.Mapper?.Map<GpsTrackerOperationView>(this.Model);
+
+        if (this.IsCreate)
+            this.OperationsResult = await this.api?.MobileApi?.PostGpsTrackersOperation(mappedSimCardOper, this.Token);
+        else
+            this.OperationsResult = await this.api?.MobileApi?.PutGpsTrackersOperation(mappedSimCardOper, this.Token);
+
+        await this.ProccessingResponse();
+        await this.ProgressBarCloseAsync();
+    }
+
+    public override async Task ProccessingResponse()
+    {
+        if (this.InvokeParentHendlerResponseBaseAfterAction.HasDelegate)
+            await this.InvokeParentHendlerResponseBaseAfterAction.InvokeAsync(this.OperationsResult);
+    }
+}

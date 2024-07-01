@@ -1,0 +1,136 @@
+﻿@typeparam T
+@inherits ScaffoldJCTableInnerBase<T>
+@implements IDisposable
+
+@if(this.IsRender)
+{
+    var trClass = IsCheckedInner ? $"trSelected" : "";
+    <CascadingValue Value="@this">
+        <tr class="@trClass" style="@(ParentComponent?.ParentComponent?.StyleMaxHeightTableRow ?? string.Empty)">
+            @if ((ParentComponent?.ParentComponent?.ParentComponent?.PropertiesRendered?.Any() ?? false))
+            {
+                <td data-label="Настройка отображения"
+                    class="min_td">
+                </td>
+                @if(ParentComponent?.ParentComponent?.IsRenderCheckColumn ?? false)
+                {
+                    <td data-label="Отметить"
+                        class="middle_td">
+                        <input type="checkbox"
+                               @bind="this.IsCheckedInner" />
+                    </td>
+                }
+
+                @if (ParentComponent?.ParentComponent?.IsRenderOrderNumberColumn ?? false)
+                {
+                    <td data-label="№"
+                        class="middle_td"
+                        @onclick="@(async() => { if(this.SendToParentSelectedItem.HasDelegate)
+                                                    await this.SendToParentSelectedItem.InvokeAsync(this.Item); })"
+                        @oncontextmenu="@(async (MouseEventArgs arg) => { await HandleRightClick(arg); })"
+                        @oncontextmenu:preventDefault="true">
+                        @(this.NumRow + 1)
+                    </td>
+                }
+
+                foreach (var propInfo in this.ParentComponent?.ParentComponent?.ParentComponent?.PropertiesRendered ?? new())
+                {
+                    var attrVal = typeof(T).GetDisplayAttributeValues(propInfo.Name);
+                    var columnName = string.IsNullOrEmpty(attrVal) ? propInfo?.Name ?? string.Empty : attrVal;
+                    var objVal = propInfo?.GetValue(this.Item);
+                    var labelVal = string.Empty;
+                    if (this.ParentComponent?.ParentComponent?.ParentComponent?.PropertiesStylesFormat?.TryGetValue(propInfo, out var deleg) ?? false)
+                    {
+                        labelVal = deleg(objVal);
+                    }
+                    else if ((propInfo.PropertyType == typeof(DateTime) || Nullable.GetUnderlyingType(propInfo.PropertyType) == typeof(DateTime)) && DateTime.TryParse(objVal?.ToString() ?? string.Empty, out var date))
+                        labelVal = date.FormatingDate();
+                    else if ((propInfo.PropertyType == typeof(decimal) || Nullable.GetUnderlyingType(propInfo.PropertyType) == typeof(decimal)) && decimal.TryParse(objVal?.ToString(), out var dec))
+                        labelVal = String.Format(this.NumbersFormat ?? "{0:N4}", dec);
+                    else if ((propInfo.PropertyType == typeof(double) || Nullable.GetUnderlyingType(propInfo.PropertyType) == typeof(double)) && double.TryParse(objVal?.ToString(), out var doub))
+                        labelVal = String.Format(this.NumbersFormat ?? "{0:N4}", doub);
+                    else
+                        labelVal = objVal?.ToString() ?? string.Empty;
+                    var lenthLabelVal = labelVal?.Length ?? 0;
+                    var classForTd = string.Empty;
+                    var styleForTd = string.Empty;
+                    if (this.ParentComponent?.ParentComponent?.ParentComponent?.MaxWidthCell?.ContainsKey(propInfo) ?? false)
+                    {
+                        var settedWidth = this.ParentComponent?.ParentComponent?.ParentComponent?.MaxWidthCell[propInfo];
+                        styleForTd = $"max-width: {settedWidth}px !important; min-width: {settedWidth}px !important; text-overflow: ellipsis; word-break: break-all;";
+                    }
+                    else if (lenthLabelVal > 50)
+                    {
+                        classForTd = "max_td";
+                    }
+                    else
+                    {
+                        styleForTd = string.Empty;
+                        classForTd = string.Empty;
+                    }
+                    <td data-label="@columnName"
+                        class="@classForTd"
+                        style="@styleForTd"
+                        @ondblclick="@(async() => { if(this.SendToParentSelectedItem.HasDelegate)
+                                                    await this.SendToParentSelectedItem.InvokeAsync(this.Item); })"
+                        @oncontextmenu="@(async (MouseEventArgs arg) => { await HandleRightClick(arg); })"
+                        @oncontextmenu:preventDefault="true">
+                        @if(propInfo.PropertyType == typeof(bool))
+                        {
+                            var val = (bool)objVal;
+                            if(val)
+                            {
+                                <input type="checkbox" checked disabled />
+                            }
+                            else
+                            {
+                                <input type="checkbox" disabled />
+                            }
+                        }
+                        else if (propInfo.PropertyType == typeof(ImgView))
+                        {
+                            var val = ((ImgView)objVal).ImgSrc;
+                            <img src="@val" />
+                        }
+                        else
+                        {
+                            @labelVal
+                        }
+                    </td>
+                } 
+            }
+            else
+            {
+                var colspanDefault = ParentComponent?.ParentComponent?.ParentComponent?.PropertiesRendered?.Count ?? 0;
+                if (ParentComponent?.ParentComponent?.IsRenderCheckColumn ?? false) colspanDefault++;
+                if (ParentComponent?.ParentComponent?.IsRenderOrderNumberColumn ?? false) colspanDefault++;
+                if (colspanDefault == 0) colspanDefault = 1;
+                colspanDefault++;
+                <td colspan="@colspanDefault">
+                    Нет информации для отображения
+                </td>
+            }
+        </tr>
+    </CascadingValue>
+}   
+else
+{
+        <div id="@this.IdForProgressBar" style="display: none;">    
+            <ProgressBar />
+        </div>
+}
+
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IsRender = true;
+    }
+
+    protected async Task HandleRightClick(MouseEventArgs args)
+    {
+        if (args.Button == 2 && this.SendToParentSelectedItemRightClick.HasDelegate)
+            await this.SendToParentSelectedItemRightClick.InvokeAsync(new CoordinateClass<T>(this.Item, args.PageX, args.PageY));
+    }
+}

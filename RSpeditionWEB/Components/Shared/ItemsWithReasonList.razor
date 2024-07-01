@@ -1,0 +1,71 @@
+﻿@{
+    var styleName = $"max-height: {(this.MaxHeight ?? 68)}vh !important;";
+    var isDetailsShow = !this.IsDetailsHide.HasValue || !this.IsDetailsHide.Value;
+    var colspanVal = isDetailsShow ? 3 : 2;
+}
+<div class="adapt_table scroll font-journal" style="@styleName">
+    <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+        <thead class="adapt_table_inner_thead">
+            <tr>
+                <th data-label="№">
+                    №
+                </th>
+                <th data-label="@this.NameItem">
+                    @this.NameItem
+                </th>
+                @if (isDetailsShow)
+                {
+                    <th data-label="Причина">
+                        Причина
+                    </th>
+                }
+            </tr>
+        </thead>
+        <tbody style="width: 100%;">
+            @if (this.Items != null && this.Items.Count > 0)
+            {
+                <Virtualize Items="@(this.Items ?? new())" ItemSize="25">
+                    <ItemContent>
+                        <tr style="text-align: left;">
+                            <td data-label="№" style="text-align: center;">
+                                @context.index
+                            </td>
+                            <td data-label="@this.NameItem" style="text-align: left;">
+                                @context.itemName
+                            </td>
+                            @if (isDetailsShow)
+                            {
+                                <td data-label="Причина" style="text-align: left;">
+                                    @context.details
+                                </td>
+                            }
+                        </tr>
+                    </ItemContent>
+                </Virtualize>
+            }
+            else
+            {
+                <tr>
+                    <td colspan="@colspanVal" style="font-size: medium !important;">
+                        <em>Записи для отображения отсутствуют</em>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+
+@code {
+    [Parameter]
+    public List<(int index, string itemName, string details)> Items { get; set; }
+
+    [Parameter]
+    public string NameItem { get; set; }
+
+    [Parameter]
+    public int? MaxHeight { get; set; }
+
+    [Parameter]
+    public bool? IsDetailsHide { get; set; }
+}

@@ -1,0 +1,29 @@
+﻿@using RSpeditionWEB.Models.ID;
+@inject NavigationManager navigator
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@inherits ComponentBaseClass
+
+        <LogIn SendAutheriseWebUserToParent="@((user) => { this.CurrentWebUser = user; })"
+               ReturnUrl="@this.ReturnUrl" />
+
+@code{
+    [Parameter]
+    public EventCallback<WebUser> SendWebUserToParent { get; set; }
+
+    private WebUser currentWebUser;
+    private WebUser CurrentWebUser
+    {
+        set
+        {
+            this.currentWebUser = value;
+            this.SendWebUserToParent.InvokeAsync(value);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IsRender = true;
+    }
+}
+

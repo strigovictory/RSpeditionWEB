@@ -1,0 +1,127 @@
+﻿@page "/LogIn"
+@using RSpeditionWEB.Models.ID;
+@using RSpeditionWEB.Services.ID.Interfaces;
+@inject NavigationManager navManager
+@inject IIdentityHelperService authServise
+@implements IDisposable
+@inherits ComponentBaseClass
+
+@if(this.IsRender)
+{
+    var labelUserName = AttributesHelper.GetDisplayAttributeValues(typeof(LoginRequest), nameof(this.CurrentInputModel.UserName));
+    var labelPassword = AttributesHelper.GetDisplayAttributeValues(typeof(LoginRequest), nameof(this.CurrentInputModel.Password));
+
+    <ModalWindowWithEventCallback Title="Авторизация пользователя"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { this.IsRender = false; })">
+         <div class="form">
+            <EditForm Model="@this.CurrentInputModel" OnValidSubmit="@HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <div class="form_label">
+                    <label>@labelUserName</label>
+                </div>
+                <div>
+                    <InputText @bind-Value="@this.CurrentInputModel.UserName" />
+                    <ValidationMessage For="() => this.CurrentInputModel.UserName" />
+                </div>
+                <div class="form_label">
+                    <label>@labelPassword</label>
+                </div>
+                <div>
+                    <input type="password" @bind-value="@this.CurrentInputModel.Password" />
+                    <ValidationMessage For="() => this.CurrentInputModel.Password" />
+                </div>
+                <br/>
+                <div>
+                    <button type="submit" class="my-btn">Вход</button>
+                    <button type="button" class="my-btn" @onclick="@(() => { this.navManager.NavigateTo(this.ReturnUrl, true); })">Назад</button>
+                </div>
+                <div>
+                    <outer>
+                        <inner>
+                            <UlOlli Items="@this.ErrorMessage?.ConvertStringToList('!')"
+                                    IsOrderedList="false"
+                                    NameClass="nonMarker validation-message"/>
+                        </inner>
+                    </outer>
+                </div>
+            </EditForm>
+        </div>
+
+    @if (this.ShowModalMessage)
+    {
+        <ModalWindowWithEventCallback Title="Предупреждение"
+                                      InvokeParentHandlerwithUpdParent="@(async () => { this.ShowModalMessage = false; })">
+            <UlOlli Items="@this.ErrorMessage?.ConvertStringToList('!')"
+                    IsOrderedList="false"
+                    NameClass="nonMarker"/>
+        </ModalWindowWithEventCallback>
+    }
+    </ModalWindowWithEventCallback>
+}
+
+@code {
+    [Parameter]
+    public EventCallback<WebUser> SendAutheriseWebUserToParent { get; set; }
+
+    private bool ShowModalMessage { get; set; }
+
+    public string ErrorMessage { get; set; } = string.Empty;
+
+    private LoginRequest CurrentInputModel { get; set; } = new();
+
+    public override async Task SetParametersAsync(ParameterView parameters)
+    {
+        await base.SetParametersAsync(parameters);
+
+        if (parameters.TryGetValue<string>(nameof(ReturnUrl), out var value))
+        {
+            if (value is null)
+            {
+                this.ReturnUrl = "/";
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IsRender = true;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        this.ErrorMessage = string.Empty;
+
+        var resLogIn = await this.authServise?.Authenticate(this.CurrentInputModel);
+
+        if (resLogIn != null)
+        {
+            if(!string.IsNullOrEmpty(resLogIn.UserName))
+            {
+                if (this.SendAutheriseWebUserToParent.HasDelegate)
+                {
+                    Log.Information($"Пользователь «{resLogIn?.UserName ?? string.Empty}» (email: «{resLogIn?.Email ?? string.Empty}») успешно прошел аутентификацию.");
+
+                    await this.SendAutheriseWebUserToParent.InvokeAsync(resLogIn);
+                }
+                else
+                {
+                    this.navManager.NavigateTo(this.ReturnUrl ?? "/", true);
+                }
+            }
+            else
+            {
+                this.ErrorMessage = "Ошибка авторизации !";
+                this.ShowModalMessage = true;
+                this.StateHasChanged();
+            }
+        }
+        else
+        {
+            this.ErrorMessage = "Сервер, отвечающий за аутентификацию и авторизацию пользователя не отвечает";
+            this.ShowModalMessage = true;
+            this.StateHasChanged();
+        }
+    }
+}

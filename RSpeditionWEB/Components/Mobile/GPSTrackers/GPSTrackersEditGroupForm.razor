@@ -1,0 +1,394 @@
+﻿@inject IApies api
+@inherits EditFormBase<GpstrackerInvoiceGroupModel>
+@inject IMapper mapper
+
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        var label_InvoiceDate = this.Model.Invoice.GetType().GetCustomDisplayValues(nameof(this.Model.Invoice.InvoiceDate)).Item1 ?? string.Empty;
+        var label_InvoiceNumber = this.Model.Invoice.GetType().GetCustomDisplayValues(nameof(this.Model.Invoice.InvoiceNumber)).Item1 ?? string.Empty;
+        var label_DivisionName = this.Model.Invoice.GetType().GetCustomDisplayValues(nameof(this.Model.Invoice.DivisionName)).Item1 ?? string.Empty;
+        var label_SummaryCost = this.Model.Invoice.GetType().GetCustomDisplayValues(nameof(this.Model.Invoice.SummaryCost)).Item1 ?? string.Empty;
+        var innerItem = new GpsTrackerView();
+        var innerItemsType = innerItem.GetType();
+        var label_Number = innerItemsType.GetCustomDisplayValues(nameof(innerItem.Number)).Item1 ?? string.Empty;
+        var label_Imei = innerItemsType.GetCustomDisplayValues(nameof(innerItem.Imei)).Item1 ?? string.Empty;
+        var label_ModelName = innerItemsType.GetCustomDisplayValues(nameof(innerItem.ModelName)).Item1 ?? string.Empty;
+        var label_Cost = innerItemsType.GetCustomDisplayValues(nameof(innerItem.Cost)).Item1 ?? string.Empty;
+        var colspan = this.IsCreate ? 6 : 5;
+        <div class="form_flex">
+            <EditForm EditContext=@this.EditContext>
+                <DataAnnotationsValidator />
+                <div class="flexRowSpaceBetweenCenter">
+                        <div class="flexColumn">
+                            <div>
+                                <label_small_black>@label_InvoiceDate</label_small_black>
+                            </div>
+                            <div>
+                            @if (this.IsCreate)
+                                {
+                                    <InputDate TValue="DateTime"
+                                               @bind-Value="@this.Model.Invoice.InvoiceDate"
+                                               @oninput="@((ChangeEventArgs arg) => { this.InvoiceDateWereChanged(arg); })" />
+                                }
+                                else
+                                {
+                                    <input type="text"
+                                           class="non-active"
+                                           title="Редактирование недоступно"
+                                           disabled 
+                                           value="@(this.Model?.Invoice?.InvoiceDate.Date.ToShortDateString() ?? string.Empty)" />
+                                }
+                            </div>
+                            <div class="validation-message">
+                                @this.ManualValidationMessage_InvoiceDate
+                            </div>
+                            <div class="validation-message">
+                                @this.GetPropsValidMessage(nameof(this.Model.Invoice.InvoiceDate))
+                            </div>
+                        </div>
+                        <div class="flexColumn">
+                            <div>
+                                <label_small_black>@label_InvoiceNumber</label_small_black>
+                            </div>
+                            <div>
+                                <InputText @bind-Value="@this.Model.Invoice.InvoiceNumber"
+                                           @oninput="@((ChangeEventArgs arg) => { this.Model.Invoice.InvoiceNumber = arg.Value?.ToString() ?? string.Empty; })" />
+                            </div>
+                            <div class="validation-message">
+                                @this.GetPropsValidMessage(nameof(this.Model.Invoice.InvoiceNumber))
+                            </div>
+                        </div>
+                        <div class="flexColumn">
+                        <div>
+                            <label_small_black>@label_SummaryCost</label_small_black>
+                        </div>
+                        <div>
+                            <InputNumber @bind-Value="this.Model.Invoice.SummaryCost"
+                                     @oninput="@((ChangeEventArgs arg) => {this.Model.Invoice.SummaryCost = Decimal.TryParse(arg.Value?.ToString() ?? string.Empty, out var val) ? val: null; })" />
+                        </div>
+                        <div class="validation-message">
+                            @this.GetPropsValidMessage(nameof(this.Model.Invoice.SummaryCost))
+                        </div>
+                </div>
+                        <div class="flexColumnLast">
+                            @{
+                                DivisionResponse divis = new();
+                                var type_divis = divis.GetType();
+                                var props_divis = new List<PropertyInfo> { type_divis.GetProperty(nameof(divis.Name)) };
+                                var textProp_divis = type_divis.GetProperty(nameof(divis.Name));
+                                var temp_divis = type_divis.GetCustomDisplayValues(nameof(divis.Name));
+                                var labelForSearch_divis = temp_divis.Item1 ?? string.Empty;
+                            var current_divis = (this.Model?.Invoice?.FkDivisionId.HasValue ?? false) ? this.GPSTrackersFilters_CascadingVal?.GpsTrackerCascadingParameter?.Divisions?.FirstOrDefault(_ => _.Id == this.Model.Invoice.FkDivisionId) : null;
+                                var initPar_divis = current_divis == null ? null : new List<DivisionResponse> { current_divis };
+                                var placeholder_divis = current_divis != null ? current_divis?.Name ?? string.Empty : temp_divis.Item1;
+                             }
+                                <div>
+                                    <label_small_black>@label_DivisionName</label_small_black>
+                                </div>
+                                <div>
+                            @if (this.IsCreate)
+                                     {
+                                <SearchSelectTItems Items="@(this.GPSTrackersFilters_CascadingVal?.GpsTrackerCascadingParameter?.Divisions?.OrderBy(_ => _.Name)?.ToList() ?? new())"
+                                                    T="@DivisionResponse"
+                                                    KeyPropInfo="@(type_divis.GetProperty(nameof(divis.Id)))"
+                                                    MaxSizeSelect="4"
+                                                    InitParameters="@initPar_divis"
+                                                    LabelForSearch="@labelForSearch_divis"
+                                                    Placeholder="@placeholder_divis"
+                                                    IsMultiple="@false"
+                                                    PropertiesInfoForSearch="@props_divis"
+                                                    TextProperty="@textProp_divis"
+                                                    SendToParentFoundAndSelectedItems="@((List<DivisionResponse> selectedItems)
+                                                                                                                 => {
+                                                                                                                    if(selectedItems != null && selectedItems?.Count > 0)
+                                                                                                                        this.Model.Invoice.FkDivisionId = selectedItems?.FirstOrDefault()?.Id ?? null;
+                                                                                                                    else
+                                                                                                                        this.Model.Invoice.FkDivisionId = null;
+                                                                                                                })" />
+                                    }
+                                     else
+                                     {
+                                         <input type="text" 
+                                                disabled
+                                                class="non-active" 
+                                                title="Редактирование недоступно"
+                                                value="@(current_divis?.Name ?? placeholder_divis ?? string.Empty)" />
+                                     }
+                                </div>
+                                <div class="flexColumn validation-message">
+                                    @this.GetPropsValidMessage(nameof(this.Model.Invoice.FkDivisionId))
+                                </div>
+                            </div>
+                </div>
+            </EditForm>
+        </div>
+        <div class="adapt_table scroll font-journal">
+            <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+                <thead class="adapt_table_inner_thead">
+                    <tr style="border-top: 2px solid white;">
+                        <th data-label="№">
+                            №
+                        </th>
+                        <th data-label="@label_Number">
+                            @label_Number
+                        </th>
+                        <th data-label="@label_Imei">
+                            @label_Imei
+                        </th>
+                        <th data-label="@label_ModelName">
+                            @label_ModelName
+                        </th>
+                        <th data-label="@label_Cost">
+                            @label_Cost
+                        </th>
+                        @if (this.IsCreate)
+                        {
+                            <th data-label="Удалить">
+                                Удалить
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody style="width: 100%;">
+                    <Virtualize Items="@(this.Model?.Trackers ?? new())" ItemSize="25">
+                        <ItemContent>
+                            <GPSTrackersEditGroupFormInner OperationsType="@this.OperationsType" 
+                                                           Index="@(this.Model.Trackers.IndexOf(context))"
+                                                           TItemFromParent="@context"
+                                                           @key="@context.GuideId"
+                                                           InvokeParentHandler_DataChanges="@((GpsTracker_View_GUID itemChanged) =>
+                                                                                                      {
+                                                                                                          var ind = this.Model.Trackers.FindIndex(_ => _.GuideId.Equals(itemChanged.GuideId));
+                                                                                                          this.Model.Trackers[ind] = itemChanged;
+                                                                                                      })"
+                                                           InvokeParentHandler_RemoveRow="@((string indexRemoved) => {  this.Model.Trackers.RemoveAll(_ => _.GuideId.Equals(indexRemoved)); })" />
+                        </ItemContent>
+                    </Virtualize>
+                    @if (this.IsCreate)
+                    {
+                        <tr style="vertical-align: central;">
+                            <td colspan="@colspan">
+                                <button type="button"
+                                @onclick="@(() => { 
+                                    this.Model?.Trackers?.Add(new GpsTracker_View_GUID()); })"
+                                class="button_tr_100">
+                                    <span><b>+</b> Добавить еще один gps-трекер</span>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+         </div>
+         <div>
+             @if (!this.IsModelValid && this.Model?.Trackers?.Count > 0)
+             {
+                 <ul class="validation-message">
+                     @if (!string.IsNullOrEmpty(this.ValidErrors))
+                     {
+                         <li>
+                             @this.ValidErrors
+                         </li>
+                     }
+                     @if (!string.IsNullOrEmpty(this.ManualValidationMessage_InvoiceDate))
+                     {
+                         <li>
+                             @this.ManualValidationMessage_InvoiceDate
+                         </li>
+                     } 
+                 </ul>
+             }
+         </div>
+        <br />
+        <div>
+                <ButtonDouble EventCallbackToParent="@(async () => { await this.ProgressBarOpenAsync();
+                                                                     await this.StartOperation();
+                                                                     await this.ProgressBarCloseAsync();})"
+                              EventCallbackToParentReset="@(async () => { await this.MedelsInitialization();
+                                                                          this.MedelsInitializationInner();
+                                                                          this.ManualValidationMessage_InvoiceDate = string.Empty; })"
+                              LabelForButton="Сохранить"
+                              LabelForButtonReset="Отмена"
+                              IsActive="@((this.Model?.Trackers?.Count ?? 0) > 0
+                                        && (this.IsModelValid)
+                                        && string.IsNullOrEmpty(this.ManualValidationMessage_InvoiceDate))"
+                              TitleIfIsNonActive="Сохранение изменений возможно, если они валидны"
+                              TitleIfIsActive="Кликните, чтобы сохранить изменения"
+                              TitleReset="Кликните, чтобы отменить внесенные изменения" />
+        </div>
+        @if (this.ShowMessage)
+        {
+            <ModalWindowWithEventCallback Title="@this.Title"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false;
+                                                                                            if (this.ShouldUpdateParent && this.InvokeParentHendlerAfterGroupUpdating.HasDelegate)
+                                                                                                await this.InvokeParentHendlerAfterGroupUpdating.InvokeAsync(this.Model.Trackers?.Cast<object>()?.ToList() ?? new());
+                                                                                            else if (this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                                await this.InvokeParentHendlerCancel.InvokeAsync();
+                                                                                          })">
+                <ResultOperation Devider="'!'"
+                                 ResList="null"
+                                 ResMessage="@this.Message" />
+            </ModalWindowWithEventCallback>
+        }
+    }
+    else
+    {
+        <div>
+            Идет загрузка формы...
+        </div>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    [CascadingParameter]
+    public GPSTrackersFilters GPSTrackersFilters_CascadingVal { get; set; }
+
+    private string ManualValidationMessage_InvoiceDate { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ReturnUrl = this.GPSTrackersFilters_CascadingVal?.ReturnUrl ?? "/";
+        this.MedelsInitializationInner();
+        this.IsRender = true;
+    }
+
+    protected override (bool, string) ValidateModel() => (this.Model.CheckModelIsValid().Item1 
+                                                         & (this.Model?.Trackers?.All(_ => _.CheckModelIsValid().Item1) ?? false), "");
+
+    private void MedelsInitializationInner()
+    {
+        if (this.IsCreate)
+        {
+            this.Model.Invoice.InvoiceDate = DateTime.Today;
+        }
+    }
+
+    private void InvoiceDateWereChanged(ChangeEventArgs val)
+    {
+        DateTime res = default;
+
+        if (val == null ||
+           val?.Value == null ||
+           string.IsNullOrEmpty(val?.Value.ToString()) ||
+           string.IsNullOrWhiteSpace(val?.Value.ToString()) ||
+           !DateTime.TryParse(val?.Value?.ToString(), out res))
+        {
+            this.ManualValidationMessage_InvoiceDate = "Неверный формат даты";
+        }
+        else
+        {
+            this.Model.Invoice.InvoiceDate = res;
+            this.ManualValidationMessage_InvoiceDate = string.Empty;
+        }
+
+        this.ValidateModel();
+    }
+
+    public override async Task StartOperation()
+    {
+        this.Message = string.Empty;
+        GpsInvoiceView putPostModel_invoice;
+        List<GpsTrackerView> putPostModel_trackers = new();
+
+        var isValid = this.Model.Invoice.CheckModelIsValid();
+        if (isValid.Item1)
+        {
+            putPostModel_invoice = this.mapper?.Map<GpsInvoiceView>(this.Model.Invoice);
+            this.Model.Trackers?.ForEach(_ => putPostModel_trackers.Add(this.mapper?.Map<GpsTrackerView>(_)));
+
+            string errorsValid = string.Empty;
+            var isValidItems = true;
+
+            foreach (var item in putPostModel_trackers)
+            {
+                var resCheckValid = item.CheckModelIsValid();
+                if (!resCheckValid.Item1)
+                {
+                    errorsValid += resCheckValid.Item2?.ItemsToString("! ");
+                    isValidItems = false;
+                }
+            }
+
+            if (isValidItems)
+            {
+                if (this.IsCreate)
+                {
+                    // 1 - Invoice
+                    this.OperationsResult = await this.api?.MobileApi?.PostGpsInvoice(putPostModel_invoice, this.Token);
+                    this.Message += this.OperationsResult?.Result ?? string.Empty;
+                    if (this.OperationsResult != null)
+                    {
+                        // 2 - Trackers
+                        this.OperationsResult = await this.api?.MobileApi?.PostGpsTrackers(putPostModel_trackers, this.Token);
+                        await this.ProccessingResponse();
+                    }
+                    else
+                    {
+                        this.Message = string.IsNullOrEmpty(this.OperationsResult.Result)
+                                       ? "Операция закончилась с ошибкой ! Новые gps-трекеры не были сохранены в системе !"
+                                       : this.OperationsResult?.Result ?? string.Empty;
+                        this.Title = "Предупреждение";
+                    }
+                }
+                else
+                {
+                    // 1 - Invoice
+                    this.OperationsResult = await this.api?.MobileApi?.PutGpsInvoice(putPostModel_invoice, this.Token);
+                    this.Message += this.OperationsResult?.Result ?? string.Empty;
+                    if (this.OperationsResult != null)
+                    {
+                        // 2 - Trackers
+                        this.OperationsResult = await this.api?.MobileApi?.PutGpsTrackers(putPostModel_trackers, this.Token);
+                        await this.ProccessingResponse();
+                    }
+                    else
+                    {
+                        this.Message = string.IsNullOrEmpty(this.OperationsResult.Result)
+                                       ? "Операция закончилась с ошибкой ! Новые gps-трекеры не были сохранены в системе !"
+                                       : this.OperationsResult?.Result ?? string.Empty;
+                        this.Title = "Предупреждение";
+                    }
+                }
+            }
+            else
+            {
+                this.Message = $"Операция не м.б. выполнена, т.к. данные не валидны ! {errorsValid}";
+                this.Title = "Предупреждение";
+            }
+        }
+        else
+        {
+            this.Message = "Операция не м.б. выполнена, т.к. данные не валидны !";
+            this.Title = "Предупреждение";
+        }
+
+        this.RenderMessage();
+    }
+
+    public override async Task ProccessingResponse()
+    {
+        if (this.OperationsResult == null)
+        {
+            this.Message += string.IsNullOrEmpty(this.OperationsResult.Result)
+                           ? "Операция закончилась с ошибкой ! Новые gps-трекеры не были сохранены в системе !"
+                           : this.OperationsResult?.Result ?? string.Empty;
+            this.Title = "Предупреждение";
+        }
+        else
+        {
+            this.Message += string.IsNullOrEmpty(this.OperationsResult.Result)
+                           ? "Операция успешно завершена ! Новые gps-трекеры были сохранены в системе !"
+                           : this.OperationsResult?.Result ?? string.Empty;
+
+            this.Title = "Результат добавления коллекции gps-трекеров";
+            this.ShouldUpdateParent = true;
+        }
+    }
+}

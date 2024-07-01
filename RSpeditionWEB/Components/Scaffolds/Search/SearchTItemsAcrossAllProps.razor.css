@@ -1,0 +1,117 @@
+﻿select {
+    width: 100%;
+    font-size: small;
+}
+
+.search {
+    /* устанавливаем необходимую ширину формы в зависимости от дизайна
+	** форма без проблем растягивается */
+    width: 100%;
+    /* кнопку отправки будем позиционировать абсолютно,
+	** поэтому необходимо это свойство */
+    position: relative;
+}
+
+    .search input {
+        /* отключаем бордюры у инпутов */
+        border: none;
+    }
+
+    /* стили для поля ввода */
+    .search .input {
+        /* растягиваем поле ввода на всю ширину формы */
+        width: 100%;
+        height: 30px;
+        min-width: 150px;
+        /* за счет верхнего (8px) и нижнего (9px) внутренних отступов
+	** регулируем высоту формы
+	** внутренний отступ справа (37px) делаем больше левого,
+	** т.к. там будет размещена кнопка отправки	*/
+        padding: 2px 5px 2px 5px;
+        /* чтобы ширина поля ввода (100%) включала в себя внутренние отступы */
+        -moz-box-sizing: border-box;
+        box-sizing: border-box;
+        font: 13px tahoma, arial, sans-serif;
+        color: black;
+        /*outline: none;*/
+        border-color: black;
+        border-style: solid;
+        border-top-width: 2px !important;
+        border-right-width: 2px !important;
+        border-bottom-width: 2px !important;
+        border-left-width: 2px !important;
+        border-radius: 0px !important;
+        margin-bottom: 0px !important;
+    }
+
+    /* оформляем кнопку отправки */
+    .search .submit {
+        /* позиционируем кнопку абсолютно от правого края формы */
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 28px;
+        height: 28px;
+        /* растягиваем кнопку на всю высоту формы */
+        cursor: pointer;
+        /* добавляем прозрачность кнопке отправки */
+        opacity: 0.5;
+    }
+
+        /* при наведении курсора меняем прозрачность кнопки отправки */
+        .search .submit:hover {
+            opacity: 0.8;
+        }
+
+/* данное свойство необходимо для того, чтобы в браузерах
+** chrome и safari можно было стилизовать инпуты */
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    height: 15px;
+    width: 15px;
+    background-image: url(css/open-iconic/icon/krest_black.png);
+    background-size: 15px;
+}
+
+    input[type="search"]::-webkit-search-decoration:hover,
+    input[type="search"]::-webkit-search-cancel-button:hover,
+    input[type="search"]::-webkit-search-results-button:hover,
+    input[type="search"]::-webkit-search-results-decoration:hover {
+        background-image: url(css/open-iconic/icon/krest_black_empty.png);
+        background-size: 15px;
+        cursor: pointer;
+    }
+
+/* задаем отдельные стили для браузеров ie ниже 9-й версии */
+* + html .search {
+    /* для ie7 подгоняем ширину под другие браузеры и добавляем правый
+	** внутренний отступ, чтобы кнопка отправки встала на свое место */
+    width: 100%;
+    padding: 0 52px 0 0;
+}
+
+/*********************************************************************************************************/
+option:hover {
+    background-color: #dbdbdb;
+    font-weight: bold;
+    color: black;
+}
+
+.selectedItems {
+    line-height: 1;
+    text-align: center;
+}
+
+    .selectedItems span {
+        font-size: x-small;
+        font-weight: bold;
+    }
+
+    .selectedItems a {
+        font-size: small;
+        font-weight: normal;
+        cursor: pointer;
+    }

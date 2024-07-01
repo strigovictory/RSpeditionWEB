@@ -1,0 +1,651 @@
+﻿@inherits ScaffoldChartBase<int>
+@inject IApies api
+@inject IMapper mapper
+@inject IConfiguration config
+
+<CascadingValue Value="@this">
+    @if (this.IsRender && !this.Token.IsCancellationRequested)
+    {
+        var props = typeof(FuelTransactionsDashBoardModel)?.GetProperties()?
+            .Where(_ => _.Name != nameof(FuelTransactionsDashBoardModel.StartUpload) && _.Name != nameof(FuelTransactionsDashBoardModel.FinishUpload))?.ToList() ?? new();
+        var numColumns = props.Count + 1;
+        var tableStyle = $"display: {this.GetTabStyle(this.TabsVisibility[ReportKind.Таблица])}";
+        var chartStyle = $"display: {this.GetTabStyle(this.TabsVisibility[ReportKind.Диаграмма])}";
+
+        <div style="text-align: center;">
+            <p class="my-h1 inner-light-shadow">Загруженные транзакции</p>
+        </div>
+
+        <div class="shadow_block">
+            @* Период*@
+            <div class="textcols" style="line-height: 0.5; padding-top: 5px;">
+                <div class="textcols-left">
+                    <label_small_black>
+                        Год
+                    </label_small_black>
+                    <SelectYear YearList="@(new List<int>(15).GetListYears())"
+                                YearDefault="@YearSelected"
+                                InvokeParentHendler="@(async(int year)=> { this.YearSelected = year;
+                                                                       await ReactOnEventInParentFinishUpdatingMainCollectionsEvent();
+                                                                       await this.ChartsParameters.ChartsParametersChangedEventInvoke(); })" />
+                </div>
+                <div class="textcols-right">
+                    <label_small_black>
+                        Месяц
+                    </label_small_black>
+                    <SelectMonthNullable MonthIntDefault="@MonthSelected"
+                                         SizeSelect="1"
+                                         InvokeParentHendler="@(async(int? month) => { this.MonthSelected = month != -1 ? month : default;
+                                                                                   await ReactOnEventInParentFinishUpdatingMainCollectionsEvent();
+                                                                                   await this.ChartsParameters.ChartsParametersChangedEventInvoke(); })" />
+                </div>
+            </div>
+            @* Кнопки для переключения табличного вида/диаграммы*@
+            <div class="multi-button">
+                @foreach (int kind in Enum.GetValues(typeof(ReportKind)))
+                {
+                    var kindName = Enum.GetName(typeof(ReportKind), kind);
+                    if ((int)this.ReportKindSelected == kind)
+                    {
+                        <button id="@kindName"
+                                style="color: white;"
+                                @onclick="@(() => {this.ReportKindSelected = (ReportKind)Enum.Parse(typeof(ReportKind), kindName);})">
+                            @kindName
+                        </button>
+                    }
+                    else
+                    {
+                        <button id="@kindName"
+                                style="color: inherit;"
+                                @onclick="@(() => {
+                        this.ReportKindSelected = (ReportKind)Enum.Parse(typeof(ReportKind), kindName);})">
+                            @kindName
+                        </button>
+                    }
+                }
+            </div>
+        </div>
+
+            <div style="@tableStyle">
+                @*Табличная часть*@
+                <div class="pressed">
+                    <div class="adapt_table scroll font-journal" style="@StyleMaxHeightName">
+                        <table class="adapt_table_inner"
+                               cellpadding="0"
+                               cellspacing="0">
+                            <thead class="adapt_table_inner_thead">
+                                <tr>
+                                    <th data-label="Подразделение">
+                                        №
+                                    </th>
+                                    <th data-label="Дата транзакции" colspan="2">
+                                        Дата транзакции
+                                    </th>
+                                    <th data-label="Форма отчета" colspan="4">
+                                        Форма отчета
+                                    </th>
+                                    <th data-label="Проверена" rowspan="2">
+                                        Проверена
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <th data-label="Подразделение">
+                                        Подразделение
+                                    </th>
+                                    @for (var i = 0; i < props.Count; i++)
+                                    {
+                                        var prop = props.ElementAt(i);
+                                        var thLabel = typeof(FuelTransactionsDashBoardModel).GetCustomDisplayValues(prop.Name).Item1 ?? string.Empty;
+                                        @if (thLabel != "Проверена")
+                                        {
+                                            <th data-label="@thLabel">
+                                                <div>
+                                                    <span>@thLabel</span>
+                                                </div>
+                                            </th>
+                                        }
+                                    }
+                                </tr>
+                                <tr>
+                                    <th data-label="Подразделение">
+                                        1
+                                    </th>
+                                    @for (var i = 0; i < props.Count; i++)
+                                    {
+                                        var ind = i + 2;
+                                        var prop = props.ElementAt(i);
+                                        var thLabel = typeof(FuelTransactionsDashBoardModel).GetCustomDisplayValues(prop.Name).Item1 ?? string.Empty;
+                                        <th data-label="@thLabel">
+                                            @ind
+                                        </th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody style="width: 100%;">
+                                @if (FuelCardsCascadingParameter?.FuelProviders?.Any() ?? false)
+                                {
+                                    var divisionsAll = this.FuelCardsCascadingParameter?.Divisions?.OrderBy(_ => _.Name)?
+                                    .Where(_ => _.IsMainDivision && !_.IsOnlyForwarding)?.ToList() ?? new();
+                                    var activeProviders = this.FuelCardsCascadingParameter?.FuelProviders?.OrderBy(_ => _.Name)?.ToList() ?? new();
+                                    @for (var i = 0; i < activeProviders.Count; i++)
+                                    {
+                                        var ind = i + 1;
+                                        var provider = activeProviders.ElementAt(i);
+                                        var item = TransactionsByProvider?.FirstOrDefault(_ => _.ProviderName == provider.Name) ?? default;
+                                        var itemByProvider = item?.TransactionsInfoByProvider;
+                                        var itemByProviderDivision = item?.TransactionsInfoByDivision ?? new();
+                                        var isRenderGroup = false;
+                                        var isTryGetVal = this.RenderingItemsIntoGroups?.TryGetValue(provider.Name, out isRenderGroup) ?? false;
+                                        var imgGroup = isRenderGroup ? "css/open-iconic/icon/minus.png" : "css/open-iconic/icon/plus.png";
+                                        var toolTipGroup = isRenderGroup ? "Свернуть" : "Развернуть";
+                                        var transactionInfoByProvider = TransactionsByProvider?
+                                        .FirstOrDefault(_ => _.ProviderName?.Equals(provider.Name, StringComparison.InvariantCultureIgnoreCase) ?? false)
+                                        ?.TransactionsInfoByProvider ?? default;
+                                        var transactionInfoByProviderByDivision = TransactionsByProvider?
+                                        .FirstOrDefault(_ => _.ProviderName?.Equals(provider.Name, StringComparison.InvariantCultureIgnoreCase) ?? false)
+                                        ?.TransactionsInfoByDivision ?? new();
+                                        <tr 
+                                            class="tdGrouped" 
+                                            style="cursor:zoom-in;"
+                                            @onclick="(() =>
+                                            {
+                                                ProviderIdSelected = provider.Id;
+                                                IsRenderHistory = true; 
+                                            })">
+                                            <td data-label="Подразделение">@ind</td>
+                                            <td colspan="@(numColumns - 1)">
+                                                @(provider.Name ?? string.Empty)
+                                            </td>
+                                        </tr>
+                                        <tr class="tdGroupedInner"
+                                        @onclick="(() => { if(this.RenderingItemsIntoGroups.TryGetValue(provider.Name, out isRenderGroup))
+                                                       this.RenderingItemsIntoGroups[provider.Name] = isRenderGroup ? false : true; })">
+                                            <td data-label="Подразделение">-</td>
+                                            @foreach (var prop in props ?? new())
+                                            {
+                                                var tdLabel = typeof(FuelTransactionsDashBoardModel).GetCustomDisplayValues(prop.Name).Item1 ?? string.Empty;
+                                                var tdValue = transactionInfoByProvider != null ? prop.GetValue(transactionInfoByProvider) : "-";
+                                                <td data-label="@tdLabel">
+                                                    <span>@(tdValue ?? string.Empty)</span>
+                                                </td>
+                                            }
+                                        </tr>
+                                        @if (isRenderGroup)
+                                        {
+                                            @foreach (var division in divisionsAll ?? new())
+                                            {
+                                                var transactionsByDivision = transactionInfoByProviderByDivision?
+                                                .FirstOrDefault(_ => _.DivisionName.Equals(division?.Name ?? string.Empty, StringComparison.InvariantCultureIgnoreCase))?
+                                                .TransactionsByProviderByDivision ?? default;
+                                                <tr>
+                                                    <td data-label="Подразделение">@(division?.Name ?? string.Empty)</td>
+                                                    @for (var j = 0; j < props.Count; j++)
+                                                    {
+                                                        var prop = props.ElementAt(j);
+                                                        var tdLabel = typeof(FuelTransactionsDashBoardModel).GetCustomDisplayValues(prop.Name).Item1 ?? string.Empty;
+                                                        var tdValue = transactionsByDivision != null ? prop.GetValue(transactionsByDivision) : "-";
+                                                        <td data-label="@tdLabel">
+                                                            <span>@(tdValue ?? string.Empty)</span>
+                                                        </td>
+                                                    }
+                                                </tr>
+                                            }
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="@numColumns">
+                                            <em>Записи для отображения отсутствуют</em>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="adapt_table_inner_tfoot">
+                                @{
+                                    var rowClass = IsRenderOverAll ? "" : "display: none;";
+                                    var tooltipText = IsRenderOverAll ? "Скрыть итоги" : "Показать итоги";
+                                    var ascImgSrc = "/css/open-iconic/icon/up-arrow.png";
+                                    var descImgSrc = "/css/open-iconic/icon/down-arrow.png";
+                                    var imgRow = IsRenderOverAll ? ascImgSrc : descImgSrc;
+                                }
+                                <tr class="selected"
+                                    title="@tooltipText"
+                                @onclick="@(() => { IsRenderOverAll = IsRenderOverAll ? false : true; })">
+                                    <td colspan="@numColumns">
+                                        <img src="@imgRow"
+                                             class="dropbtn" />
+                                        <b>ИТОГИ</b>
+                                        <img src="@imgRow"
+                                             class="dropbtn" />
+                                    </td>
+                                </tr>
+                                <tr style="@rowClass">
+                                    <td data-label="Подразделение"></td>
+                                    @foreach (var propInfo in props ?? new())
+                                    {
+                                        var test = propInfo;
+                                        if (propInfo.PropertyType == typeof(Int32))
+                                        {
+                                            var keySelector = (FuelTransactionsDashBoardModel item) => item.GetType().GetProperty(propInfo.Name).GetValue(item);
+                                            var parseValue = (FuelTransactionsDashBoardModel item) =>
+                                            {
+                                                if (int.TryParse(keySelector(item)?.ToString() ?? "0", out var value))
+                                                {
+                                                    return value;
+                                                }
+                                                else return 0;
+                                            };
+                                            var valSum = TransactionsByProvider.Sum(_ => parseValue(_.TransactionsInfoByProvider));
+                                            <td data-label="@(propInfo?.Name ?? string.Empty)">
+                                                <span style="font-weight: bolder;">@valSum</span>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td data-label="@(propInfo?.Name ?? string.Empty)">
+                                                <span style="font-weight: bolder;"></span>
+                                            </td>
+                                        }
+                                    }
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div style="@chartStyle">
+                @*Графики*@
+                <div>
+                    <ScaffoldChart T="int"
+                    @ref="@this.ScaffoldChartRef" />
+                </div>
+            </div>
+
+        @if (IsRenderHistory)
+        {
+            var titleHistory = $"История загрузки транзакций ";
+            titleHistory += MonthSelected.HasValue ? $"за {Enum.GetName(typeof(MonthsBinary), MonthSelected)} " : "";
+            titleHistory += $"{YearSelected.AddzeroForYear()} ";
+            titleHistory += ProviderIdSelected.HasValue 
+            ? $"провайдер «{(FuelCardsCascadingParameter?.FuelProviders?.FirstOrDefault(_ => _.Id == ProviderIdSelected.Value)?.Name ?? string.Empty)}» " 
+            : "";
+            <ModalWindowWithEventCallback Title="@titleHistory"
+                                          InvokeParentHandlerwithUpdParent="@(() => { this.IsRenderHistory = false;
+                                                                                      ProviderIdSelected = default; })">
+                <FuelTransactionUploadLogsCont Year="@YearSelected"
+                                               Month="@MonthSelected"
+                                               ProviderId="@ProviderIdSelected" />
+            </ModalWindowWithEventCallback>
+        }
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка..." TopValue="40" />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    [CascadingParameter]
+    public FuelCardsCont FuelCardsCascadingParameter { get; set; }
+
+    private Dictionary<string, bool> RenderingItemsIntoGroups { get; set; } = new();
+
+    private bool IsRenderHistory { get; set; }
+
+    private int? ProviderIdSelected{ get; set;}
+
+    private int YearSelected { get; set; }
+
+    private int? MonthSelected { get; set; }
+
+    private List<FuelTransactionsDashBoardModelGroupByProvider> TransactionsByProvider { get; set; }
+
+    private bool IsRenderOverAll { get; set; } = true;
+
+    private bool IsGlobalRefOnTabSetUp { get; set; } = false;
+
+    private Dictionary<ReportKind, bool> TabsVisibility { get; set; }
+    private string GetTabStyle(bool isTabVisibile) => isTabVisibile ? "block" : "none";
+
+    enum ReportKind : int { Таблица, Диаграмма }
+    private Func<Task> f;
+
+    private ReportKind reportKindSelected = ReportKind.Таблица;
+    private ReportKind ReportKindSelected
+    {
+        get => this.reportKindSelected;
+        set
+        {
+            if (Enum.TryParse<ReportKind>(value.ToString(), out var val))
+            {
+                this.reportKindSelected = val;
+                this.TabsVisibility[this.reportKindSelected] = true;
+                foreach (var tab in this.TabsVisibility)
+                {
+                    if (tab.Key != val)
+                        this.TabsVisibility[tab.Key] = false;
+                }
+            }
+        }
+    }
+
+    private string ActiveTabTitle
+        => this.ReportKindSelected switch
+        {
+            ReportKind.Таблица => "таблица",
+            ReportKind.Диаграмма => "диаграмма",
+            _ => "таблица",
+        };
+
+    #region // Overriden methods
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        PrimaryInitData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    protected override async Task InitDataForCharts()
+        => await ReactOnEventInParentFinishUpdatingMainCollectionsEvent();
+
+    private void PrimaryInitData()
+    {
+        YearSelected = DateTime.Now.Month == 1 ? DateTime.Now.Year - 1 : DateTime.Now.Year;
+        MonthSelected = DateTime.Now.Month == 1 ? 12 : DateTime.Now.Month - 1;
+        TabsVisibility = new Dictionary<ReportKind, bool> { { ReportKind.Диаграмма, false},
+                                                            { ReportKind.Таблица, true } };
+    }
+
+    protected async Task ReactOnEventInParentFinishUpdatingMainCollectionsEvent()
+    {
+        TransactionsByProvider = await InitMainCollection();
+        RenderingItemsIntoGroups = FuelCardsCascadingParameter?.FuelProviders?.Select(_ => _.Name)?.ToDictionary(x => x, x => false) ?? new();
+        this.StateHasChanged();
+    }
+
+    public List<FuelTransactionFullResponse> TranzactionsFiltered { get; set; }
+
+    private async Task<List<FuelTransactionsDashBoardModelGroupByProvider>> InitMainCollection()
+    {
+        var source = this.FuelCardsCascadingParameter?.Tranzactions ?? new();
+
+        TranzactionsFiltered = MonthSelected.HasValue
+        ? source?.Where(_ => _.OperationDate.Date >= new DateTime(year: YearSelected, month: MonthSelected.Value, day: 1)
+        && _.OperationDate.Date <= new DateTime(year: YearSelected, month: MonthSelected.Value, day: DateTime.DaysInMonth(YearSelected, MonthSelected.Value)))?.ToList() ?? new()
+        : source?.Where(_ => _.OperationDate.Date >= new DateTime(year: YearSelected, month: 1, day: 1)
+        && _.OperationDate.Date <= new DateTime(year: YearSelected, month: 12,day: DateTime.DaysInMonth(YearSelected, 12)))?.ToList() ?? new();
+
+        return TranzactionsFiltered?.GroupBy(_ => _.ProviderName)?
+        .Select(_ => new
+        {
+            provider = _.Key,
+            transactions = _.ToList(),
+        })?
+        .Select(_ =>
+            new FuelTransactionsDashBoardModelGroupByProvider
+            {
+                ProviderName = _.provider,
+                TransactionsInfoByProvider =
+                    new FuelTransactionsDashBoardModel
+                    {
+                        StartUpload = _.transactions.Any() ? _.transactions.MinBy(tr => tr.OperationDate.Date).OperationDate.Date : default,
+                        FinishUpload = _.transactions.Any() ? _.transactions.MaxBy(tr => tr.OperationDate.Date).OperationDate.Date : default,
+                        NumberDayly = _.transactions.Any() ? _.transactions.Where(tr => tr.IsDaily.HasValue && tr.IsDaily.Value)?.Count() ?? 0 : default,
+                        NumberMonthly = _.transactions.Any() ? _.transactions.Where(tr => tr.IsMonthly.HasValue && tr.IsMonthly.Value)?.Count() ?? 0 : default,
+                        NumberNotSetReportKind = _.transactions.Any() ? _.transactions.Where(tr => !tr.IsDailyValue && !tr.IsMonthlyValue)?.Count() ?? 0 : default,
+                        NumberChecked = _.transactions.Any() ? _.transactions.Where(tr => tr.IsCheck)?.Count() ?? 0 : default,
+                    },
+                TransactionsInfoByDivision = _.transactions?.GroupBy(_ => _.DivisionName)?
+                .Select(_ => new
+                    {
+                        division = _.Key,
+                        transactions = _.ToList(),
+                    })
+                    .Select(_ => 
+                        new FuelTransactionsDashBoardModel_GroupBy_Division
+                        {
+                            DivisionName = _.division,
+                            TransactionsByProviderByDivision =
+                                new FuelTransactionsDashBoardModel
+                                {
+                                    StartUpload = _.transactions.Any() ? _.transactions.MinBy(tr => tr.OperationDate.Date).OperationDate.Date : default,
+                                    FinishUpload = _.transactions.Any() ? _.transactions.MaxBy(tr => tr.OperationDate.Date).OperationDate.Date : default,
+                                    NumberDayly = _.transactions.Any() ? _.transactions.Where(tr => tr.IsDaily.HasValue && tr.IsDaily.Value)?.Count() ?? 0 : default,
+                                    NumberMonthly = _.transactions.Any() ? _.transactions.Where(tr => tr.IsMonthly.HasValue && tr.IsMonthly.Value)?.Count() ?? 0 : default,
+                                    NumberNotSetReportKind = _.transactions.Any() ? _.transactions.Where(tr => !tr.IsDailyValue && !tr.IsMonthlyValue)?.Count() ?? 0 : default,
+                                    NumberChecked = _.transactions.Any() ? _.transactions.Where(tr => tr.IsCheck)?.Count() ?? 0 : default,
+                                },
+                         })?.ToList() ?? new(),
+            })?.ToList() ?? new();
+    }
+
+    protected override async Task InitChartModel()
+    => this.ChartModel = this.ChartKind switch
+    {
+        ChartKindPlotly.funnel or ChartKindPlotly.area when this.ChartsParameters.ObjectName == "Количество загруженных транзакций" 
+        && this.ChartsParameters.CategoryName == "Подразделение"
+        => this.InitPlotlyChartGroupTransactionsCountByProviderByDivision(),
+        ChartKindPlotly.funnel or ChartKindPlotly.area when this.ChartsParameters.ObjectName == "Количество загруженных транзакций"
+        && this.ChartsParameters.CategoryName == "Провайдер"
+        => this.InitPlotlyChartGroupTransactionsCountByDivisionByProvider(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Провайдер"
+        => this.InitPlotlyChartSimpleTransactionsCountByProvider(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Подразделение" 
+        => this.InitPlotlyChartSimpleTransactionsCountByDivision(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Период операции, месяц"
+        => this.InitPlotlyChartSimpleOperByMonth(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Период операции, день" 
+        => this.InitPlotlyChartSimpleOperByDay(),
+        _ => throw new Exception("Диаграмма с такими параметрами не обнаружена")
+    };
+
+    protected override List<string> Init_ObjectsNames()
+        => new List<string> { "Количество загруженных транзакций" };
+
+    protected override List<string> Init_CategoriesNames()
+        => this.ChartsParameters.ObjectName switch
+        {
+            "Количество загруженных транзакций" 
+            => new List<string> { "Провайдер", "Подразделение", "Период операции, месяц", "Период операции, день" },
+            _ => new()
+        };
+
+    protected override List<string> Init_SubCategoriesNames()
+         => this.ChartsParameters.ObjectName switch
+         {
+             "Количество загруженных транзакций" when this.ChartsParameters.CategoryName != "Период операции, месяц"
+                                                   && this.ChartsParameters.CategoryName != "Период операции, день" 
+                                                   => new List<string> { "Провайдер", "Подразделение" },
+             _ => new()
+         };
+    #endregion
+
+    #region
+    private PlotlyChartBase<int> InitPlotlyChartSimpleTransactionsCountByProvider()
+    {
+        var data = this.GetDataValuesTransactionsCountByProvider();
+        return new PlotlyChartSimple<int>
+        {
+            ChartName = this.ChartsParameters.ObjectName,
+            DataValues = data.values,
+            DataNames = data.names
+        };
+    }
+
+    private (List<string> names, List<int> values) GetDataValuesTransactionsCountByProvider()
+    {
+        List<string> names = new();
+        List<int> values = new();
+
+        var groupedItems = TranzactionsFiltered?.GroupBy(_ => _.ProviderName)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key)?.ToList() ?? new();
+        values = groupedItems?.Select(x => (int)x.Count())?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    private PlotlyChartBase<int> InitPlotlyChartSimpleTransactionsCountByDivision()
+    {
+        var data = this.GetDataValuesTransactionsCountByDivision();
+        return new PlotlyChartSimple<int>
+            {
+                ChartName = this.ChartsParameters.ObjectName,
+                DataValues = data.values,
+                DataNames = data.names
+            };
+    }
+
+    private (List<string> names, List<int> values) GetDataValuesTransactionsCountByDivision()
+    {
+        List<string> names = new();
+        List<int> values = new();
+
+        var groupedItems = TranzactionsFiltered?.GroupBy(_ => _.DivisionName)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key)?.ToList() ?? new();
+        values = groupedItems?.Select(x => (int)x.Count())?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    private PlotlyChartBase<int> InitPlotlyChartGroupTransactionsCountByProviderByDivision()
+    {
+        var temp = this.GetDataValuesTransactionsCountByProviderByDivision();
+        var res = new PlotlyChartGroup<int>
+            {
+                ChartName = this.ChartsParameters.ObjectName,
+                GroupsNames = temp.groupsNames,
+                DataValues = temp.values,
+                DataNames = temp.names
+            };
+
+        return res;
+    }
+
+    private (List<string> groupsNames, List<string> names, List<List<int>> values) GetDataValuesTransactionsCountByProviderByDivision()
+    {
+        var groupedItems_by_Provider = TranzactionsFiltered?
+        .GroupBy(_ => _.ProviderName)?
+        .OrderBy(_ => _.Key)?
+        .Select(_ => new
+        {
+            providerName = _.Key,
+            transactions = _?.ToList() ?? new()
+        });
+
+        var groupsNames = groupedItems_by_Provider?.Select(_ => _.providerName)?.ToList() ?? new();
+
+        var dataNames = TranzactionsFiltered?
+        .GroupBy(_ => _.DivisionName)?
+        .OrderByDescending(_ => _.Count())?
+        .Select(_ => _.Key)?
+        .ToList() ?? new();
+
+        var groupedItems_byProvider_byDivision = groupedItems_by_Provider?
+        .Select(x => x.transactions?.GroupBy(y => y.DivisionName)?.OrderByDescending(_ => _.Count()));
+
+        var values = groupedItems_byProvider_byDivision?.Select(_ => _.Select(y => (int)y.Count())?.ToList())?.ToList();
+
+        return (groupsNames, dataNames, values);
+    }
+
+    private PlotlyChartBase<int> InitPlotlyChartGroupTransactionsCountByDivisionByProvider()
+    {
+        var temp = this.GetDataValuesTransactionsCountByDivisionByProvider();
+        var res = new PlotlyChartGroup<int>
+            {
+                ChartName = this.ChartsParameters.ObjectName,
+                GroupsNames = temp.groupsNames,
+                DataValues = temp.values,
+                DataNames = temp.names
+            };
+
+        return res;
+    }
+
+    private (List<string> groupsNames, List<string> names, List<List<int>> values) GetDataValuesTransactionsCountByDivisionByProvider()
+    {
+        var groupedItems_by_Division = TranzactionsFiltered?
+        .GroupBy(_ => _.DivisionName)?
+        .OrderBy(_ => _.Key)?
+        .Select(_ => new
+        {
+            divisionName = _.Key,
+            transactions = _?.ToList() ?? new()
+        });
+
+        var groupsNames = groupedItems_by_Division?.Select(_ => _.divisionName)?.ToList() ?? new();
+
+        var dataNames = TranzactionsFiltered?
+        .GroupBy(_ => _.ProviderName)?
+        .OrderByDescending(_ => _.Count())?
+        .Select(_ => _.Key)?
+        .ToList() ?? new();
+
+        var groupedItems_byDivision_byProvider = groupedItems_by_Division?
+        .Select(x => x.transactions?.GroupBy(y => y.ProviderName)?.OrderByDescending(_ => _.Count()));
+
+        var values = groupedItems_byDivision_byProvider?.Select(_ => _.Select(y => (int)y.Count())?.ToList())?.ToList();
+
+        return (groupsNames, dataNames, values);
+    }
+
+    private PlotlyChartBase<int> InitPlotlyChartSimpleOperByMonth()
+    {
+        var data = GetDataValuesOperByMonth();
+
+        return new PlotlyChartSimple<int>
+        {
+            ChartName = this.ChartsParameters.ObjectName,
+            DataValues = data.values,
+            DataNames =data.names
+        };
+    }
+
+    private (List<string> names, List<int> values) GetDataValuesOperByMonth()
+    {
+        List<string> names = new();
+        List<int> values = new();
+
+        var groupedItems = TranzactionsFiltered?.GroupBy(_ => _.OperationDate.Month)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key.GetStringMonth())?.ToList() ?? new();
+        values = groupedItems?.Select(x => (int)x.Count())?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    private PlotlyChartBase<int> InitPlotlyChartSimpleOperByDay()
+    {
+        var data = GetDataValuesOperByDay();
+
+        return new PlotlyChartSimple<int>
+        {
+            ChartName = this.ChartsParameters.ObjectName,
+            DataValues = data.values,
+            DataNames = data.names
+        };
+    }
+
+    private (List<string> names, List<int> values) GetDataValuesOperByDay()
+    {
+        List<string> names = new();
+        List<int> values = new();
+
+        var groupedItems = TranzactionsFiltered?.GroupBy(_ => _.OperationDate.Date)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key.FormatDateForLineChart())?.ToList() ?? new();
+        values = groupedItems?.Select(x => (int)x.Count())?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    #endregion
+}

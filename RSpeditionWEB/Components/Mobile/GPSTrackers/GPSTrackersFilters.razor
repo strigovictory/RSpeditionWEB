@@ -1,0 +1,317 @@
+﻿@inject IApies api
+@inherits EventsHistoryBase<GpsTrackerOperationView, GpsTrackerView>
+@inject IMapper mapper
+@inject Serilog.ILogger logger
+@inject IConfiguration config
+
+<CascadingValue Value="@this">
+    <div style="text-align: center;">
+        <p class="my-h1 inner-light-shadow">GPS-трекеры</p>
+    </div>
+    @if (this.IsRender)
+    {
+        <ScaffoldJCParent T="@GpsTrackerView"
+                          @ref="@ScaffoldJCParentRef"
+                          SendToParentSelectedItem="@(async(GpsTrackerView item) => {  this.ItemSelected = item;
+                                                                                                await this.ProgressBarOpenAsync();
+                                                                                                await this.InitGpsTrackersOperations();
+                                                                                                await this.ProgressBarCloseAsync();
+                                                                                                this.IsRenderMenuActions = true; })" />
+        @*Блок кнопок в футере*@
+        <div class="stickyBottomContainer">
+            <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList" />
+        </div>
+
+        if (this.IsRenderGroupAdding)
+        {
+            <ModalWindowWithEventCallback Title="Групповое добавление gps-трекеров"
+                                  InvokeParentHandlerwithUpdParent="@(async(object addedItem) => { this.IsRenderGroupAdding = false; })">
+                <GPSTrackersEditGroupForm InvokeParentHendlerAfterGroupUpdating="@(async(List<object> items) => { await this.UpdateAfterAction();
+                                                                                                                       this.IsRenderGroupAdding = false;  })"
+                                  InvokeParentHendlerCancel="@(async() => { this.IsRenderGroupAdding = false; })"
+                                  OperationsType="@OperationsType.create" />
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.IsRenderMenuActions)
+        {
+            <ScaffoldJCMenuActions T="@GpsTrackerView"
+                           InvokeParentHendlerCancel="@(() => { this.ItemSelected = null;
+                                                                 this.IsRenderMenuActions = false; })"
+                           LableItemGenitive="gps-трекера">
+                <ChildContent_EditItem>
+                    <GPSTrackersEditForm TItemFromParent="@this.ItemSelected"
+                                 InvokeParentHendlerAfterCreating="@(async(object addedItem) => { await this.UpdateAfterAction();
+                                                                                                                              await this.InitGpsTrackersOperations();
+                                                                                                                              this.IsRenderMenuActions = false;  })"
+                                 InvokeParentHendlerAfterGroupUpdating="@(async(List<object> items) => { await this.UpdateAfterAction();
+                                                                                                                                     await this.InitGpsTrackersOperations();
+                                                                                                                                     this.IsRenderMenuActions = false;  })"
+                                 InvokeParentHendlerAfterUpd="@(async(object item) => { await this.UpdateAfterAction();
+                                                                                                                    await this.InitGpsTrackersOperations();
+                                                                                                                    this.IsRenderMenuActions = false;  })"
+                                 InvokeParentHendlerCancel="@((object item) => { this.ItemSelected = null;
+                                                                                                             this.IsRenderMenuActions = false; })" />
+                </ChildContent_EditItem>
+                <ChildContent_StatusHistory>
+                    <ScaffoldJCItemsHistory T="@GpsTrackerOperationView"
+                                    V="@GpsTrackerView"
+                                    HistoryEvents="@this.EventHistoryItems"
+                                    InvokeParentToStartAction="@(((OperationsType operType, GpsTrackerOperationView item) actionToDo)
+                                                                                           => { this.ActionsChoice(actionToDo); })" />
+                </ChildContent_StatusHistory>
+            </ScaffoldJCMenuActions>
+        }
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Подождите..." />
+    }
+
+    @if (this.Show_DeleteEventHistory)
+    {
+        List<ButtonBaseClass> buttons = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (async () =>
+        {
+            await this.DeleteOperation();
+        });
+        b1.LabelForButton = "Удалить";
+        b1.IsActive = this.EventHistorySelected != null && this.EventHistorySelected != default && this.EventHistorySelected.Id != 0;
+        b1.TitleIfIsActive = "Кликните для удаления события по gps-трекеру";
+        b1.TitleIfIsNonActive = "Удаление станет возможным после выбора события по gps-трекеру";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (() =>
+        {
+            this.Show_DeleteEventHistory = false;
+            this.StateHasChanged();
+        });
+        b2.LabelForButton = "Отмена";
+        b2.IsActive = true;
+        b1.TitleIfIsActive = "Кликните отмены удаления события по gps-трекеру";
+        b2.TitleIfIsNonActive = string.Empty;
+        buttons.AddRange(new List<ButtonBaseClass> { b1, b2 });
+
+        <ModalWindowWithEventCallback Title="Удаление операции по gps-трекеру"
+                                  InvokeParentHandlerwithUpdParent="@(() => { this.Show_DeleteEventHistory = false; })">
+            <div class="validation-message-medium">
+                @($"Вы подтверждаете удаление выбранного события по gps-трекеру? ")
+            </div>
+            <div class="stickyBottomContainer">
+                <ButtonContainer ButtonBaseClassList="@buttons"
+                             WidthForButtonWrapper="70%" />
+            </div>
+        </ModalWindowWithEventCallback>
+    }
+
+    @if (this.Show_AddEventHistory)
+    {
+        <ModalWindowWithEventCallback Title="Добавление новой операции по gps-трекеру"
+                                      InvokeParentHandlerwithUpdParent="@(() => { this.Show_AddEventHistory = false; })">
+            <GPSTrackersEventEditForm TItemFromParent="@this.EventHistorySelected"
+                                   HistoryEvents="@this.EventHistoryItems"
+                                   Cars="@(this.GpsTrackerCascadingParameter?.Trucks ?? new())"
+                                   Trailers="@(this.GpsTrackerCascadingParameter?.Trailers ?? new())"
+                                   SimCards="@(this.GpsTrackerCascadingParameter?.SimCards ?? new())"
+                                   EventSource="@this.ItemSelected"
+                                   OperationsType="@OperationsType.create"
+                                   InvokeParentHendlerResponseBaseAfterAction="@(async(ResponseBase res) =>
+                                                                                                                    {
+                                                                                                                        if (res == null)
+                                                                                                                        {
+                                                                                                                            this.Message = $"Операция закончилась с ошибкой ! Попробуйте снова !";
+                                                                                                                            this.Message += res?.Result ?? string.Empty;
+                                                                                                                        }
+                                                                                                                        else
+                                                                                                                        {
+                                                                                                                            await this.UpdateAfterAction();
+                                                                                                                            await this.InitGpsTrackersOperations();
+                                                                                                                            this.UpdateSelectedItem();
+                                                                                                                            this.Message = $"Операция успешно завершена ! Изменения были зафиксированы !";
+                                                                                                                        }
+
+                                                                                                                        this.ShowMessage = true;
+                                                                                                                        this.Title = "Результат выполнения операции";
+                                                                                                                    })" />
+        </ModalWindowWithEventCallback>
+    }
+
+    @if (this.Show_UpdateEventHistory)
+    {
+        <ModalWindowWithEventCallback Title="Редактирование операции по gps-трекеру"
+                                  InvokeParentHandlerwithUpdParent="@(() => { this.Show_UpdateEventHistory = false; })">
+            <GPSTrackersEventEditForm TItemFromParent="@this.EventHistorySelected"
+                                   HistoryEvents="@this.EventHistoryItems"
+                                   Cars="@(this.GpsTrackerCascadingParameter?.Trucks ?? new())"
+                                   Trailers="@(this.GpsTrackerCascadingParameter?.Trailers ?? new())"
+                                   SimCards="@(this.GpsTrackerCascadingParameter?.SimCards ?? new())"
+                                   EventSource="@this.ItemSelected"
+                                   OperationsType="@OperationsType.update"
+                                   InvokeParentHendlerResponseBaseAfterAction="@(async(ResponseBase res) =>
+                                                                                                                    {
+                                                                                                                        if (res == null)
+                                                                                                                        {
+                                                                                                                            this.Message = $"Операция закончилась с ошибкой ! Попробуйте снова !";
+                                                                                                                            this.Message += res?.Result ?? string.Empty;
+                                                                                                                        }
+                                                                                                                        else
+                                                                                                                        {
+                                                                                                                            await this.UpdateAfterAction();
+                                                                                                                            await this.InitGpsTrackersOperations();
+                                                                                                                            this.UpdateSelectedItem();
+                                                                                                                            this.Message = $"Операция успешно завершена ! Изменения были зафиксированы !";
+                                                                                                                        }
+
+                                                                                                                        this.ShowMessage = true;
+                                                                                                                        this.Title = "Результат выполнения операции";
+                                                                                                                    })" />
+        </ModalWindowWithEventCallback>
+    }
+
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false;
+                                                                                    this.Show_UpdateEventHistory = false;
+                                                                                    this.Show_AddEventHistory = false;
+                                                                                    this.Show_DeleteEventHistory = false; })">
+            <ResultOperation Devider="'!'"
+                         ResList="null"
+                         ResMessage="@this.Message" />
+        </ModalWindowWithEventCallback>
+    }
+
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    #region
+    [CascadingParameter]
+    public GPSTrackers GpsTrackerCascadingParameter { get; set; }
+
+    public List<GpsInvoiceView> Invoices { get; set; } = new();
+
+    public override List<PropertyInfo> InitPropertiesRendered()
+    => new List<PropertyInfo>
+        {
+        this.ModelsType.GetProperty(nameof(this.Model.Number)),
+        this.ModelsType.GetProperty(nameof(this.Model.Imei)),
+        this.ModelsType.GetProperty(nameof(this.Model.LocationName)),
+        this.ModelsType.GetProperty(nameof(this.Model.ModelName)),
+        this.ModelsType.GetProperty(nameof(this.Model.Cost)),
+        this.ModelsType.GetProperty(nameof(this.Model.InvoiceName)),
+        this.ModelsType.GetProperty(nameof(this.Model.DivisionName)),
+        this.ModelsType.GetProperty(nameof(this.Model.TruckName)),
+        this.ModelsType.GetProperty(nameof(this.Model.TrailerName)),
+        };
+    #endregion
+
+    #region
+    protected override async Task<List<GpsTrackerView>> GetCollectionTItemsFromParent()
+    {
+        this.Invoices = this.GpsTrackerCascadingParameter?.Invoices ?? new();
+        return this.GpsTrackerCascadingParameter?.GpsTrackers ?? new();
+    }
+
+    protected override void InitGroupBySelector()
+    {
+        this.GroupByKeySelector = (GpsTrackerView item) => item.DivisionName;
+        this.GroupBySumProps = new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.Cost))
+        };
+        this.TotalSumProps = new List<PropertyInfo>
+        {
+            this.ModelsType.GetProperty(nameof(this.Model.Cost))
+        };
+    }
+
+    protected override void InitButtons()
+    {
+        this.ButtonBaseClassList = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (() =>
+        {
+            this.IsRenderGroupAdding = true;
+            this.StateHasChanged();
+        });
+        b1.LabelForButton = "Добавить новые gps-трекеры";
+        b1.IsActive = this.IsActive;
+        b1.TitleIfIsActive = "Кликните для добавления новых gps-трекеров";
+        b1.TitleIfIsNonActive = "Добавление новых gps-трекеров станет возможным после загрузки коллекций, необходимых для выполнения операции";
+        //
+        ButtonBaseClass b2 = new();
+        b2.CallbackToParent = (() =>
+        {
+            this.IsRenderSortWindow = true;
+            this.StateHasChanged();
+        });
+        b2.LabelForButton = "Сортировать gps-трекеры";
+        b2.IsActive = this.IsRender;
+        b2.TitleIfIsActive = "Кликните для настройки групповой сортировки gps-трекеров";
+        b2.TitleIfIsNonActive = "Групповая сортировка gps-трекеров станет возможной после загрузки журнала";
+        //
+        ButtonBaseClass b3 = new();
+        b3.CallbackToParent = (async () =>
+        {
+            var uri = GateWayConfigs.Value.BaseUrl + "/gpsprint";
+            var resGenerate = await this.InitGeneratePrintForm(uri, this.ItemsFiltered);
+            if (!resGenerate.Item1)
+            {
+                this.Message = resGenerate.Item2;
+                this.Title = "Предупреждение";
+                this.RenderMessage();
+            }
+        });
+        b3.LabelForButton = "Печатная форма";
+        b3.IsActive = this.IsRender;
+        b3.TitleIfIsActive = "Кликните для формирования печатной формы отчета";
+        b3.TitleIfIsNonActive = "Печатная форма отчета по gps-трекерам станет доступной после полной загрузки страницы";
+        this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { b1, b3 });
+    }
+
+    private async Task InitGpsTrackersOperations()
+        => this.EventHistoryItems = (await this.api?
+                                                   .MobileApi?
+                                                   .GetGpsTrackersOperations(this.ItemSelected?.Id ?? 0, this.Token))?
+                                                   .OrderByDescending(_ =>  _.OperationDate)?
+                                                   .ThenByDescending(_ => _.Id)?
+                                                   .ToList()
+                                                   ?? 
+                                                   new()
+                                                   ;
+
+    private void UpdateSelectedItem() => this.ItemSelected = this.Items?.FirstOrDefault(_ => _.Id == (this.ItemSelected?.Id ?? 0)) ?? null;
+
+    private async Task DeleteOperation()
+    {
+        await this.ProgressBarOpenAsync();
+        var mappedOper = this.Mapper?.Map<GpsTrackerOperationView>(this.EventHistorySelected);
+
+        var res = await this.api?.MobileApi?.DeleteGpsTrackersOperation(mappedOper, this.Token);
+
+        if (res == null)
+        {
+            this.Message = string.IsNullOrEmpty(res?.Result) ? "Операция закончилась с ошибкой ! Ошибка на уровне сервера !" : res?.Result ?? string.Empty;
+        }
+        else
+        {
+            this.Message = string.IsNullOrEmpty(res?.Result) ? "Операция успешно завершена ! Изменения были зафиксированы !" : res?.Result ?? string.Empty;
+            this.ShouldUpdateParent = true;
+            await this.UpdateAfterAction();
+            await this.InitGpsTrackersOperations();
+            this.UpdateSelectedItem();
+        }
+
+        this.Title = "Результат удаления операции по gps-трекеру";
+        this.RenderMessage();
+        await this.ProgressBarCloseAsync();
+    }
+
+    #endregion
+}

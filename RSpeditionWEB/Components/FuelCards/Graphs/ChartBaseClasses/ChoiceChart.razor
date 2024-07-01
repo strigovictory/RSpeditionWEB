@@ -1,0 +1,158 @@
+﻿@typeparam T
+@inherits ChartBaseClass<T>
+
+@if (this.IsRender)
+{
+    <div class="pressed">
+        @if (this.ChartKind.Equals(ChartKind.Column))
+        {
+            <div class="chartPerPage" @onclick="@(() => { this.ToggleChartKind(ChartKind.Column); })">
+                <ChartColumn T="T"
+                              CategoryProperty="@(base.CategoryProperty)"
+                              CategoryLabel="@(base.CategoryLabel)"
+                              ValueProperty="@(base.ValueProperty)"
+                              ValueLabel="@(base.ValueLabel)"
+                              TitleChart="@(base.TitleChart)"
+                              Line="@(base.Line)"
+                              Fill="@(base.Fill)"
+                              ValueStep="@(base.ValueStep)"
+                              ValueMin="@(base.ValueMin)"
+                              ValueMax="@(base.ValueMax)"
+                              ValueFormatString="@(base.ValueFormatString)"
+                              ValueUnit="@(base.ValueUnit)"
+                              CategoryMin="@(base.CategoryMin)"
+                              CategoryMax="@(base.CategoryMax)"
+                              CategoryStep="@(base.CategoryStep)"
+                              CategoryFormatter="@(base.CategoryFormatter)">
+                </ChartColumn>
+            </div>
+        }
+        else if (this.ChartKind.Equals(ChartKind.Area))
+        {
+            <div class="chartPerPage" @onclick="@(() => { this.ToggleChartKind(ChartKind.Area); })">
+                <ChartArea T="T"
+                            CategoryProperty="@(base.CategoryProperty)"
+                            CategoryLabel="@(base.CategoryLabel)"
+                            ValueProperty="@(base.ValueProperty)"
+                            ValueLabel="@(base.ValueLabel)"
+                            TitleChart="@(base.TitleChart)"
+                            Line="@(base.Line)"
+                            Fill="@(base.Fill)"
+                            ValueStep="@(base.ValueStep)"
+                            ValueMin="@(base.ValueMin)"
+                            ValueMax="@(base.ValueMax)"
+                            ValueFormatString="@(base.ValueFormatString)"
+                            ValueUnit="@(base.ValueUnit)"
+                            CategoryMin="@(base.CategoryMin)"
+                            CategoryMax="@(base.CategoryMax)"
+                            CategoryStep="@(base.CategoryStep)"
+                            CategoryFormatter="@(base.CategoryFormatter)">
+                </ChartArea>
+            </div>
+        }
+        else if (this.ChartKind.Equals(ChartKind.Bar))
+        {
+            <div class="chartPerPage" @onclick="@(() => { this.ToggleChartKind(ChartKind.Bar); })">
+                <ChartBar T="T"
+                           CategoryProperty="@(base.CategoryProperty)"
+                           CategoryLabel="@(base.CategoryLabel)"
+                           ValueProperty="@(base.ValueProperty)"
+                           ValueLabel="@(base.ValueLabel)"
+                           TitleChart="@(base.TitleChart)"
+                           Line="@(base.Line)"
+                           Fill="@(base.Fill)"
+                           ValueStep="@(base.ValueStep)"
+                           ValueMin="@(base.ValueMin)"
+                           ValueMax="@(base.ValueMax)"
+                           ValueFormatString="@(base.ValueFormatString)"
+                           ValueUnit="@(base.ValueUnit)"
+                           CategoryMin="@(base.CategoryMin)"
+                           CategoryMax="@(base.CategoryMax)"
+                           CategoryStep="@(base.CategoryStep)"
+                           CategoryFormatter="@(base.CategoryFormatter)">
+                </ChartBar>
+            </div>
+        }
+        else if (this.ChartKind.Equals(ChartKind.Line))
+        {
+            <div class="chartPerPage" @onclick="@(() => { this.ToggleChartKind(ChartKind.Line); })">
+                <ChartLine T="T"
+                            CategoryProperty="@(base.CategoryProperty)"
+                            CategoryLabel="@(base.CategoryLabel)"
+                            ValueProperty="@(base.ValueProperty)"
+                            ValueLabel="@(base.ValueLabel)"
+                            TitleChart="@(base.TitleChart)"
+                            Line="@(base.Line)"
+                            Fill="@(base.Fill)"
+                            ValueStep="@(base.ValueStep)"
+                            ValueMin="@(base.ValueMin)"
+                            ValueMax="@(base.ValueMax)"
+                            ValueFormatString="@(base.ValueFormatString)"
+                            ValueUnit="@(base.ValueUnit)"
+                            CategoryMin="@(base.CategoryMin)"
+                            CategoryMax="@(base.CategoryMax)"
+                            CategoryStep="@(base.CategoryStep)"
+                            CategoryFormatter="@(base.CategoryFormatter)">
+                </ChartLine>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <ProgressBarInner TitleProcess="Идет загрузка..." />
+}
+
+
+@code {
+    private ChartKind ChartKind { get; set; }
+
+    /// <summary>
+    /// Асинхронный метод срабатывает при первоначальной отрисовке компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ChartKind = ChartKind.Column;
+        this.IsRender = true;
+    }
+
+    /// <summary>
+    /// Метод для  переключения разновидности диаграммы
+    /// </summary>
+    /// <param name="currentKind">Текущая разновидность диаграммы</param>
+    private void ToggleChartKind(ChartKind currentKind)
+    {
+        var maxEnumValue = Enum.GetValues(currentKind.GetType()).Length - 1;
+        var newEnumVal = (int)currentKind != maxEnumValue ? (int)currentKind + 1 : (int)Enum.GetValues(currentKind.GetType()).GetValue(0);
+        this.ChartKind = (ChartKind)Enum.GetValues(currentKind.GetType()).GetValue(newEnumVal);
+        this.StateHasChanged();
+    }
+
+    /// <summary>
+    /// Метод для получения tooltip
+    /// </summary>
+    protected string GetToolTip(T data, string titleSeries, Func<object, string> catFormatter)
+    {
+        // Результат метода
+        var tooltip = string.Empty;
+
+        // Ось значений
+        var pi = data?.GetType()?.GetProperty(this.ValueProperty);
+        var tooltipValue = pi?.GetValue(data);
+        var formattedTooltipVal = String.Format(this.ValueFormatString, tooltipValue);
+
+        // Ось категорий
+        var pi_cat = data?.GetType()?.GetProperty(this.CategoryProperty);
+        var tooltipValue_cat = catFormatter.Invoke(pi_cat?.GetValue(data));
+        var formattedTooltipValСat = String.Format(this.ValueFormatString, tooltipValue_cat);
+
+        if (this.Data?.Keys?.Count > 1)
+            tooltip = string.Concat(formattedTooltipValСat, ", ", titleSeries, ": ", formattedTooltipVal, this.ValueUnit);
+        else
+            tooltip = string.Concat(formattedTooltipValСat, ": ", formattedTooltipVal, this.ValueUnit);
+
+        return tooltip;
+    }
+}

@@ -1,0 +1,22 @@
+﻿@attribute [AllowAnonymous]
+@inherits ComponentBaseClass
+
+@if (this.IsRender)
+{
+    <ModalWindowWithEventCallback Title="Предупреждение"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { this.IsRender = false; })">
+        <div class="titleAccess">
+            <img src="/css/open-iconic/icon/forbidden.png" />
+            У Вас недостаточно прав для пользования данным сервисом !
+        </div>
+    </ModalWindowWithEventCallback>
+}
+
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IsRender = true;
+    }
+}

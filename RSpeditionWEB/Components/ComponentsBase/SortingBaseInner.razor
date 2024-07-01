@@ -1,0 +1,258 @@
+﻿@typeparam T
+@*Компонент осуществляет подготовку к групповой сортировке - набор инструментов для ее настройки*@
+<div class="adapt_table scroll font-journal">
+    <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+        <thead class="adapt_table_inner_thead">   
+            <tr>
+                <th data-label="№">
+                    №
+                </th>
+                <th data-label="Поднять">
+                    Поднять
+                </th>
+                <th data-label="Параметр сортировки">
+                    Параметр сортировки
+                </th>
+                <th data-label="Опустить">
+                    Опустить
+                </th>
+                <th data-label="Сортировать">
+                    Сортировать
+                </th>
+                <th data-label="Порядок">
+                    Порядок
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            @if ((this.LinkedListToSort?.Count ?? 0) > 0)
+            {
+                for (var i = 0; i < this.LinkedListToSort.Count; i++)
+                {
+                    var ind = i;
+                    var id1 = $"squaredOne_sortingBaseInner1{ind}";
+                    var id2 = $"squaredOne_sortingBaseInner2{ind}";
+                    var currentInd = i;
+                    var lastInd = this.LinkedListToSort?.Count - 1;
+                    ind++;
+                    var item = this.LinkedListToSort?.ElementAt(currentInd);
+                    var key = item?.keySelector;
+                    var sort = item?.sort ?? SortOrder.asc;
+                    var isChecked = item?.isToSort ?? false;
+                    var propName = item?.prop ?? string.Empty;
+                    var sortOrder = item?.sort == SortOrder.asc ? "По возрастанию": "По убыванию";
+                    var ascImgSrc = "/css/open-iconic/icon/sort-up-arrow.png";
+                    var descImgSrc = "/css/open-iconic/icon/sort-down-arrow.png";
+                    var src = item?.sort == SortOrder.asc ? ascImgSrc : descImgSrc;
+                    var propInfo = this.Props?.FirstOrDefault(prop => prop.Name.Equals(propName));
+                    var tempAttrFuelCard = this.TypeItem?.GetCustomDisplayValues(propInfo.Name).Item1 ?? string.Empty;
+                    <tr>
+                        <td data-label="№">
+                            @ind
+                        </td>
+                        <td data-label="Поднять">
+                            @if (currentInd != 0)
+                            {
+                                <button type="button"
+                                        title="Поднять"
+                            @onclick="@(() => {this.MoveElementsInLinkedList(key, propName, true, sort, isChecked); })">
+                                    <img src="/css/open-iconic/icon/up-arrow.png" />
+                                </button>
+                            }
+                            else
+                            {
+                                // 1-ый элемент в списке некуда поднимать вверх
+                                <button type="button"
+                                        title="Поднять"
+                                        class="non-active">
+                                    <img src="/css/open-iconic/icon/up-arrow.png" />
+                                </button>
+                            }
+                        </td>
+                        <td data-label="Параметр сортировки" style="text-align: left;">
+                            &nbsp;@tempAttrFuelCard
+                        </td>
+                        <td data-label="Опустить">
+                            @if (currentInd != lastInd)
+                            {
+                                <button type="button"
+                                        title="Опустить"
+                            @onclick="@(() => {this.MoveElementsInLinkedList(key, propName, false, sort, isChecked); })">
+                                    <img src="/css/open-iconic/icon/down-arrow.png" />
+                                </button>
+                            }
+                            else
+                            {
+                                // последний элемент в списке некуда опускать вниз
+                                <button type="button"
+                                        title="Опустить"
+                                        class="non-active">
+                                    <img src="/css/open-iconic/icon/down-arrow.png" />
+                                </button>
+                            }
+                        </td>
+                        <td data-label="Сортировать">
+                            @if (isChecked)
+                            {
+                                <div class="squaredOne">
+                                    <input type="checkbox"
+                                           title="Снимите галочку, чтобы отменить участие столбца в сортировке"
+                                           id="@id1"
+                                           checked
+                               @onclick="@(() => { this.CheckBoxWereChangedInLinkedList(key, propName, false, sort, isChecked); })" />
+                                   <label for="@id1"></label>
+                              </div>
+                            }
+                            else
+                            {
+                                <div class="squaredOne">
+                                    <input type="checkbox"
+                                           title="Отметьте, чтобы столбец участвовал в сортировке"
+                                           id="@id2"
+                               @onclick="@(() => { this.CheckBoxWereChangedInLinkedList(key, propName, false, sort, isChecked); })" />
+                                   <label for="@id2"></label>
+                              </div>
+                            }
+                        </td>
+                        <td data-label="Порядок">
+                            <button type="button"
+                                    title="Кликните, чтобы изменить направление сортировки"
+                            @onclick="@(() => {this.SortOrderWereChangedInLinkedList(key, propName, false, sort, isChecked); })">
+                                <img src="@src" title="@sortOrder">
+                            </button>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+<div>
+    @{
+        var available = this.LinkedListToSort.Any(item => item.isToSort);
+    }
+    <Button LabelForButton="Применить сортировку"
+            TitleIfIsActive="Кликните, чтобы применить сортировку"
+            TitleIfIsNonActive="Чтобы применить сортировку, д.б. отмечен хотя бы один параметр"
+            IsActive="@available"
+            EventCallbackToParent="@(async () => {
+                                                    if(this.EventCallbackSendParentLinkedListAfterSorting.HasDelegate)
+                                                    {
+                                                        await this.EventCallbackSendParentLinkedListAfterSorting.InvokeAsync(this.LinkedListToSort);
+                                                    }
+                                      })">
+
+    </Button>
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback<LinkedList<(Func<T, object> keySelector, string prop, SortOrder sort, bool isToSort)>> EventCallbackSendParentLinkedListAfterSorting { get; set; }
+
+    [Parameter]
+    public LinkedList<(Func<T, object> keySelector, string prop, SortOrder sort, bool isToSort)> LinkedListToSort { get; set; } = new();
+
+    T Item { get; set; }
+    Type TypeItem { get; set; }
+    List<PropertyInfo> Props { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        this.Item = (T)Activator.CreateInstance(typeof(T));
+        this.TypeItem = this.Item?.GetType();
+        this.Props = this.TypeItem?.GetProperties()?.ToList() ?? new();
+    }
+
+    /// <summary>
+    /// Метод для обновления коллекции полей для сортировки при нажатии на кнопку вверх/вниз
+    /// </summary>
+    private void MoveElementsInLinkedList(Func<T, object> keySelector, string prop, bool isToUp, SortOrder sortOrder, bool isToSort)
+    {
+        //  Найти узел, который нужно переместить вверх или вниз
+        var foundNode = this.LinkedListToSort.Find((keySelector, prop, sortOrder, isToSort));
+
+        // Скопировать найденный узел во временны новый узел
+        var nodeToInsert = new LinkedListNode<(Func<T, object>, string, SortOrder, bool)>(foundNode.Value);
+
+        LinkedListNode<(Func<T, object>, string, SortOrder, bool)> nodePrevious = foundNode?.Previous ?? null;
+        LinkedListNode<(Func<T, object>, string, SortOrder, bool)> nodeNext = foundNode?.Next;
+
+        // Удалить уже ненужный узел из списка связанного списка
+        this.LinkedListToSort.Remove(foundNode);
+
+        // Скопировать в новое место перемещаемый узел
+        if (isToUp)
+        {
+            this.LinkedListToSort.AddBefore(nodePrevious, nodeToInsert);
+        }
+        else
+        {
+            this.LinkedListToSort.AddAfter(nodeNext, nodeToInsert);
+        }
+    }
+
+    /// <summary>
+    /// Метод для обновления коллекции полей для сортировки при нажатии на чекбокс
+    /// </summary>
+    private void CheckBoxWereChangedInLinkedList(Func<T, object> keySelector, string prop, bool isToUp, SortOrder sortOrder, bool isToSort)
+    {
+        //  Найти узел, который нужно изменить
+        var foundNode = this.LinkedListToSort.Find((keySelector, prop, sortOrder, isToSort));
+
+        // Скопировать значение узла во временную переменную
+        var valFoundNode = foundNode.Value;
+
+        // Изменить значение «Сортировать/не сортировать» переменной на противоположное
+        valFoundNode.isToSort = foundNode.Value.isToSort ? false : true;
+
+        // Заменить старое значение узла на новое
+        this.ChangeDataInList(foundNode, valFoundNode);
+    }
+
+    /// <summary>
+    /// Метод для обновления коллекции полей для сортировки при нажатии на кнопку изменения порядка сортировки
+    /// </summary>
+    private void SortOrderWereChangedInLinkedList(Func<T, object> keySelector, string prop, bool isToUp, SortOrder sortOrder, bool isToSort)
+    {
+        //  Найти узел, который нужно изменить
+        var foundNode = this.LinkedListToSort.Find((keySelector, prop, sortOrder, isToSort));
+
+        // Скопировать значение узла во временную переменную
+        var valFoundNode = foundNode.Value;
+
+        // Изменить значение поля «Порадок сортировки» переменной на противоположное
+        valFoundNode.sort = foundNode.Value.sort == SortOrder.asc ? SortOrder.desc : SortOrder.asc;
+
+        // Заменить старое значение узла на новое
+        this.ChangeDataInList(foundNode, valFoundNode);
+    }
+
+    /// <summary>
+    /// Вспомогательный метод, который заменяет старое значение узла в связанном списке на новое
+    /// </summary>
+    /// <param name="oldNode">Старый узел</param>
+    /// <param name="newVal">Новое значени для узла</param>
+    private void ChangeDataInList(LinkedListNode<(Func<T, object>, string, SortOrder, bool)> oldNode, (Func<T, object>, string, SortOrder, bool) newVal)
+    {
+        // Новый узел с новым значением
+        var newNode = new LinkedListNode<(Func<T, object>, string, SortOrder, bool)>(newVal);
+
+        LinkedListNode<(Func<T, object>, string, SortOrder, bool)> nodePrevious = oldNode.Previous;
+        LinkedListNode<(Func<T, object>, string, SortOrder, bool)> nodeNext = oldNode.Next;
+
+        // Удалить уже ненужный узел из списка связанного списка
+        this.LinkedListToSort.Remove(oldNode);
+
+        // Вставить на место старого новый узел с новым значением
+        if (nodePrevious != null)
+        {
+            this.LinkedListToSort.AddAfter(nodePrevious, newNode);
+        }
+        else if (nodeNext != null)
+        {
+            this.LinkedListToSort.AddBefore(nodeNext, newNode);
+        }
+    }
+}

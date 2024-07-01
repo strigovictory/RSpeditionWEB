@@ -1,0 +1,72 @@
+﻿@inherits GroupActionFormBase<BanksCardsOperation_iew>
+@inject IApies api
+
+    <CascadingValue Value="@this">
+        @if(this.IsRender)
+        {
+            <ScaffoldJCDeleteGroupItems T="@BanksCardsOperation_iew" 
+                                        Label="банковские операции"
+                                        InvokeParentHendlerAfterGroupDel="@(async() => {if(this.InvokeParentHendlerAfterGroupDel.HasDelegate)
+                                                                                            await this.InvokeParentHendlerAfterGroupDel.InvokeAsync(); })"
+                                        InvokeParentHendlerCancel="@(async() => {if(this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                      await this.InvokeParentHendlerCancel.InvokeAsync(); })"
+                                        SendCheckedItemsToParent="@((List<BanksCardsOperation_iew> items) => { this.ItemsSelected = new(items ?? new()); 
+                                                                                                                this.InitButtons(); })" />
+
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Подождите..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+    </CascadingValue>
+
+
+@code {
+    // Пока роли не расставлены операция доступна всем
+    public override bool IsActionAllowed => (this.ItemsSelected != null && this.ItemsSelected?.Count > 0) ? true : false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ItemsSelected = new(this.Items ?? new()); 
+        this.InitButtons();
+        this.IsRender = true;
+    }
+
+    protected override void InitButtons()
+    {
+        this.ButtonBaseClassList = new();
+        //
+        ButtonBaseClass b1 = new();
+        b1.CallbackToParent = (() =>
+        {
+            this.Title = "Подтверждение операции удаления";
+            this.ShowConfermationDelete = true;
+            this.StateHasChanged();
+        });
+        b1.LabelForButton = $"Удалить ({this.ItemsSelected?.Count ?? 0} шт.)";
+        b1.IsActive = this.IsActionAllowed;
+        b1.TitleIfIsActive = "Кликните для удаления группы отмеченных записей";
+        b1.TitleIfIsNonActive = "Для удаления д.б. отмечена хотя бы одна запись";
+        //
+        this.ButtonBaseClassList.AddRange(new List<ButtonBaseClass> { b1 });
+    }
+
+    public override async Task StartOperation()
+    {
+        await this.ProgressBarOpenAsync();
+        this.OperationsResult = await this.api?.FinanceApi?.DeleteBanksCardsOperations(this.ItemsSelected?.Select(_ => _.Id)?.ToList() ?? new(), this.Token);
+        await this.ProccessingResponse();
+        await this.ProgressBarCloseAsync();
+    }
+
+    public override async Task ProccessingResponse()
+    {
+        if (this.OperationsResult != null)
+            this.ShouldUpdateParent = true;
+        return;
+    }
+}

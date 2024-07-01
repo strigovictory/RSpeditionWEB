@@ -1,0 +1,313 @@
+﻿@page "/BanksCardsCharts"
+@inject IJSRuntime js
+@inherits ScaffoldChartBase<decimal>
+
+<CascadingValue Value="@this">
+    <div style="text-align: center;">
+        <p class="my-h1 inner-light-shadow">@this.Title</p>
+    </div>
+    <br /> 
+    @if (this.IsRender)
+    {
+        <ScaffoldChart T="decimal" 
+                       @ref="@this.ScaffoldChartRef" />
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка ..." />
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+@code {
+    [CascadingParameter]
+    public BanksCards BanksCardsCascadingParameter { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.Title = "Статистика по банковским картам и операциям";
+    }
+
+    protected override async Task InitChartModel()
+    => this.ChartModel = this.ChartKind switch
+    {
+        ChartKindPlotly.funnel or ChartKindPlotly.area when this.ChartsParameters.ObjectName == "Количество банковских карт" => this.InitPlotlyChartGroup_Card(),
+        ChartKindPlotly.funnel or ChartKindPlotly.area when this.ChartsParameters.ObjectName == "Сумма банковских операций" => this.InitPlotlyChartGroup_Oper(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Тип карты" => this.InitPlotlyChartSimple_Card_ByCardType(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Банк" => this.InitPlotlyChartSimple_Card_ByBank(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Вид операции" => this.InitPlotlyChartSimple_Oper_ByKind(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Валюта операции" => this.InitPlotlyChartSimple_Oper_ByCurr(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Период операции, год" => this.InitPlotlyChartSimple_Oper_ByYear(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Период операции, месяц" => this.InitPlotlyChartSimple_Oper_ByMonth(),
+        ChartKindPlotly.pie or ChartKindPlotly.bar or ChartKindPlotly.line when this.ChartsParameters.CategoryName == "Период операции, день" => this.InitPlotlyChartSimple_Oper_ByDay(),
+        _ => throw new Exception("Диаграмма с такими параметрами не обнаружена")
+    };
+
+    #region // Cards
+    private PlotlyChartBase<decimal> InitPlotlyChartGroup_Card()
+    {
+        var temp = this.GetDataValuesCardByCardTypeByBank();      
+        var res = new PlotlyChartGroup<decimal>
+            {
+                ChartName = this.ChartsParameters.ObjectName,
+                GroupsNames = temp.groupsNames,
+                DataValues = temp.values,
+                DataNames = temp.names
+            };
+
+        return res;
+    }
+
+    private (List<string> groupsNames, List<string> names, List<List<decimal>> values) GetDataValuesCardByCardTypeByBank()
+    {
+        List<string> groupsNames = new();
+        List<string> dataNames = new();
+        List<List<decimal>> values = new();
+
+        var groupedItems_byCardType = this.BanksCardsCascadingParameter?
+                                                                      .CreditCards?
+                                                                      .GroupBy(_ => _.CardTypeName)?
+                                                                      .OrderBy(_ => _.Key)?
+                                                                      .Select(_ => new
+                                                                      {
+                                                                          cardTypeName = _.Key,
+                                                                          cards = _.ToList()
+                                                                      })
+                                                                      ;
+
+        groupsNames = groupedItems_byCardType?.Select(_ => _.cardTypeName)?.ToList() ?? new();
+
+        dataNames = this.BanksCardsCascadingParameter?
+                                                    .CreditCards?
+                                                                  .GroupBy(_ => _.BankName)?
+                                                                  .OrderByDescending(_ => _.Count())?
+                                                                  .Select(_ => _.Key)?
+                                                                  .ToList()
+                                                                  ??
+                                                                  new()
+                                                                  ;
+
+        var groupedItems_byCardTypeByBank = groupedItems_byCardType?.Select(x => x.cards?.GroupBy(y => y.BankName)?.OrderByDescending(_ => _.Count()));
+
+        values = groupedItems_byCardTypeByBank?.Select(_ => _.Select(y => (decimal)y.Count())?.ToList())?.ToList();
+
+        return (groupsNames, dataNames, values);
+    }
+
+    private PlotlyChartBase<decimal> InitPlotlyChartSimple_Card_ByCardType()
+        => new PlotlyChartSimple<decimal>
+            {
+                ChartName = this.ChartsParameters.ObjectName,
+                DataValues = this.GetDataValues_Card_ByCardType().values,
+                DataNames = this.GetDataValues_Card_ByCardType().names
+            };
+
+    private (List<string> names, List<decimal> values) GetDataValues_Card_ByCardType()
+    {
+        List<string> names = new();
+        List<decimal> values = new();
+
+        var groupedItems = this.BanksCardsCascadingParameter?.CreditCards?.GroupBy(_ => _.CardTypeName)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key)?.ToList() ?? new();
+        values = groupedItems?.Select(x => (decimal)x.Count())?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    private PlotlyChartBase<decimal> InitPlotlyChartSimple_Card_ByBank()
+        => new PlotlyChartSimple<decimal>
+            {
+                ChartName = this.ChartsParameters.ObjectName,
+                DataValues = this.GetDataValues_Card_ByBank().values,
+                DataNames = this.GetDataValues_Card_ByBank().names
+            };
+
+    private (List<string> names, List<decimal> values) GetDataValues_Card_ByBank()
+    {
+        List<string> names = new();
+        List<decimal> values = new();
+
+        var groupedItems = this.BanksCardsCascadingParameter?.CreditCards?.GroupBy(_ => _.BankName)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key)?.ToList() ?? new();
+        values = groupedItems?.Select(x => (decimal)x.Count())?.ToList() ?? new();
+
+        return (names, values);
+    }
+    #endregion
+
+    #region // Operations
+    private PlotlyChartBase<decimal> InitPlotlyChartGroup_Oper()
+    {
+        var temp = this.GetDataValues_Oper_ByKindByCurr();
+        var res = new PlotlyChartGroup<decimal>
+            {
+                ChartName = this.ChartsParameters.ObjectName,
+                GroupsNames = temp.groupsNames,
+                DataValues = temp.values,
+                DataNames = temp.names
+            };
+
+        return res;
+    }
+
+    private (List<string> groupsNames, List<string> names, List<List<decimal>> values) GetDataValues_Oper_ByKindByCurr()
+    {
+        List<string> groupsNames = new();
+        List<string> dataNames = new();
+        List<List<decimal>> values = new();
+
+        var groupedItems_byKind = this.BanksCardsCascadingParameter?
+                                                                  .BanksCardsOperations?
+                                                                  .GroupBy(_ => _.KindOperationName)?
+                                                                  .OrderBy(_ => _.Key)?
+                                                                  .Select(_ => new
+                                                                  {
+                                                                      kindName = _.Key,
+                                                                      oper = _.ToList()
+                                                                  })
+                                                                  ;
+
+        groupsNames = groupedItems_byKind?.Select(_ => _.kindName)?.ToList() ?? new();
+
+        dataNames = this.BanksCardsCascadingParameter?
+                                                    .BanksCardsOperations?
+                                                                  .GroupBy(_ => _.CurrencyOperationName)?
+                                                                  .OrderByDescending(x => x.Sum(y => y.AmountWithoutCommissionEuro))?
+                                                                  .Select(_ => _.Key)?
+                                                                  .ToList()
+                                                                  ??
+                                                                  new()
+                                                                  ;
+
+        var groupedItems_byKindByCurr = groupedItems_byKind?.Select(x => x.oper?.GroupBy(y => y.CurrencyOperationName)?.OrderByDescending(k => k.Sum(z => z.AmountWithoutCommissionEuro)));
+
+        values = groupedItems_byKindByCurr?.Select(_ => _.Select(y => y.Sum(z => z.AmountWithoutCommissionEuro))?.ToList())?.ToList();
+
+        return (groupsNames, dataNames, values);
+    }
+
+    private PlotlyChartBase<decimal> InitPlotlyChartSimple_Oper_ByKind()
+    => new PlotlyChartSimple<decimal>
+        {
+            ChartName = this.ChartsParameters.ObjectName,
+            DataValues = this.GetDataValues_Oper_ByKind().values,
+            DataNames = this.GetDataValues_Oper_ByKind().names
+        };
+
+    private (List<string> names, List<decimal> values) GetDataValues_Oper_ByKind()
+    {
+        List<string> names = new();
+        List<decimal> values = new();
+
+        var groupedItems = this.BanksCardsCascadingParameter?.BanksCardsOperations?.GroupBy(_ => _.KindOperationName)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key)?.ToList() ?? new();
+        values = groupedItems?.Select(x => (decimal)x.Count())?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    private PlotlyChartBase<decimal> InitPlotlyChartSimple_Oper_ByCurr()
+    => new PlotlyChartSimple<decimal>
+    {
+        ChartName = this.ChartsParameters.ObjectName,
+        DataValues = this.GetDataValues_Oper_ByCurr().values,
+        DataNames = this.GetDataValues_Oper_ByCurr().names
+    };
+
+    private (List<string> names, List<decimal> values) GetDataValues_Oper_ByCurr()
+    {
+        List<string> names = new();
+        List<decimal> values = new();
+
+        var groupedItems = this.BanksCardsCascadingParameter?.BanksCardsOperations?.GroupBy(_ => _.CurrencyOperationName)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key)?.ToList() ?? new();
+        values = groupedItems?.Select(x => (decimal)x.Count())?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    private PlotlyChartBase<decimal> InitPlotlyChartSimple_Oper_ByYear()
+        => new PlotlyChartSimple<decimal>
+            {
+                ChartName = this.ChartsParameters.ObjectName,
+                DataValues = this.GetDataValues_Oper_ByYear().values,
+                DataNames = this.GetDataValues_Oper_ByYear().names
+            };
+
+    private (List<string> names, List<decimal> values) GetDataValues_Oper_ByYear()
+    {
+        List<string> names = new();
+        List<decimal> values = new();
+
+        var groupedItems = this.BanksCardsCascadingParameter?.BanksCardsOperations?.GroupBy(_ => _.OperationDate.Year)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key.ToString())?.ToList() ?? new();
+        values = groupedItems?.Select(x => x.Sum(y => y.AmountWithoutCommissionEuro))?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    private PlotlyChartBase<decimal> InitPlotlyChartSimple_Oper_ByMonth()
+        => new PlotlyChartSimple<decimal>
+            {
+                ChartName = this.ChartsParameters.ObjectName,
+                DataValues = this.GetDataValues_Oper_ByMonth().values,
+                DataNames = this.GetDataValues_Oper_ByMonth().names
+            };
+
+    private (List<string> names, List<decimal> values) GetDataValues_Oper_ByMonth()
+    {
+        List<string> names = new();
+        List<decimal> values = new();
+
+        var groupedItems = this.BanksCardsCascadingParameter?.BanksCardsOperations?.GroupBy(_ => _.OperationDate.Month)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key.GetStringMonth())?.ToList() ?? new();
+        values = groupedItems?.Select(x => x.Sum(y => y.AmountWithoutCommissionEuro))?.ToList() ?? new();
+
+        return (names, values);
+    }
+
+    private PlotlyChartBase<decimal> InitPlotlyChartSimple_Oper_ByDay()
+    => new PlotlyChartSimple<decimal>
+        {
+            ChartName = this.ChartsParameters.ObjectName,
+            DataValues = this.GetDataValues_Oper_ByDay().values,
+            DataNames = this.GetDataValues_Oper_ByDay().names
+        };
+
+    private (List<string> names, List<decimal> values) GetDataValues_Oper_ByDay()
+    {
+        List<string> names = new();
+        List<decimal> values = new();
+
+        var groupedItems = this.BanksCardsCascadingParameter?.BanksCardsOperations?.GroupBy(_ => _.OperationDate.Date)?.OrderBy(_ => _.Key);
+        names = groupedItems?.Select(_ => _.Key.FormatDateForLineChart())?.ToList() ?? new();
+        values = groupedItems?.Select(x => x.Sum(y => y.AmountWithoutCommissionEuro))?.ToList() ?? new();
+
+        return (names, values);
+    }
+    #endregion
+
+    protected override List<string> Init_ObjectsNames()
+        => new List<string> { "Количество банковских карт", "Сумма банковских операций" };
+
+    protected override List<string> Init_CategoriesNames()
+        => this.ChartsParameters.ObjectName switch
+        {
+            "Количество банковских карт" => new List<string> { "Тип карты", "Банк" },
+            "Сумма банковских операций" => new List<string> { "Вид операции", "Валюта операции", "Период операции, год", "Период операции, месяц", "Период операции, день" },
+            _ => new()
+        };
+
+    protected override List<string> Init_SubCategoriesNames()
+         => this.ChartsParameters.ObjectName switch
+         {
+             "Количество банковских карт" => new List<string> { "Тип карты", "Банк" },
+             "Сумма банковских операций" when this.ChartsParameters.CategoryName != "Период операции, год"
+                                           && this.ChartsParameters.CategoryName != "Период операции, месяц"
+                                           && this.ChartsParameters.CategoryName != "Период операции, день" => new List<string> { "Вид операции", "Валюта операции" },
+             _ => new()
+         };
+}

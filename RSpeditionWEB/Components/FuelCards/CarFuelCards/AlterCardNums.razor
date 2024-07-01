@@ -1,0 +1,359 @@
+﻿@using RSpeditionWEB.Models.RequestModels;
+@inherits ObjItemsEventBase
+@inject IApies api
+@inject Serilog.ILogger logger
+@attribute [Authorize]
+
+<CascadingValue Value="@this">
+    @{
+        var item = new FuelCardsAlternativeNumberRequest();
+        var itemsType = item?.GetType();
+        var labelAlternativeNumber = itemsType.GetCustomDisplayValues(nameof(item.Number)).Item1 ?? string.Empty;
+    }
+    @if (this.IsRender)
+    {
+        <div class="left">
+            <button type="button"
+                class="table-button"
+                @onclick="@(() => { this.AlterNumSelected = null;
+                                            this.NewAlterNum = string.Empty;
+                                            this.Title = $"Добавление нового альтернативного номера";
+                                            this.ShowCreateItem = true; })">
+                Добавить альтернативный номер
+            </button>
+        </div>
+        <div class="adapt_table scroll font-journal">
+            <table class="adapt_table_inner" cellpadding="0" cellspacing="0">
+                <thead class="adapt_table_inner_thead">
+                    <tr>
+                        <th data-label="№">
+                            №
+                        </th>
+                        <th data-label="@labelAlternativeNumber">
+                            @labelAlternativeNumber
+                        </th>
+                    </tr>
+                </thead>
+                <tbody style="width: 100%;">
+                    @if ((this.AlterNums ?? new()).Count > 0)
+                    {
+                        @for (int i = 0; i < (this.AlterNums ?? new()).Count; i++)
+                        {
+                            var ind = i + 1;
+                            var num = this.AlterNums?.ElementAt(i) ?? new();
+                            <tr @onclick="@(() => { this.AlterNumSelected = num;
+                                                        this.NewAlterNum = this.AlterNumSelected?.Number ?? string.Empty;
+                                                        this.ShowMenuActions = true;  })">
+                                <td data-label="№">
+                                    @ind
+                                </td>
+                                <td data-label="@labelAlternativeNumber">
+                                    @(num?.Number ?? string.Empty)
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="2">
+                                У карты нет сохраненных альтернативных номеров
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <ProgressBar />
+    }
+    @if (this.ShowMenuActions)
+    {
+        <ModalWindowWithEventCallback Title="Выберите действие"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMenuActions = false; })">
+            <div class="stickyBottomContainer" style="top: 0vh !important;">
+                @{
+                    List<ButtonBaseClass> buttonBaseClassList = new();
+                    //
+                    ButtonBaseClass b1 = new();
+                    b1.CallbackToParent = (() =>
+                    {
+                        this.ShowDeleteItem = true;
+                        this.StateHasChanged();
+                    });
+                    b1.LabelForButton = "Удалить";
+                    b1.IsActive = true;
+                    b1.TitleIfIsActive = "Кликните для перехода к удалению альтернативного номера";
+                    b1.TitleIfIsNonActive = "У вас недостаточные права доступа для доступа к операции";
+                    //
+                    ButtonBaseClass b2 = new();
+                    b2.CallbackToParent = (async () =>
+                    {
+                        this.ShowEditItem = true;
+                        this.StateHasChanged();
+                    });
+                    b2.LabelForButton = "Редактировать";
+                    b2.IsActive = true;
+                    b2.TitleIfIsActive = "Кликните для перехода к редактированию альтернативного номера";
+                    b2.TitleIfIsNonActive = "У вас недостаточные права доступа для доступа к операции";
+
+                    buttonBaseClassList.AddRange(new List<ButtonBaseClass> { b1, b2 });
+                }
+                <ButtonContainer ButtonBaseClassList="@buttonBaseClassList"
+                             WidthForButtonWrapper="100%" />
+            </div>
+        </ModalWindowWithEventCallback>
+    }
+    @if (this.ShowCreateItem)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async() => { this.ShowCreateItem = false; })">
+            @{
+                List<ButtonBaseClass> buttons = new();
+                //
+                ButtonBaseClass but1 = new();
+
+                but1.CallbackToParent = (async () =>
+                {
+                    await this.UpdateCreateAlterNum();
+                });
+                but1.LabelForButton = "Сохранить изменения";
+                but1.IsActive = !string.IsNullOrEmpty(this.NewAlterNum);
+                but1.TitleIfIsActive = "Кликните для сохранения нового альтернативного номера";
+                but1.TitleIfIsNonActive = "Новый альтернативный номер не может быть пустым";
+                //
+                ButtonBaseClass but2 = new();
+                but2.CallbackToParent = (async () =>
+                {
+                    this.NewAlterNum = string.Empty;
+                    this.StateHasChanged();
+                });
+                but2.LabelForButton = "Отменить изменения";
+                but2.IsActive = true;
+                but2.TitleIfIsActive = "Кликните, чтобы отменить внесенные изменения";
+                but2.TitleIfIsNonActive = "";
+
+                if(IsUserHasFuelRoleInHierarchy(FuelRoles.Fuel_Provisioner))
+                {
+                    buttons.Add(but1);
+                }
+
+                buttons.Add(but2);
+            }
+            <div class="flexColumnCenter">
+                <div>
+                    <label_small_black>
+                        @labelAlternativeNumber
+                    </label_small_black>
+                </div>
+                <input type="text"
+                   value="@this.NewAlterNum"
+                   @oninput="@((ChangeEventArgs arg) => { this.NewAlterNum = arg?.Value?.ToString() ?? string.Empty; })">
+            </div>
+            <ButtonContainer ButtonBaseClassList="@buttons"
+                         WidthForButtonWrapper="50%" />
+        </ModalWindowWithEventCallback>
+    }
+    @if (this.ShowEditItem)
+    {
+        <ModalWindowWithEventCallback Title="Редактирование альтернативного номера"
+                                  InvokeParentHandlerwithUpdParent="@(async() => { this.ShowEditItem = false; })">
+            @{
+                List<ButtonBaseClass> buttons = new();
+                //
+                ButtonBaseClass but1 = new();
+                but1.CallbackToParent = (async () =>
+                {
+                    await this.UpdateCreateAlterNum();
+                });
+                but1.LabelForButton = "Сохранить изменения";
+                but1.IsActive = !string.IsNullOrEmpty(this.NewAlterNum);
+                but1.TitleIfIsActive = "Кликните для сохранения обновленного альтернативного номера";
+                but1.TitleIfIsNonActive = "Новый альтернативный номер не может быть пустым";
+                //
+                ButtonBaseClass but2 = new();
+                but2.CallbackToParent = (async () =>
+                {
+                    this.NewAlterNum = this.AlterNumSelected?.Number ?? string.Empty;
+                    this.StateHasChanged();
+                });
+                but2.LabelForButton = "Отменить изменения";
+                but2.IsActive = true;
+                but2.TitleIfIsActive = "Кликните, чтобы отменить внесенные изменения";
+                but2.TitleIfIsNonActive = "";
+
+                if (IsUserHasFuelRoleInHierarchy(FuelRoles.Fuel_Provisioner))
+                {
+                    buttons.Add(but1);
+                }
+
+                buttons.Add(but2);
+            }
+            <div class="flexColumnCenter">
+                <div>
+                    <label_small_black>
+                        @labelAlternativeNumber
+                    </label_small_black>
+                </div>
+                <input type="text"
+                   value="@this.NewAlterNum"
+                   @oninput="@((ChangeEventArgs arg) => { this.NewAlterNum = arg?.Value?.ToString() ?? string.Empty; })">
+            </div>
+            <ButtonContainer ButtonBaseClassList="@buttons"
+                         WidthForButtonWrapper="50%" />
+        </ModalWindowWithEventCallback>
+    }
+    @if (this.ShowDeleteItem)
+    {
+        <ModalWindowWithEventCallback Title="Удаление альтернативного номера"
+                                  InvokeParentHandlerwithUpdParent="@(async() => { this.ShowDeleteItem = false; })">
+            @{
+                var isActive = true;
+                List<ButtonBaseClass> buttons = new();
+                //
+                ButtonBaseClass but1 = new();
+                but1.CallbackToParent = (async () =>
+                {
+                    await this.DeleteAlterNum();
+                });
+                but1.LabelForButton = "Удалить альтернативный номер";
+                but1.IsActive = isActive;
+                but1.TitleIfIsActive = "Кликните для удаления альтернативного номера";
+                but1.TitleIfIsNonActive = "";
+                if (IsUserHasFuelRoleInHierarchy(FuelRoles.Fuel_Provisioner))
+                {
+                    buttons.AddRange(new List<ButtonBaseClass> { but1 });
+                }
+            }
+            <div class="validation-message">
+                @($"Вы подтверждаете удаление альтернативного номера «{this.AlterNumSelected?.Number ?? string.Empty}» ?")
+            </div>
+            <ButtonContainer ButtonBaseClassList="@buttons"
+                         WidthForButtonWrapper="50%" />
+        </ModalWindowWithEventCallback>
+    }
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async() => { this.ShowDeleteItem = false;
+                                                                                           this.ShowEditItem = false;
+                                                                                           this.ShowMenuActions = false;
+                                                                                           this.ShowMessage = false;
+                                                                                           if(this.ShouldUpdateParent)
+                                                                                           {
+                                                                                               this.IsRender = false;
+                                                                                               await this.InitAlterCardNums();
+                                                                                               this.IsRender = true;
+                                                                                           } })">
+            <ResultOperation Devider="'!'"
+                         IsNumberedList="false"
+                         ResMessage="@this.Message" />
+        </ModalWindowWithEventCallback>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+    [CascadingParameter]
+    public CarFuelCardsEditForm CarFuelCardsEditFormCascadingParameter { get; set; }
+
+    [Parameter]
+    public FuelCardModel Card { get; set; }
+
+    private string NewAlterNum { get; set; }
+
+    private bool ShowMenuActions { get; set; } 
+    private bool ShowEditItem { get; set; }
+    private bool ShowCreateItem { get; set; }
+    private bool ShowDeleteItem { get; set; }
+
+    private List<FuelCardsAlternativeNumberRequest> AlterNums { get; set; }
+
+    private FuelCardsAlternativeNumberRequest AlterNumSelected { get; set; }
+
+    private bool IsNew => this.AlterNumSelected == null || this.AlterNumSelected?.Id == 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await this.InitAlterCardNums();
+        this.IsRender = true;
+    }
+
+    private async Task InitAlterCardNums() => this.AlterNums = await this.api?.FuelCardAPI?.GetCardsAlternativeNumbers(this.Card?.Id ?? 0, this.Token);
+
+    private async Task DeleteAlterNum()
+    {
+        this.Message = string.Empty;
+        var resDel = await this.api?.FuelCardAPI?.DeleteCardsAlternativeNumbers(this.AlterNumSelected?.Id ?? 0, this.Token);
+
+        if(resDel == null)
+        {
+            this.Title = "Предупреждение";
+            this.Message = $"Операция закончилась с ошибкой ! {resDel?.Result ?? string.Empty}";
+        }
+        else
+        {
+            this.Title = $"Результат удаления альтернативного номера у топливной карты №{this.Card?.Number ?? string.Empty}";
+            this.Message = resDel?.Result ?? "Операция успешно завершена !";
+            this.ShouldUpdateParent = true;
+        }
+        this.ShowDeleteItem = false;
+        this.RenderMessage();
+    }
+
+    private async Task UpdateCreateAlterNum()
+    {
+        this.Message = string.Empty;
+        ResponseSingleAction<FuelCardsAlternativeNumberRequest> res = null;
+        var mess = this.IsNew ? "сохранен" : "обновлен";
+
+        if (string.IsNullOrEmpty(this.NewAlterNum))
+        {
+            this.Title = "Предупреждение";
+            this.Message = $"Операцию нельзя сохранить, т.к. номер не м.б. пустым";
+        }
+        else
+        {
+            if(this.IsNew)
+            {
+                this.AlterNumSelected = new();
+                this.AlterNumSelected.CardId = this.Card?.Id ?? 0;
+            }
+
+            this.AlterNumSelected.Number = this.NewAlterNum ?? string.Empty;
+            this.AlterNumSelected.ModifiedOn = DateTime.Now;
+            this.AlterNumSelected.ModifiedBy = this.User ?? string.Empty;
+
+            if (this.IsNew)
+            {
+                res = await this.api?.FuelCardAPI?.PostCardsAlternativeNumber(AlterNumSelected, this.Token);
+            }
+            else
+            {
+                res = await this.api?.FuelCardAPI?.PutCardsAlternativeNumbers(AlterNumSelected, this.Token);
+            }
+
+            if (res == null || res.Item == null || res.Item.Id ==0)
+            {
+                this.Title = "Предупреждение";
+                this.Message = $"Операция закончилась с ошибкой ! Номер не был {mess} ! {res?.Result ?? string.Empty}";
+            }
+            else
+            {
+                this.Title = "Результат операции";
+                this.Message = string.IsNullOrEmpty(res?.Result) ? $"Операция успешно завершена ! Номер был {mess} !" : res?.Result ?? string.Empty;
+                this.ShouldUpdateParent = true;
+            }
+            this.ShowEditItem = false;
+            this.ShowCreateItem = false;
+        }
+
+        this.RenderMessage();
+    }
+}

@@ -1,0 +1,20 @@
+﻿.chartPerPage_div {
+    color: black;
+    width: 98%;
+    margin-left: 1%;
+}
+    .chartPerPage_div > div {
+        margin-left: 1%;
+        margin-right: 1%;
+    }
+button {
+    border: 1px;
+    border-radius: 1px;
+    margin: 5px;
+    vertical-align: central;
+}
+
+img {
+    border: none;
+    width: 15px;
+}

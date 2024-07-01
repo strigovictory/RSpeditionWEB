@@ -1,0 +1,29 @@
+﻿@inherits ScaffoldJCMainBase
+@inject IApies api
+@inject IMapper mapper
+
+<CascadingValue Value="@this">
+    <div>
+        <CarFuelCardsNotFoundJournal @ref="@ChildElemRefJournal" />
+    </div>
+</CascadingValue>
+
+@code {
+    [CascadingParameter]
+    public FuelCardsJournal FuelCardsJournalCascadingVal { get; set; }
+
+    private CarFuelCardsNotFoundJournal ChildElemRefJournal { get; set; }
+
+    public List<FuelCardNotFoundView> FuelCardsNotFound { get; set; }
+
+    public override async Task UpdateMainCollections() => await InitNotFoundCards();
+
+    private async Task InitNotFoundCards()
+        => FuelCardsNotFound = await this.api?.FuelCardAPI?.GetCardsNotFound(this.Token);
+
+    public override async Task UpdateSecondCollections()
+        => await Task.FromResult(true);
+
+    protected override async Task InitializeTabs()
+        => await Task.FromResult(true);
+}

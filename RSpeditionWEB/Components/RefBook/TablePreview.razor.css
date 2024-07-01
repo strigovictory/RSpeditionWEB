@@ -1,0 +1,45 @@
+﻿.tablePreviewFilters {
+    display: flex;
+    flex-flow: row wrap;
+}
+
+    .tablePreviewFilters * {
+        max-width: 380px !important;
+    }
+
+    .tablePreviewFilters > div {
+        margin-right: 30px;
+    }
+
+        .tablePreviewFilters > div:last-child {
+            margin-right: 0px;
+        }
+
+
+        /*Filters on tables' header */
+.relative {
+    position: relative;
+}
+
+.absolute {
+    position: absolute;
+    background-color: white;
+    border-color: black;
+    width: 100%;
+    opacity: 0.9;
+}
+
+.hidden {
+    /* The menu is hidden at first */
+    display: none;
+}
+
+button {
+    border: none;
+    background-color: inherit !important;
+}
+
+img {
+    border: none;
+    width: 15px;
+}

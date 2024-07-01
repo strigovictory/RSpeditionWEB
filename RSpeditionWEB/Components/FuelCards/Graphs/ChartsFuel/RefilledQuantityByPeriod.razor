@@ -1,0 +1,519 @@
+﻿@inherits ChartPropertiesClass<ChartRefilledQuantityByPeriod>
+@implements IStateItemsWereChanged<Dictionary<string, List<ChartRefilledQuantityByPeriod>>>
+
+<CascadingValue Value="this">
+    @if (this.IsRender)
+    {
+        <div class="pressed">
+            <div class="filters">
+                @* Фильтр по периодичности*@
+                <div>
+                    <label_small_black>
+                        Периодичность
+                    </label_small_black>
+                    <br />
+                    <div class="search">
+                        <select @bind="@this.ChartPeriodicityIdSelected">
+                            @if (this.ChartPeriodicityCollection is not null && this.ChartPeriodicityCollection?.Count > 0)
+                            {
+                                @foreach (var period in this.ChartPeriodicityCollection)
+                                {
+                                    var label = Enum.GetName(typeof(ChartPeriodicity), period).ConvertStringUpperToLowerCase();
+                                    var val = (int)period;
+                                    if (this.ChartPeriodicityIdSelected == val)
+                                    {
+                                        <option value="@val" selected>
+                                            @label
+                                        </option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@val">
+                                            @label
+                                        </option>
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                <option disabled selected>
+                                    В системе не найдено ни одного значения периодичности для группировки диграмм
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                @*2 - Фильтр по подразделению*@
+                <div>
+                    @{
+                        DivisionResponse division = new();
+                        var typeDivision = division.GetType();
+                        List<PropertyInfo> propsDivisioin = new List<PropertyInfo> {typeDivision.GetProperty(nameof(division.Name))};
+                        var textProp = typeDivision.GetProperty(nameof(division.Name));
+                        var tempAttrDivision = typeDivision.GetCustomDisplayValues(nameof(division.Name));
+                        var labelForSearchDivision = tempAttrDivision.Item1 ?? string.Empty;
+                        var placeholderDivision = tempAttrDivision.Item2 ?? string.Empty;
+                    }
+                    <label_small_black>
+                        @labelForSearchDivision
+                    </label_small_black>
+                    <SearchTItem IIdItems="@(this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.Divisions?.OrderBy(_ => _.Name)?.Cast<IId>()?.ToList() ?? new())"
+                                 PropertiesInfoForSearch="@propsDivisioin"
+                                 TextProperty="@textProp"
+                                 LabelForSearch="@labelForSearchDivision"
+                                 Placeholder="@placeholderDivision"
+                                 MaxSizeSelect="7"
+                                 ShowSelecteditems="true"
+                                 SendToParent_FoundAndSelectedIIdItems="@(async (List<IId> selectedIIdItems) => {await this.ProgressBarOpenAsync();
+                                                                                                                 if((selectedIIdItems?.Count ?? 0) == 0)
+                                                                                                                    this.SelectedDivisions = null;
+                                                                                                                 else
+                                                                                                                    this.SelectedDivisions = selectedIIdItems?
+                                                                                                                                                             .Cast<DivisionResponse>()?
+                                                                                                                                                             .ToList()
+                                                                                                                                                             ??
+                                                                                                                                                             new();
+                                                                                                                this.ApplyFiltersToTranzactions();
+                                                                                                                await this.ProgressBarCloseAsync(); 
+})"
+                                 CallParentToReceiveIIdItems="@(async() => { this.SelectedDivisions = new List<DivisionResponse>(this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.Divisions);
+                                                                             this.ApplyFiltersToTranzactions(); })" />
+                </div>
+                @*3 - Фильтр по поставщику топлива*@
+                <div>
+                    @{
+                        FuelProviderResponse fuelProvider = new();
+                        var typeFuelProvider = fuelProvider.GetType();
+                        List<PropertyInfo> propsFuelProvider = new List<PropertyInfo> { typeFuelProvider.GetProperty(nameof(fuelProvider.Name)) };
+                        var textPropFuelProvider = typeFuelProvider.GetProperty(nameof(fuelProvider.Name));
+                        var tempAttrFuelProvider = typeFuelProvider.GetCustomDisplayValues(nameof(fuelProvider.Name));
+                        var labelForSearchFuelProvider = tempAttrFuelProvider.Item1 ?? string.Empty;
+                        var placeholderFuelProvider = tempAttrFuelProvider.Item2 ?? string.Empty;
+                    }
+                    <label_small_black>
+                        @labelForSearchFuelProvider
+                    </label_small_black>
+                    <SearchTItem IIdItems="@(this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.FuelProviders?.OrderBy(_ => _.Name)?.Cast<IId>()?.ToList() ?? new())"
+                                 PropertiesInfoForSearch="@propsFuelProvider"
+                                 TextProperty="@textPropFuelProvider"
+                                 LabelForSearch="@labelForSearchFuelProvider"
+                                 Placeholder="@placeholderFuelProvider"
+                                 MaxSizeSelect="7"
+                                 ShowSelecteditems="true"
+                                 SendToParent_FoundAndSelectedIIdItems="@(async (List<IId> selectedIIdItems) => { await this.ProgressBarOpenAsync();
+                                                                                                                  if(selectedIIdItems?.Count == 0)
+                                                                                                                    this.SelectedFuelProviders = null;
+                                                                                                                  else
+                                                                                                                  this.SelectedFuelProviders = selectedIIdItems?
+                                                                                                                                                               .Cast<FuelProviderResponse>()?
+                                                                                                                                                               .ToList()
+                                                                                                                                                               ??
+                                                                                                                                                               new();
+                                                                                                                  this.ApplyFiltersToTranzactions();
+                                                                                                                  await this.ProgressBarCloseAsync();
+})"
+                                 CallParentToReceiveIIdItems="@(async () => { this.SelectedFuelProviders = new(this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.FuelProviders ?? new());
+                                                                              this.ApplyFiltersToTranzactions(); })">
+                    </SearchTItem>
+                </div>
+            </div>
+        </div>
+        <ChoiceChart T="ChartRefilledQuantityByPeriod"
+                     CategoryProperty="@nameof(ChartRefilledQuantityByPeriod.ChartPeriodicity)"
+                     CategoryLabel="Период"
+                     ValueProperty="@nameof(ChartRefilledQuantityByPeriod.RefilledQuantity)"
+                     ValueLabel="Заправлено, л."
+                     TitleChart="@this.ChartsFuelParentCascadingVal.TitleChart"
+                     Line="@LineType.Solid"
+                     Fill="#addfad"
+                     ValueStep="@(this.ValueStep <= 0 ? 1 : this.ValueStep)"
+                     ValueMin="@this.ValueMin"
+                     ValueMax="@this.ValueMax"
+                     ValueFormatString="@("{0:N}")"
+                     CategoryMin="@this.CategoryMin"
+                     CategoryMax="@this.CategoryMax"
+                     CategoryStep="@(this.CategoryStep <= 0 ? 1: this.CategoryStep)"
+                     CategoryFormatter="@this.CategoryFormatter"
+                     ValueUnit=", л.">
+        </ChoiceChart>
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Идет загрузка..." />
+    }        
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar IsTimerNotRender="true" />
+    </div>
+</CascadingValue>
+
+@code {
+    #region
+    private Func<object, string> CategoryFormatter { get; set; }
+
+    // Коллекция выбранных подразделений
+    public List<DivisionResponse> SelectedDivisions { get; set; }
+
+    // Коллекция выбранных поставщиков топлива
+    public List<FuelProviderResponse> SelectedFuelProviders { get; set; }
+
+    // Коллекция транзакций с учетом фильтров и группировок
+    private List<FuelTransactionFullResponse> TranzactionsFilteredOrdered { get; set; } = new();
+
+    // Выбранная подкатегория для группировки
+    private ChartGroupParameters ChartGroupParametersSelected { get; set; }
+
+    // Выбранная периодичность отражения значений
+    private int chartPeriodicityIdSelected;
+    private int ChartPeriodicityIdSelected
+    {
+        get => this.chartPeriodicityIdSelected;
+        set
+        {
+            Func<Task> f1 = async () => await this.ProgressBarOpenAsync();
+            f1();
+            this.chartPeriodicityIdSelected = value;
+            this.ChartPeriodicitySelected = this.ChartPeriodicityCollection?.FirstOrDefault(_ => ((int)_).Equals(value)) ?? ChartPeriodicity.Год;
+            this.ApplyFiltersToTranzactions();
+            Func<Task> f2 = async () => await this.ProgressBarCloseAsync();
+            f2();
+        }
+    }
+
+    // Коллекция категорий для группировки
+    private List<ChartPeriodicity> ChartPeriodicityCollection { get; set; }
+
+    // Выбранная подкатегория для группировки
+    private ChartPeriodicity ChartPeriodicitySelected { get; set; }
+    #endregion
+
+    // Methods
+    #region
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.CategoryFormatter = this.InitCategoryFormatter;
+        this.chartPeriodicityIdSelected = 0; // по умолчанию вначале сведения предоставлены по годам
+        this.ChartPeriodicitySelected = ChartPeriodicity.Год;
+        this.ChartPeriodicityCollection = new((IEnumerable<ChartPeriodicity>)Enum.GetValues(typeof(ChartPeriodicity))); 
+    }
+
+    /// <summary>
+    ///
+    /// </summary>
+    /// <param name="data">Значение оси категорий, требующее форматированного вывода</param>
+    /// <returns>Отформатированное значение для оси категорий</returns>
+    private string InitCategoryFormatter(object data)
+    {
+        string res = string.Empty;
+
+        var word = data?.ToString()?.Trim() ?? string.Empty;
+
+        switch (this.ChartPeriodicitySelected)
+        {
+            case ChartPeriodicity.Год:
+                res = DelUnUsedLetters(word);
+                break;
+            case ChartPeriodicity.Месяц:
+                res = Convert.ToInt32(word).GetStringMonth()?.ToLower() ?? string.Empty;
+                break;
+            case ChartPeriodicity.День:
+                res = DelUnUsedLetters(word);
+                break;
+            case ChartPeriodicity.Час:
+                res = DelUnUsedLetters(word);
+                break;
+        }
+
+        string DelUnUsedLetters(string word)
+        {
+            var result = string.Empty;
+            foreach (var letter in word)
+            {
+                if (!letter.Equals(" ") &&
+                    !letter.Equals(".") &&
+                    !letter.Equals(","))
+                    result += letter;
+                else
+                    continue;
+            }
+            return result;
+        }
+        return res;
+    }
+
+    public override void InitializeMinMaxStep()
+    {
+        List<decimal> sumQuantity = new();
+
+        if (this.Items != null && this.Items?.Values != null && this.Items?.Values?.Count > 0)
+        {
+            this.Items?.Values?.ToList()?.ForEach(_ => _.ForEach(o => sumQuantity.Add(o.RefilledQuantity)));
+
+            this.ValueMin = Decimal.Round(sumQuantity?.Min() ?? 0, 0, MidpointRounding.ToZero);
+            this.ValueMax = Decimal.Round(sumQuantity?.Max() ?? 0, 0, MidpointRounding.ToZero);
+            if (this.ValueMin == this.ValueMax)
+            {
+                this.ValueStep = ValueMax;
+            }
+            else
+            {
+                var temp = Math.Abs(Decimal.Round((((decimal)this.ValueMax - (decimal)this.ValueMin) / 10), 0, MidpointRounding.ToZero));
+                this.ValueStep = temp <= 0 ? 1 : temp;
+                this.ValueMax = (decimal)this.ValueMax + (decimal)this.ValueStep;
+            }
+        }
+        else
+        {
+            this.ValueMin = 0;
+            this.ValueMax = 1;
+            this.ValueStep = 1;
+            this.CategoryMin = 1;
+            this.CategoryMax = 1;
+            this.CategoryStep = 1;
+        }
+    }
+
+    /// <summary>
+    /// Метод для запуска метода для инициализации коллекции для построения запуска в зависимости от флага - разбивать на подкатегории или нет
+    /// </summary>
+    protected override void InitData()
+    {
+        // Применить фильтры текущего компонента
+        this.InitFilters();
+
+        // Переформировать коллекцию для графиков
+        // Пересчитать заново максимальное/минимальное значения и шаг
+        // Вызвать событие изменения состояний компонента, чтобы дочерние компоненты-шаблоны-графики отреагировлаи на измененение и забрали измененный Dictionary
+        this.ApplyFiltersToTranzactions();
+        this.StateHasChanged();
+    }
+
+    /// <summary>
+    /// Метод для инициализации коллекции с данными, необходимыми для построения графика - без разбивки на подкатегории
+    /// </summary>
+    private void Initialize_ChartData_NotGroupBy()
+    {
+        this.Items = new();
+        List<ChartRefilledQuantityByPeriod> series = new();
+
+        if (this.TranzactionsFilteredOrdered != null && this.TranzactionsFilteredOrdered.Count > 0)
+        {
+            switch (this.ChartPeriodicitySelected)
+            {
+                case ChartPeriodicity.Год:
+                    {
+                        (this.TranzactionsFilteredOrdered?
+                                                            .GroupBy(x => new { x?.OperationDate.Year })?
+                                                            .Select(y => new
+                                                            {
+                                                                chartPeriodicity = y.Key.Year,
+                                                                refilledQuantity = y.ToList()
+                                                            })?
+                                                            .ToList()
+                                                            ??
+                                                            new())
+                                                            .ForEach(z => series.Add(new ChartRefilledQuantityByPeriod
+                                                            {
+                                                                ChartPeriodicity = z.chartPeriodicity ?? 0,
+                                                                RefilledQuantity = z.refilledQuantity?.Sum(_ => _.Quantity) ?? 0
+                                                            }
+                                                            ));
+
+                        this.CategoryMin = series?.Min(_ => _?.ChartPeriodicity ?? 0) ?? 1;
+                        this.CategoryMax = series?.Max(_ => _?.ChartPeriodicity ?? 0) ?? 1;
+                        if (this.CategoryMin == this.CategoryMax)
+                        {
+                            this.CategoryStep = this.CategoryMin;
+                        }
+                        else
+                        {
+                            var temp = Math.Abs(((this.CategoryMax - this.CategoryMin) / 10));
+                            this.CategoryStep = temp < 1 ? 1 : temp;
+                        }
+                        break;
+                    }
+                case ChartPeriodicity.Месяц:
+                    {
+                        (this.TranzactionsFilteredOrdered?
+                                                         .GroupBy(x => new { x?.OperationDate.Month })?
+                                                         .Select(y => new
+                                                         {
+                                                             chartPeriodicity = y.Key.Month ?? 0,
+                                                             refilledQuantity = y.ToList()
+                                                         })?
+                                                         .ToList()
+                                                         ??
+                                                         new())
+                                                         .ForEach(z => series.Add(new ChartRefilledQuantityByPeriod
+                                                         {
+                                                             ChartPeriodicity = z.chartPeriodicity,
+                                                             RefilledQuantity = z.refilledQuantity?.Sum(_ => _.Quantity) ?? 0
+                                                         }
+                                                         ));
+                        this.CategoryMin = 1;
+                        this.CategoryMax = 12;
+                        this.CategoryStep = 1;
+                        break;
+                    }
+                case ChartPeriodicity.День:
+                    {
+                        (this.TranzactionsFilteredOrdered?
+                                                         .GroupBy(x => new { x?.OperationDate.Day })?
+                                                         .Select(y => new
+                                                         {
+                                                             chartPeriodicity = y.Key.Day,
+                                                             refilledQuantity = y.ToList()
+                                                         })?
+                                                         .ToList()
+                                                         ??
+                                                         new())
+                                                         .ForEach(z => series.Add(new ChartRefilledQuantityByPeriod
+                                                         {
+                                                             ChartPeriodicity = z.chartPeriodicity ?? 0,
+                                                             RefilledQuantity = z.refilledQuantity?.Sum(_ => _.Quantity) ?? 0
+                                                         }
+                                                         ));
+                        this.CategoryMin = 1;
+                        this.CategoryMax = 31;
+                        this.CategoryStep = 1;
+                        break;
+                    }
+                case ChartPeriodicity.Час:
+                    {
+                        (this.TranzactionsFilteredOrdered?
+                                                 .GroupBy(x => new { x?.OperationDate.Hour })?
+                                                 .Select(y => new
+                                                 {
+                                                     chartPeriodicity = y.Key.Hour,
+                                                     refilledQuantity = y.ToList()
+                                                 })?
+                                                 .ToList()
+                                                 ??
+                                                 new())
+                                                 .ForEach(z => series.Add(new ChartRefilledQuantityByPeriod
+                                                 {
+                                                     ChartPeriodicity = z.chartPeriodicity ?? 0,
+                                                     RefilledQuantity = z.refilledQuantity?.Sum(_ => _.Quantity) ?? 0
+                                                 }
+                                                 ));
+
+                        this.CategoryMin = 1;
+                        this.CategoryMax = 24;
+                        this.CategoryStep = 1;
+                        break;
+                    }
+                default:
+                    {
+                        (this.TranzactionsFilteredOrdered?
+                                                           .GroupBy(x => new { x?.OperationDate.Year })?
+                                                           .Select(y => new
+                                                           {
+                                                               chartPeriodicity = y.Key.Year,
+                                                               refilledQuantity = y.ToList()
+                                                           })?
+                                                           .ToList()
+                                                           ??
+                                                           new())
+                                                           .ForEach(z => series.Add(new ChartRefilledQuantityByPeriod
+                                                           {
+                                                               ChartPeriodicity = z.chartPeriodicity ?? 0,
+                                                               RefilledQuantity = z.refilledQuantity?.Sum(_ => _.Quantity) ?? 0
+                                                           }
+                                                           ));
+
+                        this.CategoryMin = series?.Min()?.ChartPeriodicity ?? 1;
+                        this.CategoryMax = series?.Max()?.ChartPeriodicity ?? 1;
+                        if (this.CategoryMin == this.CategoryMax)
+                        {
+                            this.CategoryStep = this.CategoryMin;
+                        }
+                        else
+                        {
+                            var temp = Math.Abs(((this.CategoryMax - this.CategoryMin) / 10));
+                            this.CategoryStep = temp < 1 ? 1 : temp;
+                        }
+                        break;
+                    }
+            }
+
+            if (series != null && series.Count() > 0)
+            {
+                this.Items.Add(Enum.GetName(typeof(ChartPeriodicity), this.ChartPeriodicitySelected), series);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Метод для инициализации коллекций, участвующих в фильтрации
+    /// </summary>
+    /// <returns></returns>
+    private void InitFilters()
+    {
+        //
+        this.SelectedDivisions = new();
+        this.SelectedDivisions.AddRange(this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.Divisions ?? new());
+        //
+        this.SelectedFuelProviders = new();
+        this.SelectedFuelProviders.AddRange(this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.FuelProviders ?? new());
+    }
+
+    /// <summary>
+    /// Метод обновления коллекции карт с учетом фильтров и сортировок
+    /// </summary>
+    private void ApplyFiltersToTranzactions()
+    {
+        this.TranzactionsFilteredOrdered = this.ChartsFuelParentCascadingVal?.TranzactionsFilteredOrdered?.Where(_ => this.TrIsVizible(_))?.ToList() ?? new();
+
+        // Переформировать коллекцию для графиков
+        this.Initialize_ChartData_NotGroupBy();
+
+        // Пересчитать заново максимальное/минимальное значения и шаг
+        this.InitializeMinMaxStep();
+
+        // Вызвать событие изменения состояний компонента, чтобы дочерние компоненты-шаблоны-графики отреагировлаи на измененение и забрали измененный Dictionary
+        this.InvokeStateItemsWereChangedEvent();
+    }
+
+    /// <summary>
+    /// Если все условия установленных фильтров выполняется - отобразить строку таблицы - в противном случае - нет
+    /// </summary>
+    /// <returns></returns>
+    private bool TrIsVizible(FuelTransactionFullResponse tranz) => this.IsEquel_Division(tranz) && this.IsEquel_FuelProvider(tranz);
+
+    /// <summary>
+    /// Метод для проверки принадлежности текущей транзакции к подразделению - если фильтр по подразделению установлен
+    /// </summary>
+    /// <returns>Результат принадлежности</returns>
+    private bool IsEquel_Division(FuelTransactionFullResponse tranz)
+    {
+        var divisionId = this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.Cards?.FirstOrDefault(_ => _.Id == tranz.CardId)?.DivisionID ?? null;
+
+        if (this.SelectedDivisions == null)
+            return false;
+        else if (this.SelectedDivisions.Count == 0)
+            return true;
+        else if (divisionId != null && this.SelectedDivisions.Any(_ => _.Id == divisionId))
+            return true;
+        else
+            return false;
+    }
+
+    /// <summary>
+    /// Метод для проверки принадлежности текущей транзакции к заданному поставщику топлива - если фильтр по  поставщику топлива установлен
+    /// </summary>
+    /// <returns>Результат принадлежности</returns>
+    private bool IsEquel_FuelProvider(FuelTransactionFullResponse tranz)
+    {
+        var providerId = this.ChartsFuelParentCascadingVal?.FuelCardsCascadingVal?.Cards?.FirstOrDefault(_ => _.Id == tranz?.CardId)?.ProviderId;
+
+        if (this.SelectedFuelProviders == null)
+            return false;
+        else if (this.SelectedFuelProviders.Count == 0)
+            return true;
+        else if (providerId != null && this.SelectedFuelProviders.Any(_ => _.Id == providerId))
+            return true;
+        else
+            return false;
+    }
+    #endregion
+}

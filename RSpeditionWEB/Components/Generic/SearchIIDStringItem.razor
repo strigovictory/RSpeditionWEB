@@ -1,0 +1,309 @@
+﻿@inject IApies api
+@inherits ChildComponentBaseClass
+@*Компонент с поиском экземпляров типа IIdString*@
+
+<div>
+    <label_small_black>
+        @(this.LabelForSearch ?? "Поиск")
+    </label_small_black>
+    <div class="search">
+        <input type="search"
+               placeholder="Поиск"
+               class="input"
+               @bind-value="this.SearchString"
+               @bind-value:event="oninput"
+               @onclick="this.OnShow" />
+    </div>
+
+    @if (this.ShowSearchResult)
+    {
+        @if (this.ShowSelecteditems || (this.SelectedIIdItems != null && this.SelectedIIdItems.Count() > 0 && this.SelectedIIdItems.Count() < 11))
+        {
+            <div style="line-height: 1;">
+                @if (this.SelectedIIdItems != null && this.SelectedIIdItems.Count() > 0)
+                {
+                    @foreach (var item in this.SelectedIIdItems)
+                    {
+                        string labelById = this.TextProperty?.GetValue(this.SelectedIIdItems.FirstOrDefault(_ => _.Id == item.Id))?.ToString() ?? string.Empty;
+                        <span>
+                            <span style="font-size: small; font-weight: normal;">@labelById</span>
+                            <a style="font-size: x-small; font-weight: bold;"
+                               @onclick="@(async(MouseEventArgs args) => {
+                                                                               await this.ProgressBarOpenAsync();
+                                                                               this.SelectedIIdItems?.RemoveAll(_ => _?.Id?.Equals(item?.Id ?? string.Empty) ?? false);
+                                                                               await this.SendToParent_FoundAndSelectedIIdItems.InvokeAsync(this.SelectedIIdItems);
+                                                                               await this.js.InvokeAsync<List<string>>("ResetSelectedStringValues", this.ElementReference_Select, item.Id);
+                                                                               await this.ProgressBarCloseAsync();
+                                                                         })">
+                                <sup>x</sup>
+                                &nbsp;&nbsp;&nbsp;&nbsp;
+                            </a>
+                        </span>
+                    }
+                }
+            </div>
+        }
+<div>
+    @if (this.IsMultiple)
+    {
+        <select @ref="@this.ElementReference_Select"
+                size="@this.SizeSelect"
+                multiple
+                @onchange="@(async (ChangeEventArgs args) => {
+                                                                    await this.ProgressBarOpenAsync();
+                                                                    await this.SelectionChanged(args, this.ElementReference_Select);
+                                                                    await this.ProgressBarCloseAsync();
+                                                                 })">
+            @if (this.SelectedIIdItems != null &&
+                  this.SearchedIIdItems != null &&
+                  this.SearchedIIdItems?.Count > 0)
+            {
+                if (this.SearchedIIdItems?.Count == this.SelectedIIdItems?.Count)
+                {
+                    <option value="Выбрать все" selected>Выбрать всё</option>
+                }
+                else
+                {
+                    <option value="Выбрать все">Выбрать всё</option>
+                }
+
+                @foreach (var item in SearchedIIdItems)
+                {
+                    var val = item;
+                    var valId = item?.Id;
+                    string label = this.TextProperty?.GetValue(val)?.ToString() ?? string.Empty;
+                    <option value="@valId">
+                        @label
+                    </option>
+                }
+            }
+            else
+            {
+                <option disabled selected>@this.Placeholder</option>
+            }
+        </select>
+    }
+    else
+    {
+<select @ref="@this.ElementReference_Select"
+        size="@this.SizeSelect"
+        @onchange="@(async (ChangeEventArgs args ) => {
+                                                                                await this.ProgressBarOpenAsync();
+                                                                                await this.SelectionChanged(args, this.ElementReference_Select);
+                                                                                await this.ProgressBarCloseAsync();
+                                                                             })">
+    @if (this.SearchedIIdItems != null &&
+     this.SearchedIIdItems?.Count > 0)
+    {
+        if (this.SelectedIIdItems?.Count == 0)
+        {
+            <option disabled selected>@this.Placeholder</option>
+        }
+
+        @foreach (var item in SearchedIIdItems)
+        {
+            var val = item;
+            var valId = item?.Id;
+            string label = this.TextProperty?.GetValue(val)?.ToString() ?? string.Empty;
+            <option value="@valId">
+                @label
+            </option>
+        }
+    }
+    else
+    {
+        <option disabled selected>@this.Placeholder</option>
+    }
+</select>
+    }
+</div>
+    }
+</div>
+
+@code {
+    // Члены компонента
+    #region
+    // Делегат обратного вызова для передачи в родительский компонент коллекции найденных и выбранных пользователем на основе строки поискового запроса экземпляров типа IId
+    [Parameter]
+    public EventCallback<List<IIdString>> SendToParent_FoundAndSelectedIIdItems { get; set; }
+
+    // Делегат обратного вызова для отправки запроса в родительский компонент для получения актуальной коллекции экземпляров типа IId
+    [Parameter]
+    public EventCallback CallParentToReceiveIIdItems { get; set; }
+
+    // Коллекция свойств в рамках которых будет осуществляться поиск вхождения строки SearchString
+    [Parameter]
+    public List<PropertyInfo> PropertiesInfoForSearch { get; set; }
+
+    // Свойство для отображения в select-option
+    [Parameter]
+    public PropertyInfo TextProperty { get; set; }
+
+    // Максимальное значение атрибута Size тега Select
+    [Parameter]
+    public int MaxSizeSelect { get; set; }
+
+    // Коллекция экземпляров типа IIdString, в рамках которой будет осуществляться поиск
+    [Parameter]
+    public List<IIdString> IIdItems { get; set; }
+
+    [Parameter]
+    public IIdString IIdInitParameter { get; set; }
+
+    [Parameter]
+    public string LabelForSearch { get; set; }
+
+    [Parameter]
+    public string Placeholder { get; set; }
+
+    [Parameter]
+    public bool ShowSelecteditems { get; set; }
+
+    [Parameter]
+    public bool IsMultiple { get; set; }
+
+    // Текущее значение атрибута Size тега Select
+    private int SizeSelect { get; set; }
+
+    private bool ShowSearchResult { get; set; }
+
+    // Строка запроса из поискового поля
+    private string searchString = string.Empty;
+    public string SearchString
+    {
+        get => this.searchString;
+        set
+        {
+            this.searchString = value;
+            Func<Task> f = async () => await this.SearchStart();
+            f();
+        }
+    }
+
+    // Коллекция экземпляров типа IIdString, которые были отфильтрованы в соответствии со строкой поиска
+    private List<IIdString> SearchedIIdItems { get; set; }
+
+    // Коллекция экземпляров типа IIdString, которые были отфильтрованы и выбраны пользователем
+    private List<IIdString> SelectedIIdItems { get; set; }
+
+    // Ссылка на тег select
+    private ElementReference ElementReference_Select { get; set; }
+
+    #endregion
+
+    // Методы жизненного цикла компонента
+    #region
+    /// <summary>
+    /// Асинхронный метод срабатывает при первоначальной отрисовке компонента
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.FirstInitializeCollection();
+    }
+
+    /// <summary>
+    /// Метод вызывается после инициализации компонента OnInitializedAsync и когда родительский компонент повторно отрисовывается
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnParametersSetAsync()
+    {
+        if (this.IIdItems == null)
+        {
+            await Task.FromResult(this.IIdItems = new());
+        }
+    }
+
+    /// <summary>
+    /// Асинхронный метод для инициализации коллекций компонента
+    /// </summary>
+    /// <returns></returns>
+    public void FirstInitializeCollection()
+    {
+        this.SearchedIIdItems = new();
+        this.SearchedIIdItems.AddRange(this.IIdItems);
+        this.SelectedIIdItems = this.IIdInitParameter is null ? new() : new List<IIdString> { this.IIdInitParameter };
+        this.ChangeSizeSelect();
+    }
+    #endregion
+
+    #region
+    // Метод для отображения / сокрытия найденных совпадений
+    public void OnShow() => this.ShowSearchResult = this.ShowSearchResult ? false : true;
+
+
+    /// <summary>
+    /// Метод для запуска сервиса по поиску организации
+    /// </summary>
+    private async Task SearchStart()
+    {
+        await this.ProgressBarOpenAsync();
+        // Вызов поискового сервиса
+        if (string.IsNullOrEmpty(this.SearchString))
+        {
+            await this.CallParentToReceiveIIdItems.InvokeAsync();
+            this.FirstInitializeCollection();
+        }
+        else
+        {
+            this.SearchedIIdItems = this.IIdItems.SearchedIIdItems(this.PropertiesInfoForSearch, this.SearchString) ?? new();
+            this.ChangeSizeSelect();
+        }
+
+        this.SelectedIIdItems = new();
+        await this.SendToParent_FoundAndSelectedIIdItems.InvokeAsync(this.SearchedIIdItems);
+        await this.ProgressBarCloseAsync();
+    }
+
+    /// <summary>
+    /// Метод срабатывает при выборе элементов внутри тега select
+    /// </summary>
+    /// <param name="e">Аргумент события выбора элемента</param>
+    private async Task SelectionChanged(ChangeEventArgs e, ElementReference element)
+    {
+        var idSelectedItems = await this.GetSelectedListFromJs(element);
+
+        if (idSelectedItems.Contains("Выбрать все"))
+        {
+            this.SelectedIIdItems = new(this.SearchedIIdItems);
+        }
+        else
+        {
+            this.SelectedIIdItems = new();
+            this.SelectedIIdItems.AddRange(this.IIdItems.Where(x => idSelectedItems.Any(y => y.Equals(x.Id, StringComparison.InvariantCultureIgnoreCase))));
+        }
+
+        await this.SendToParent_FoundAndSelectedIIdItems.InvokeAsync(this.SelectedIIdItems);
+        this.StateHasChanged();
+    }
+
+    /// <summary>
+    /// Метод для вызова скрипта js - для реализации множественного выбора элементов внутри тега select-option
+    /// </summary>
+    /// <returns>Коллекция выбранных экземпляров IId</returns>
+    public async ValueTask<List<string>> GetSelectedListFromJs(ElementReference element) => await this.js.InvokeAsync<List<string>>("GetSelectedStringValues", element);
+
+    /// <summary>
+    /// Метод динамически измененяет значение атрибута size тега Select в зависимости от кол-ва найденных совпадений
+    /// </summary>
+    private void ChangeSizeSelect()
+    {
+        var num = this.SearchedIIdItems?.Count ?? 0;
+
+        if (num >= 0 && num < this.MaxSizeSelect)
+        {
+            this.SizeSelect = num + 2;
+        }
+        else if (num > this.MaxSizeSelect)
+        {
+            this.SizeSelect = this.MaxSizeSelect;
+        }
+        else if (num == 0)
+        {
+            this.SizeSelect = 3;
+        }
+    }
+    #endregion
+
+}

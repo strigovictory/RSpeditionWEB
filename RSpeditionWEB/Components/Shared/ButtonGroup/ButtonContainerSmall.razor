@@ -1,0 +1,72 @@
+﻿@inherits ButtonBaseClass
+
+<div class="ButtonContainer">
+    @if (this.ButtonBaseClassList != null && this.ButtonBaseClassList?.Count > 0)
+    {
+        foreach (var buttonItem in this.ButtonBaseClassList)
+        {
+            @if (buttonItem.IsActive)
+            {
+                <div class="ButtonWrapper"
+                     style="@this.StyleForWrapper"
+                     title="@buttonItem.TitleIfIsActive"
+                     @onclick="@(() => { buttonItem.CallbackToParent?.Invoke(); })">
+                    <div class="ButtonLabel">
+                        <p>@buttonItem.LabelForButton</p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="ButtonWrapper non-active"
+                     style="@this.StyleForWrapper"
+                     title="@buttonItem.TitleIfIsNonActive">
+                    <div class="ButtonLabel">
+                        <p>@buttonItem.LabelForButton</p>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public List<ButtonBaseClass> ButtonBaseClassList { get; set; }
+
+    [Parameter]
+    public string Width_ForButtonWrapper { get; set; }
+
+    private string StyleForWrapper { get; set; }
+
+    public override async Task SetParametersAsync(ParameterView parameters)
+    {
+        if (parameters.TryGetValue<string>(nameof(Width_ForButtonWrapper), out var Width_ForButtonWrapper_val))
+        {
+            if (string.IsNullOrEmpty(Width_ForButtonWrapper_val))
+            {
+                this.Width_ForButtonWrapper = "15%";
+            }
+        }
+        else
+        {
+            this.Width_ForButtonWrapper = "15%";
+        }
+
+        if (parameters.TryGetValue<List<ButtonBaseClass>>(nameof(ButtonBaseClassList), out var ButtonBaseClassList_val))
+        {
+            if (ButtonBaseClassList_val is null)
+            {
+                ButtonBaseClassList_val = new();
+            }
+        }
+
+        await base.SetParametersAsync(parameters);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.StyleForWrapper = $"width: {this.Width_ForButtonWrapper};";
+    }
+}

@@ -1,0 +1,69 @@
+﻿@*@page "/GPSTrackers"
+@page "/GPSTrackers/{ActiveTabNum}"
+*@
+@attribute [Authorize]
+@inject IApies api
+@inherits ScaffoldJCMainBase
+
+    <CascadingValue Value="@this">
+    <button class="tablink" id="defaultOpen" @ref="@this.TabsRef0" @onclick="@(async() => {await this.TabClickHandler(0, nameof(GPSTrackersFilters), DotNetObjectReference.Create(ChildElemRef0), this.TabsRef0);})">@this.LabelsForTabs?.ElementAt(0)</button>
+    <button class="tablink" @ref="@this.TabsRef1" @onclick="@(async() => {await this.TabClickHandler(1, nameof(GPSTrackersCharts), DotNetObjectReference.Create(ChildElemRef1), this.TabsRef1);})">@this.LabelsForTabs?.ElementAt(1)</button>
+
+    <div id="@(nameof(GPSTrackersFilters))" class="tabcontent">
+        <GPSTrackersFilters @ref="@this.ChildElemRef0" />
+    </div>
+
+    <div id="@(nameof(GPSTrackersCharts))" class="tabcontent">
+        <GPSTrackersCharts @ref="@this.ChildElemRef1" />
+    </div>
+    </CascadingValue>
+
+@code {
+    #region
+    private GPSTrackersFilters ChildElemRef0 { get; set; }
+    private GPSTrackersCharts ChildElemRef1 { get; set; }
+
+    public List<GpsTrackerView> GpsTrackers { get; set; } = new();
+    public List<GpsInvoiceView> Invoices { get; set; } = new();
+    public List<GpstrackerModelView> Models { get; set; } = new();
+    public List<TruckResponse> Trucks { get; set; } = new();
+    public List<TrailerView> Trailers { get; set; } = new();
+    public List<DivisionResponse> Divisions { get; set; } = new();
+    public List<SimCardView> SimCards { get; set; } = new();
+
+    #endregion
+
+    #region
+    protected override async Task InitializeTabs() => await Task.FromResult(this.LabelsForTabs = new List<string> { "GPS-трекеры", "Статистика" });
+
+    public async Task InitGpsTrackers() => this.GpsTrackers = (await this.api?.MobileApi?.GetGpsTrackers(this.Token)) ?? new();
+    private async Task InitInvoices() => this.Invoices = (await this.api?.MobileApi?.GetGpsInvoices(this.Token)) ?? new();
+    private async Task InitModels() => this.Models = (await this.api?.MobileApi?.GetGpsTrackersModels(this.Token)) ?? new();
+    private async Task InitTrucks() => this.Trucks = (await this.api?.TruckApi?.GetTrucks(this.Token)) ?? new();
+    private async Task InitTrailers() => this.Trailers = (await this.api?.TrailerApi?.GetTrailers(this.Token)) ?? new();
+    private async Task InitDivisions() => this.Divisions = (await this.api?.DivisionApi?.GetDivisions(this.Token)) ?? new();
+    private async Task InitSimCards() => this.SimCards = (await this.api?.MobileApi?.GetSimCards(this.Token)) ?? new();
+
+    public override async Task UpdateMainCollections()
+    {
+        ConcurrentBag<Task> tasks = new();
+        tasks.Add(Task.Run(async () => await this.InitGpsTrackers()));
+        tasks.Add(Task.Run(async () => await this.InitInvoices()));
+
+        await Task.WhenAll(tasks);
+    }
+
+    public override async Task UpdateSecondCollections()
+    {
+        ConcurrentBag<Task> tasks = new();
+        tasks.Add(Task.Run(async () => await this.InitModels()));
+        tasks.Add(Task.Run(async () => await this.InitTrucks()));
+        tasks.Add(Task.Run(async () => await this.InitTrailers()));
+        tasks.Add(Task.Run(async () => await this.InitDivisions()));
+        tasks.Add(Task.Run(async () => await this.InitSimCards()));
+
+        await Task.WhenAll(tasks);
+    }
+    #endregion
+
+}

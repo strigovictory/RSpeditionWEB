@@ -1,0 +1,180 @@
+﻿@inject IApies api
+@inject IMapper mapper
+@inject NavigationManager navMan
+@inherits TabContainer
+
+<CascadingValue Value="@this">
+    <p class="my-h1 inner-light-shadow">Расходы на связь @this.ActiveTabTitle</p>
+    @if (this.IsRender)
+    {
+        <div class="textcols" style="line-height: 0.5; padding-top: 1px;">
+            <div class="textcols-left">
+                <label_small_black>
+                    Месяц
+                </label_small_black>
+                <SelectMonth LabelForMonthChoice=""
+                         MonthIntDefault="@this.MobileComCascadingParameter.MonthSelected"
+                         SizeSelect="1"
+                         InvokeParentHendler="@(async(int month) => { this.MobileComCascadingParameter.MonthSelected = month;
+                                                                      await this.StartDataUpdating(); })">
+                </SelectMonth>
+            </div>
+            <div class="textcols-right">
+                <label_small_black>
+                    Год
+                </label_small_black>
+                <SelectYear YearList="@((new List<int>(50)).GetListYears())"
+                        LabelForYear=""
+                        YearDefault="@this.MobileComCascadingParameter.YearSelected"
+                        InvokeParentHendler="@(async(int year)=> { this.MobileComCascadingParameter.YearSelected = year;
+                                                                   await this.StartDataUpdating(); })">
+                </SelectYear>
+            </div>
+        </div>
+        <div class="pressed">
+            <div class="divcenter">
+                <div class="divcentercellleft">
+                    <div class="multi-button">
+                        @foreach (int kind in Enum.GetValues(typeof(ReportKind)))
+                        {
+                            var kindName = Enum.GetName(typeof(ReportKind), kind);
+                            if ((int)this.ReportKindSelected == kind)
+                            {
+                                <button id="@kindName"
+                                        style="color: white;"
+                                        @onclick="@(async() => {this.ReportKindSelected = (ReportKind)Enum.Parse(typeof(ReportKind), kindName);  })">
+                                    @kindName
+                                </button>
+                            }
+                            else
+                            {
+                                <button id="@kindName"
+                                        style="color: inherit;"
+                                        @onclick="@(async() => {
+                                            this.ReportKindSelected = (ReportKind)Enum.Parse(typeof(ReportKind), kindName);  })">
+                                    @kindName
+                                </button>
+                            }
+                        }
+                    </div>
+                </div>
+                <div class="divcentercellRight">
+                    <div class="multi-button">
+                        <button id="ClosePeriod"
+                            style="color: white;"
+                            @onclick="@(async() => {await this.ProgressBarOpenAsync();
+                                                        var resp = await this.api?.MobileApi?.SetLinkOnCarInMobComPeriodic(this.MobileComCascadingParameter.YearSelected, this.MobileComCascadingParameter.MonthSelected, this.Token);
+                                                        await this.ProcessingResponse(resp);
+                                                        await this.ProgressBarCloseAsync();})">
+                            Пересчитать итоги за период
+                        </button>
+
+                    </div>
+                </div>
+            </div>
+            <div class="shadow_block">
+                @{
+                    var driverStyle = $"display: {this.GetTabStyle(this.TabsVisibility[ReportKind.Водители])}";
+                    var phoneStyle = $"display: {this.GetTabStyle(this.TabsVisibility[ReportKind.Телефоны])}";
+                }
+                <div style="@driverStyle">
+                    <MobileComJournalDrivers @ref="@this.ChildElemRef_drivers"/>
+                </div>
+                <div style="@phoneStyle">
+                    <MobileComJournalPhones @ref="@this.ChildElemRef_phones" />
+                </div>
+            </div>
+        </div>        
+        <div id="@this.IdForProgressBar" style="display: none;">
+            <ProgressBar />
+        </div>
+    }
+    else
+    {
+        <ProgressBarInner TitleProcess="Подождите..." />
+    }
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                      InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false; })">
+            <ResultOperation Devider="'!'"
+                             ResList="null"
+                             ResMessage="@this.Message" />
+        </ModalWindowWithEventCallback>
+    }
+</CascadingValue>
+
+@code {
+    private bool IsGlobalRefOnTabSetUp { get; set; } = false;
+
+    private Dictionary<ReportKind, bool> TabsVisibility { get; set; }
+    private string GetTabStyle(bool isTabVisibile) => isTabVisibile ? "block" : "none";
+
+    private MobileComJournalDrivers ChildElemRef_drivers { get; set; }
+    private MobileComJournalPhones ChildElemRef_phones { get; set; }
+
+    enum ReportKind : int { Водители, Телефоны }
+    private Func<Task> f;
+
+    private ReportKind reportKindSelected = ReportKind.Водители;
+    private ReportKind ReportKindSelected
+    {
+        get => this.reportKindSelected;
+        set
+        {
+            if (Enum.TryParse<ReportKind>(value.ToString(), out var val))
+            {
+                this.reportKindSelected = val;
+                this.TabsVisibility[this.reportKindSelected] = true;
+                foreach(var tab in this.TabsVisibility)
+                {
+                    if (tab.Key != val)
+                        this.TabsVisibility[tab.Key] = false;
+                }
+                f = val switch
+                {
+                    ReportKind.Водители => async () => await this.TabClickHandler(DotNetObjectReference.Create(this.ChildElemRef_drivers)),
+                    ReportKind.Телефоны => async () => await this.TabClickHandler(DotNetObjectReference.Create(this.ChildElemRef_phones)),
+                    _ => default
+                };
+                f();
+            }
+        }
+    }
+
+    public override async Task TabClickHandler()
+        => await this.js.InvokeVoidAsync("GLOBAL.SetDotnetReference", DotNetObjectReference.Create(this.ChildElemRef_drivers));
+
+    protected async Task TabClickHandler(object dotNetObjRef)
+        => await this.js.InvokeVoidAsync("GLOBAL.SetDotnetReference", dotNetObjRef);
+
+    private string ActiveTabTitle
+        => this.ReportKindSelected switch 
+        {
+            ReportKind.Водители => "в разрезе водителей",
+            ReportKind.Телефоны => "в разрезе телефонов",
+            _ => "в разрезе водителей",
+        };
+
+    [CascadingParameter]
+    public MobileCom MobileComCascadingParameter { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.ReturnUrl = this.MobileComCascadingParameter?.ReturnUrl ?? "/";
+        this.TabsVisibility = new Dictionary<ReportKind, bool> { { ReportKind.Водители, true},
+                                                                 { ReportKind.Телефоны, false } };
+        this.IsRender = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender)
+            await this.js.InvokeVoidAsync("SetFocusById", ReportKind.Водители.ToString());
+    }
+
+    protected override async Task StartDataUpdating() 
+        => await this.MobileComCascadingParameter?.RaiseEventStartUpdatingMainCollectionsEvent();
+}

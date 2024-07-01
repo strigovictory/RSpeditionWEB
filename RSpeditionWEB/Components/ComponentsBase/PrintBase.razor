@@ -1,0 +1,70 @@
+﻿@typeparam T
+@inject IHttpService http
+@inject IDownloadFileService downloader
+@inherits SortingBase<T>
+
+
+@code {
+    // Массив, содержащий файл отчета в формате .xlsx
+    private byte[] FileArray { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+    /// <summary>
+    /// Метод для инициализации формирования отчета в печатной форме
+    /// </summary>
+    /// <returns></returns>
+    protected async Task<(bool, string)> InitGeneratePrintForm(string uri, List<T> items)
+    {
+        Serilog.Log.Debug($"Запуск метода «{nameof(InitGeneratePrintForm)}», отвечающего за формирование отчета в печатной форме.");
+
+        this.Message = string.Empty;
+        var isSuccess = false;
+        byte[] res = default;
+        try
+        {
+            res = await this.http?.SendRequestAsync<List<T>, byte[]>(uri, HttpMethod.Post, items, this.Token);
+        }
+        catch (Exception exc)
+        {
+            var mess = $"Произошла исключительная ситуация! {exc.Message}";
+            Serilog.Log.Error($"При выполнении метода «{nameof(InitGeneratePrintForm)}» в компоненте {nameof(PrintBase<T>)} {mess}");
+            return (false, mess);
+        }
+
+        if (res != null)
+        {
+            if (res != null && res?.Length > 0)
+            {
+                this.FileArray = res;
+
+                if (this.FileArray != null && this.FileArray.Length > 1)
+                {
+                    var fileName = string.Concat("Report_", items?.First(item => item != null)?.GetType()?.Name ?? string.Empty, ".xlsx");
+                    await this.DownLoadFileFromArray(fileName, this.FileArray);
+                    isSuccess = true;
+                }
+            }
+            else
+            {
+                this.Message = $"Отчет (Тип {typeof(T).Name}) не был сгенерирован ! ";
+                Serilog.Log.Error(this.Message);
+            }
+        }
+        else
+        {
+            this.Message = $"Произошла ошибка на уровне сервера !";
+            Serilog.Log.Error(this.Message);
+        }
+
+        return (isSuccess, this.Message);
+    }
+
+    /// <summary>
+    /// Метод для скачивания файла
+    /// </summary>
+    private async Task DownLoadFileFromArray(string filePath, byte[] dataBuffer) => await downloader.DownloadFile(filePath, dataBuffer);
+}

@@ -1,0 +1,149 @@
+﻿@inherits ChildComponentBaseClass
+@typeparam T
+
+
+    @if (this.IsRender)
+    {
+        <AuthorizeView>
+            <ModalWindowWithEventCallback Title="Выберите действие"
+                                          InvokeParentHandlerwithUpdParent="@(async () => { this.IsRender = false; 
+                                                                                            if(this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                                await this.InvokeParentHendlerCancel.InvokeAsync();})">
+            <div class="stickyBottomContainer" style="top: 0vh !important;">
+                    @{
+                        List<ButtonBaseClass> buttonBaseClassList = new();
+                        //
+                        ButtonBaseClass b1 = new();
+                        b1.CallbackToParent = (() =>
+                        {
+                            this.ShowStatusHistory = true;
+                            this.StateHasChanged();
+                        });
+                        b1.LabelForButton = "События";
+                        b1.IsActive = this.IsRender;
+                        b1.TitleIfIsActive = "Кликните для перехода к событиям";
+                        b1.TitleIfIsNonActive = "У вас недостаточные права доступа для перехода к событиям";
+                        //
+                        ButtonBaseClass b2 = new();
+                        b2.CallbackToParent = (async () =>
+                        {
+                            this.ShowEditItem = true;
+                            this.StateHasChanged();
+                        });
+                        b2.LabelForButton = "Редактировать";
+                        b2.IsActive = this.IsRender;
+                        b2.TitleIfIsActive = "Кликните для перехода к редактированию";
+                        b2.TitleIfIsNonActive = "У вас недостаточные права для доступа к операции редактирования";
+                        //
+                        ButtonBaseClass b3 = new();
+                        b3.CallbackToParent = (async () =>
+                        {
+                            this.ShowDeleteItem = true;
+                            this.StateHasChanged();
+                        });
+                        b3.LabelForButton = "Удалить";
+                        b3.IsActive = this.IsRender;
+                        b3.TitleIfIsActive = "Кликните для перехода к удалению";
+                        b3.TitleIfIsNonActive = "У вас недостаточные права для доступа к операции удаления";
+
+                        if (this.ChildContentStatusHistory != null)
+                            buttonBaseClassList.AddRange(new List<ButtonBaseClass> { b1 });
+
+                        if (this.ChildContentEditItem != null)
+                            buttonBaseClassList.AddRange(new List<ButtonBaseClass> { b2 });
+
+                            if (this.ChildContentDeleteItem != null)
+                            buttonBaseClassList.AddRange(new List<ButtonBaseClass> { b3 });
+                    }
+                    <ButtonContainer ButtonBaseClassList="@buttonBaseClassList"
+                                     WidthForButtonWrapper="100%">
+                    </ButtonContainer>
+                </div>
+            </ModalWindowWithEventCallback>
+        </AuthorizeView>
+        @if (this.ShowEditItem && this.ChildContentEditItem != null)
+        {
+            <ModalWindowWithEventCallback Title="@($"Редактирование {this.LableItemGenitive}")"
+                                      InvokeParentHandlerwithUpdParent="@(async() => { await ResetAll(); })">
+                @if (this.ScaffoldJCFiltersBaseCascadingParameter?.IsActive ?? false)
+                {
+                    @ChildContentEditItem
+                }
+                else
+                {
+                    <div class="validation-message-medium">
+                        Операция станет доступной после окончания инициализации коллекций, необходимых для проведения операции
+                    </div>
+                }
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.ShowStatusHistory && this.ChildContentStatusHistory != null)
+        {
+            <ModalWindowWithEventCallback Title="@($"События {this.LableItemGenitive}")"
+                                      InvokeParentHandlerwithUpdParent="@(async() => { await ResetAll(); })">
+                @if (this.ScaffoldJCFiltersBaseCascadingParameter?.IsActive ?? false)
+                {
+                    @ChildContentStatusHistory
+                }
+                else
+                {
+                    <div class="validation-message-medium">
+                        Операция станет доступной после окончания инициализации коллекций, необходимых для проведения операции
+                    </div>
+                }
+            </ModalWindowWithEventCallback>
+        }
+
+        @if (this.ShowDeleteItem && this.ChildContentDeleteItem != null)
+        {
+            <ModalWindowWithEventCallback Title="@($"Удаление {this.LableItemGenitive}")"
+                                      InvokeParentHandlerwithUpdParent="@(async() => { await ResetAll(); })">
+                @ChildContentDeleteItem
+            </ModalWindowWithEventCallback>
+        }
+}
+else
+{
+    <ProgressBarInner TitleProcess="Подождите..." />
+}
+
+
+@code {
+    [CascadingParameter]
+    public ScaffoldJCFiltersBase<T> ScaffoldJCFiltersBaseCascadingParameter { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContentEditItem { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContentDeleteItem { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContentStatusHistory { get; set; }
+
+    [Parameter]
+    public string LableItemGenitive { get; set; }
+
+    private bool ShowStatusHistory { get; set; }
+
+    private bool ShowEditItem { get; set; }
+
+    private bool ShowDeleteItem { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        this.IsRender = true;
+    }
+
+    private async Task ResetAll()
+    {
+        this.IsRender = false; 
+        this.ShowStatusHistory = false;
+        this.ShowDeleteItem = false; 
+        this.ShowEditItem = false;
+        if (this.InvokeParentHendlerCancel.HasDelegate)
+            await this.InvokeParentHendlerCancel.InvokeAsync();
+    }
+}

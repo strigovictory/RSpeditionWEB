@@ -1,0 +1,64 @@
+﻿@typeparam T where T: class, ICloneable, new()
+@inherits ScaffoldJCDeleteGroupItemsBase<T>
+@inject IApies api
+
+<CascadingValue Value="@this">
+    @if (this.IsRender)
+    {
+        <ItemsList T="@T"
+                   Items="@(this.ParentComponent?.Items ?? new())"
+                   NameItem="@this.Label"
+                   SendCheckedItemsToParent="@(async(List<T> checkedItems) => { if(this.SendCheckedItemsToParent.HasDelegate)
+                                                                                    await this.SendCheckedItemsToParent.InvokeAsync(checkedItems); })" />
+    }
+    else
+    {
+        <div id="@this.IdForProgressBar" style="display: none;">
+            <ProgressBar />
+        </div>
+    }
+
+    <div class="stickyBottomContainer" style="top: 85vh !important;">
+        <ButtonContainer ButtonBaseClassList="@this.ParentComponent.ButtonBaseClassList"
+                         WidthForButtonWrapper="10%" />
+    </div>
+
+    @if (this.ParentComponent.ShowConfermationDelete)
+    {
+        <ModalWindowWithEventCallback Title="@this.ParentComponent.Title"
+                                      InvokeParentHandlerwithUpdParent="@(async () => {this.ParentComponent.ShowConfermationDelete = false;})">
+            <div class="validation-message-medium">
+                @($"Вы подтверждаете удаление отмеченных записей в колличестве {this.ParentComponent.ItemsSelected?.Count ?? 0} шт. ?");
+
+            </div>
+            <div class="stickyBottomContainer" style="top: 85vh !important;">
+                <ButtonContainer ButtonBaseClassList="@this.ButtonBaseClassList"
+                                 WidthForButtonWrapper="70%" />
+            </div>
+        </ModalWindowWithEventCallback>
+    }
+
+    @if (this.ShowMessage)
+    {
+        <ModalWindowWithEventCallback Title="@this.Title"
+                                  InvokeParentHandlerwithUpdParent="@(async () => { this.ShowMessage = false; 
+                                                                                    this.ParentComponent.ShowConfermationDelete = false;
+                                                                                    if(this.ParentComponent.ShouldUpdateParent && this.InvokeParentHendlerAfterGroupDel.HasDelegate)
+                                                                                        await this.InvokeParentHendlerAfterGroupDel.InvokeAsync();
+                                                                                    else if(this.InvokeParentHendlerCancel.HasDelegate)
+                                                                                        await this.InvokeParentHendlerCancel.InvokeAsync(); })">
+            <ResultOperation Devider="'!'"
+                             ResList="null"
+                             ResMessage="@(this.Message ?? string.Empty)">
+            </ResultOperation>
+        </ModalWindowWithEventCallback>
+    }
+    <div id="@this.IdForProgressBar" style="display: none;">
+        <ProgressBar />
+    </div>
+</CascadingValue>
+
+
+@code {
+
+}
